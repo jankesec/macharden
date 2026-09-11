@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Service Identification -->
+    <key>Label</key>
+    <string>com.macharden.daemon</string>
+
+    <!-- Execution Command and Arguments -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>__MACHAR_BIN__</string>
+        <string>--alert</string>
+        <string>-q</string>
+        <string>-f</string>
+        <string>term</string>
+        <string>-o</string>
+        <string>~/.macharden/logs/audit.log</string>
+    </array>
+
+    <!-- Execution Environment & Priority -->
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>LowPriorityIO</key>
+    <true/>
+    <key>Nice</key>
+    <integer>10</integer>
+
+    <!-- Standard I/O Logging (Directed to ~/.macharden/logs/) -->
+    <key>StandardOutPath</key>
+    <string>~/.macharden/logs/macharden.stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>~/.macharden/logs/macharden.stderr.log</string>
+
+    <!-- Periodic Execution Schedule: Default Weekly (604800 seconds) -->
+    <!-- Custom schedules (daily, monthly, or on-login) can configure StartInterval or RunAtLoad -->
+    <key>StartInterval</key>
+    <integer>604800</integer>
+</dict>
+</plist>

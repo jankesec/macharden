@@ -1,0 +1,746 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "metadata": {
+    "name": "macharden-compliance-mappings",
+    "version": "1.0.0",
+    "description": "Enterprise security compliance and regulatory framework mappings for macOS hardening checks",
+    "frameworks": {
+      "cis": {
+        "name": "CIS Apple macOS Benchmark",
+        "standard": "CIS macOS 14.0 Sonoma / 15.0 Sequoia Benchmark v3.0.0",
+        "organization": "Center for Internet Security",
+        "url": "https://www.cisecurity.org/benchmark/apple_os"
+      },
+      "nist": {
+        "name": "NIST SP 800-53 Rev. 5",
+        "standard": "Security and Privacy Controls for Information Systems and Organizations",
+        "organization": "National Institute of Standards and Technology",
+        "url": "https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final"
+      },
+      "mitre": {
+        "name": "MITRE ATT&CK Matrix for macOS",
+        "standard": "Enterprise ATT&CK Matrix v14.1 (macOS Platform)",
+        "organization": "MITRE Corporation",
+        "url": "https://attack.mitre.org/matrices/enterprise/macos/"
+      }
+    }
+  },
+  "mappings": {
+    "HARD-01": {
+      "title": "System Integrity Protection (SIP)",
+      "category": "hardening",
+      "cis": {
+        "id": "5.1.2",
+        "section": "5.1 System Integrity",
+        "title": "Ensure System Integrity Protection is enabled",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["SI-7", "CM-6", "AC-3"],
+        "primary": "SI-7",
+        "family": "System and Information Integrity",
+        "title": "Software, Firmware, and Information Integrity"
+      },
+      "mitre": {
+        "tactics": ["Defense Evasion", "Privilege Escalation"],
+        "primary_technique": "T1562.001",
+        "techniques": [
+          {
+            "id": "T1562.001",
+            "name": "Impair Defenses: Disable or Modify Tools"
+          },
+          {
+            "id": "T1548",
+            "name": "Abuse Elevation Control Mechanism"
+          }
+        ]
+      }
+    },
+    "HARD-02": {
+      "title": "FileVault Full Disk Encryption",
+      "category": "hardening",
+      "cis": {
+        "id": "2.6.1",
+        "section": "2.6 FileVault",
+        "title": "Ensure FileVault is enabled",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["SC-28", "SC-13", "MP-4"],
+        "primary": "SC-28",
+        "family": "System and Communications Protection",
+        "title": "Protection of Information at Rest"
+      },
+      "mitre": {
+        "tactics": ["Collection", "Initial Access"],
+        "primary_technique": "T1005",
+        "techniques": [
+          {
+            "id": "T1005",
+            "name": "Data from Local System"
+          },
+          {
+            "id": "T1200",
+            "name": "Hardware Additions / Physical Access"
+          }
+        ]
+      }
+    },
+    "HARD-03": {
+      "title": "Gatekeeper App Assessment",
+      "category": "hardening",
+      "cis": {
+        "id": "5.2.1",
+        "section": "5.2 Gatekeeper",
+        "title": "Ensure Gatekeeper is enabled",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["CM-10", "CM-11", "SI-4", "SC-18"],
+        "primary": "CM-10",
+        "family": "Configuration Management",
+        "title": "Software Usage Restrictions"
+      },
+      "mitre": {
+        "tactics": ["Defense Evasion", "Execution"],
+        "primary_technique": "T1553.001",
+        "techniques": [
+          {
+            "id": "T1553.001",
+            "name": "Subvert Trust Controls: Gatekeeper Bypass"
+          },
+          {
+            "id": "T1204.002",
+            "name": "User Execution: Malicious File"
+          }
+        ]
+      }
+    },
+    "HARD-04": {
+      "title": "Screen Lock Password Requirement",
+      "category": "hardening",
+      "cis": {
+        "id": "2.3.1",
+        "section": "2.3 Screen Saver & Lock",
+        "title": "Ensure an inactivity interval of 20 minutes or less and immediate password prompt is configured",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["AC-11", "AC-11(1)", "IA-2"],
+        "primary": "AC-11",
+        "family": "Access Control",
+        "title": "Device Lock"
+      },
+      "mitre": {
+        "tactics": ["Initial Access", "Defense Evasion"],
+        "primary_technique": "T1401",
+        "techniques": [
+          {
+            "id": "T1401",
+            "name": "Lost or Stolen Device"
+          },
+          {
+            "id": "T1078",
+            "name": "Valid Accounts"
+          }
+        ]
+      }
+    },
+    "HARD-05": {
+      "title": "Guest Account Status",
+      "category": "hardening",
+      "cis": {
+        "id": "6.1.1",
+        "section": "6.1 User Accounts",
+        "title": "Ensure Guest account is disabled",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["AC-2", "AC-3", "AC-14", "IA-2"],
+        "primary": "AC-2",
+        "family": "Access Control",
+        "title": "Account Management"
+      },
+      "mitre": {
+        "tactics": ["Initial Access", "Persistence", "Privilege Escalation"],
+        "primary_technique": "T1078.001",
+        "techniques": [
+          {
+            "id": "T1078.001",
+            "name": "Valid Accounts: Default Accounts"
+          },
+          {
+            "id": "T1078.003",
+            "name": "Valid Accounts: Local Accounts"
+          }
+        ]
+      }
+    },
+    "HARD-06": {
+      "title": "Automatic Software Updates",
+      "category": "hardening",
+      "cis": {
+        "id": "1.1",
+        "section": "1.1 Software Updates",
+        "title": "Ensure Auto Update and Download New Updates is enabled",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["SI-2", "CM-3", "SI-5"],
+        "primary": "SI-2",
+        "family": "System and Information Integrity",
+        "title": "Flaw Remediation"
+      },
+      "mitre": {
+        "tactics": ["Initial Access", "Privilege Escalation"],
+        "primary_technique": "T1190",
+        "techniques": [
+          {
+            "id": "T1190",
+            "name": "Exploit Public-Facing Application"
+          },
+          {
+            "id": "T1068",
+            "name": "Exploitation for Privilege Escalation"
+          }
+        ]
+      }
+    },
+    "HARD-07": {
+      "title": "Unnecessary Sharing Services",
+      "category": "hardening",
+      "cis": {
+        "id": "2.3.3.3",
+        "section": "2.3 Sharing Services",
+        "title": "Ensure File Sharing, Remote Login, and Screen Sharing are disabled",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["CM-7", "AC-17", "SC-7"],
+        "primary": "CM-7",
+        "family": "Configuration Management",
+        "title": "Least Functionality"
+      },
+      "mitre": {
+        "tactics": ["Lateral Movement", "Initial Access"],
+        "primary_technique": "T1021.002",
+        "techniques": [
+          {
+            "id": "T1021.001",
+            "name": "Remote Services: Remote Desktop Protocol / Screen Sharing"
+          },
+          {
+            "id": "T1021.002",
+            "name": "Remote Services: SMB/Windows Admin Shares"
+          },
+          {
+            "id": "T1021.004",
+            "name": "Remote Services: SSH"
+          },
+          {
+            "id": "T1210",
+            "name": "Exploitation of Remote Services"
+          }
+        ]
+      }
+    },
+    "NET-01": {
+      "title": "Application Firewall Status",
+      "category": "network",
+      "cis": {
+        "id": "3.1",
+        "section": "3.1 Firewall",
+        "title": "Ensure Firewall is enabled",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["SC-7", "SC-7(5)", "AC-4"],
+        "primary": "SC-7",
+        "family": "System and Communications Protection",
+        "title": "Boundary Protection"
+      },
+      "mitre": {
+        "tactics": ["Defense Evasion", "Discovery"],
+        "primary_technique": "T1562.004",
+        "techniques": [
+          {
+            "id": "T1562.004",
+            "name": "Impair Defenses: Disable or Modify System Firewall"
+          },
+          {
+            "id": "T1049",
+            "name": "System Network Connections Discovery"
+          }
+        ]
+      }
+    },
+    "NET-02": {
+      "title": "Firewall Stealth Mode",
+      "category": "network",
+      "cis": {
+        "id": "3.2",
+        "section": "3.2 Firewall",
+        "title": "Ensure Firewall Stealth Mode is enabled",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["SC-7(8)", "CM-6", "SC-5"],
+        "primary": "SC-7",
+        "family": "System and Communications Protection",
+        "title": "Boundary Protection"
+      },
+      "mitre": {
+        "tactics": ["Reconnaissance", "Discovery"],
+        "primary_technique": "T1595.001",
+        "techniques": [
+          {
+            "id": "T1595.001",
+            "name": "Active Scanning: Scanning IP Blocks"
+          },
+          {
+            "id": "T1046",
+            "name": "Network Service Discovery"
+          }
+        ]
+      }
+    },
+    "NET-03": {
+      "title": "Firewall Permissive Exceptions",
+      "category": "network",
+      "cis": {
+        "id": "3.3",
+        "section": "3.3 Firewall",
+        "title": "Ensure Firewall is configured to block incoming connections for unapproved applications",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["CM-7", "AC-4", "SC-7"],
+        "primary": "CM-7",
+        "family": "Configuration Management",
+        "title": "Least Functionality"
+      },
+      "mitre": {
+        "tactics": ["Execution", "Command and Control"],
+        "primary_technique": "T1059.004",
+        "techniques": [
+          {
+            "id": "T1059.004",
+            "name": "Command and Scripting Interpreter: Unix Shell"
+          },
+          {
+            "id": "T1059.006",
+            "name": "Command and Scripting Interpreter: Python"
+          },
+          {
+            "id": "T1571",
+            "name": "Non-Standard Port"
+          }
+        ]
+      }
+    },
+    "NET-04": {
+      "title": "BPF Packet Capture Permissions",
+      "category": "network",
+      "cis": {
+        "id": "4.1",
+        "section": "4.1 Device Security",
+        "title": "Audit and restrict packet capture device permissions (/dev/bpf*)",
+        "profile": "Level 2"
+      },
+      "nist": {
+        "controls": ["AC-3", "AC-6", "SC-8", "AU-9"],
+        "primary": "AC-6",
+        "family": "Access Control",
+        "title": "Least Privilege"
+      },
+      "mitre": {
+        "tactics": ["Credential Access", "Discovery"],
+        "primary_technique": "T1040",
+        "techniques": [
+          {
+            "id": "T1040",
+            "name": "Network Sniffing"
+          },
+          {
+            "id": "T1548",
+            "name": "Abuse Elevation Control Mechanism"
+          }
+        ]
+      }
+    },
+    "NET-05": {
+      "title": "/etc/hosts Loopback Integrity",
+      "category": "network",
+      "cis": {
+        "id": "4.4",
+        "section": "4.4 Network Configuration",
+        "title": "Ensure local host resolution and system integrity in /etc/hosts",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["SC-20", "SC-21", "SI-7"],
+        "primary": "SC-20",
+        "family": "System and Communications Protection",
+        "title": "Secure Name / Address Resolution Service"
+      },
+      "mitre": {
+        "tactics": ["Impact", "Command and Control"],
+        "primary_technique": "T1565.001",
+        "techniques": [
+          {
+            "id": "T1565.001",
+            "name": "Data Manipulation: Stored Data Manipulation"
+          },
+          {
+            "id": "T1071",
+            "name": "Application Layer Protocol: DNS / Name Resolution Spoofing"
+          }
+        ]
+      }
+    },
+    "NET-06": {
+      "title": "Wildcard Exposed TCP Listeners",
+      "category": "network",
+      "cis": {
+        "id": "3.4",
+        "section": "3.4 Network Services",
+        "title": "Restrict network listening services and ensure binding to localhost",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["CM-7", "SC-7", "AC-4"],
+        "primary": "CM-7",
+        "family": "Configuration Management",
+        "title": "Least Functionality"
+      },
+      "mitre": {
+        "tactics": ["Discovery", "Initial Access"],
+        "primary_technique": "T1046",
+        "techniques": [
+          {
+            "id": "T1046",
+            "name": "Network Service Discovery"
+          },
+          {
+            "id": "T1190",
+            "name": "Exploit Public-Facing Application"
+          }
+        ]
+      }
+    },
+    "SEC-01": {
+      "title": "Plaintext API Keys in Shell Profiles",
+      "category": "secrets",
+      "cis": {
+        "id": "5.1.4",
+        "section": "5.1 User Accounts & Environment",
+        "title": "Ensure system and user initialization files have restrictive permissions and contain no secrets",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["IA-5", "IA-5(1)", "AC-6", "SC-28"],
+        "primary": "IA-5",
+        "family": "Identification and Authentication",
+        "title": "Authenticator Management"
+      },
+      "mitre": {
+        "tactics": ["Credential Access"],
+        "primary_technique": "T1552.001",
+        "techniques": [
+          {
+            "id": "T1552.001",
+            "name": "Unsecured Credentials: Credentials in Files"
+          },
+          {
+            "id": "T1552.003",
+            "name": "Unsecured Credentials: Bash History / Shell Config"
+          }
+        ]
+      }
+    },
+    "SEC-02": {
+      "title": "Exposed .env Configuration Files",
+      "category": "secrets",
+      "cis": {
+        "id": "5.1.5",
+        "section": "5.1 User Accounts & Environment",
+        "title": "Restrict access to configuration files and sensitive application repositories",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["AC-3", "IA-5", "SC-28"],
+        "primary": "AC-3",
+        "family": "Access Control",
+        "title": "Access Enforcement"
+      },
+      "mitre": {
+        "tactics": ["Credential Access", "Discovery"],
+        "primary_technique": "T1552.001",
+        "techniques": [
+          {
+            "id": "T1552.001",
+            "name": "Unsecured Credentials: Credentials in Files"
+          },
+          {
+            "id": "T1083",
+            "name": "File and Directory Discovery"
+          }
+        ]
+      }
+    },
+    "SEC-03": {
+      "title": "Keychain Auto-Lock Timeout",
+      "category": "secrets",
+      "cis": {
+        "id": "5.7",
+        "section": "5.7 Keychain",
+        "title": "Ensure inactivity lock for keychain is configured",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["AC-11", "AC-12", "IA-5"],
+        "primary": "AC-11",
+        "family": "Access Control",
+        "title": "Device Lock"
+      },
+      "mitre": {
+        "tactics": ["Credential Access"],
+        "primary_technique": "T1555.001",
+        "techniques": [
+          {
+            "id": "T1555.001",
+            "name": "Credentials from Password Stores: Keychain"
+          },
+          {
+            "id": "T1555",
+            "name": "Credentials from Password Stores"
+          }
+        ]
+      }
+    },
+    "SEC-04": {
+      "title": "Kernel Core Dumps",
+      "category": "secrets",
+      "cis": {
+        "id": "5.16",
+        "section": "5.16 System Integrity",
+        "title": "Ensure system integrity and disable core dumps",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["SC-28", "SI-11", "AC-3"],
+        "primary": "SC-28",
+        "family": "System and Communications Protection",
+        "title": "Protection of Information at Rest"
+      },
+      "mitre": {
+        "tactics": ["Collection", "Credential Access"],
+        "primary_technique": "T1005",
+        "techniques": [
+          {
+            "id": "T1005",
+            "name": "Data from Local System"
+          },
+          {
+            "id": "T1003",
+            "name": "Credential Dumping"
+          },
+          {
+            "id": "T1552",
+            "name": "Unsecured Credentials"
+          }
+        ]
+      }
+    },
+    "SEC-05": {
+      "title": "SSH Keys and Config Permissions",
+      "category": "secrets",
+      "cis": {
+        "id": "5.1.6",
+        "section": "5.1 User Accounts & Environment",
+        "title": "Ensure SSH directory and private key permissions are configured",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["AC-3", "AC-6", "IA-5"],
+        "primary": "AC-3",
+        "family": "Access Control",
+        "title": "Access Enforcement"
+      },
+      "mitre": {
+        "tactics": ["Credential Access", "Defense Evasion"],
+        "primary_technique": "T1552.004",
+        "techniques": [
+          {
+            "id": "T1552.004",
+            "name": "Unsecured Credentials: Private Keys"
+          },
+          {
+            "id": "T1078",
+            "name": "Valid Accounts"
+          }
+        ]
+      }
+    },
+    "PERS-01": {
+      "title": "LaunchAgents Persistence Review",
+      "category": "persistence",
+      "cis": {
+        "id": "2.9",
+        "section": "2.9 Startup Services",
+        "title": "Audit LaunchAgents for unauthorized persistence items",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["CM-6", "CM-11", "SI-4"],
+        "primary": "CM-11",
+        "family": "Configuration Management",
+        "title": "User-Installed Software"
+      },
+      "mitre": {
+        "tactics": ["Persistence", "Privilege Escalation"],
+        "primary_technique": "T1543.001",
+        "techniques": [
+          {
+            "id": "T1543.001",
+            "name": "Create or Modify System Process: Launch Agent"
+          },
+          {
+            "id": "T1547.011",
+            "name": "Boot or Logon Autostart Execution: Plist Modification"
+          }
+        ]
+      }
+    },
+    "PERS-02": {
+      "title": "System LaunchDaemons Review",
+      "category": "persistence",
+      "cis": {
+        "id": "2.11",
+        "section": "2.11 System Daemons",
+        "title": "Audit LaunchDaemons for unauthorized system services",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["CM-6", "CM-7", "SI-4"],
+        "primary": "CM-7",
+        "family": "Configuration Management",
+        "title": "Least Functionality"
+      },
+      "mitre": {
+        "tactics": ["Persistence", "Privilege Escalation"],
+        "primary_technique": "T1543.004",
+        "techniques": [
+          {
+            "id": "T1543.004",
+            "name": "Create or Modify System Process: Launch Daemon"
+          }
+        ]
+      }
+    },
+    "PERS-03": {
+      "title": "Scheduled Cron Jobs",
+      "category": "persistence",
+      "cis": {
+        "id": "2.8",
+        "section": "2.8 Task Scheduling",
+        "title": "Audit and restrict cron and at tasks",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["CM-6", "CM-7", "SI-4"],
+        "primary": "CM-6",
+        "family": "Configuration Management",
+        "title": "Configuration Settings"
+      },
+      "mitre": {
+        "tactics": ["Execution", "Persistence", "Privilege Escalation"],
+        "primary_technique": "T1053.003",
+        "techniques": [
+          {
+            "id": "T1053.003",
+            "name": "Scheduled Task/Job: Cron"
+          }
+        ]
+      }
+    },
+    "PERS-04": {
+      "title": "User Login Items",
+      "category": "persistence",
+      "cis": {
+        "id": "2.7",
+        "section": "2.7 Startup Items",
+        "title": "Audit Login Items for unauthorized autostart applications",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["CM-6", "CM-11", "AC-3"],
+        "primary": "CM-11",
+        "family": "Configuration Management",
+        "title": "User-Installed Software"
+      },
+      "mitre": {
+        "tactics": ["Persistence", "Privilege Escalation"],
+        "primary_technique": "T1547.015",
+        "techniques": [
+          {
+            "id": "T1547.015",
+            "name": "Boot or Logon Autostart Execution: Login Items"
+          }
+        ]
+      }
+    },
+    "PERS-05": {
+      "title": "SSH Authorized Public Keys",
+      "category": "persistence",
+      "cis": {
+        "id": "5.1.7",
+        "section": "5.1 User Accounts & Access",
+        "title": "Audit SSH authorized_keys and access controls",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["AC-3", "AC-17", "IA-5"],
+        "primary": "AC-17",
+        "family": "Access Control",
+        "title": "Remote Access"
+      },
+      "mitre": {
+        "tactics": ["Persistence", "Privilege Escalation"],
+        "primary_technique": "T1098.004",
+        "techniques": [
+          {
+            "id": "T1098.004",
+            "name": "Account Manipulation: SSH Authorized Keys"
+          }
+        ]
+      }
+    },
+    "PERS-06": {
+      "title": "Sudoers Configuration & NOPASSWD Rules",
+      "category": "persistence",
+      "cis": {
+        "id": "5.3",
+        "section": "5.3 System Access & Authorization",
+        "title": "Ensure sudoers configuration requires password and restricts privileges",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["AC-6", "AC-6(1)", "IA-2"],
+        "primary": "AC-6",
+        "family": "Access Control",
+        "title": "Least Privilege"
+      },
+      "mitre": {
+        "tactics": ["Privilege Escalation", "Defense Evasion"],
+        "primary_technique": "T1548.003",
+        "techniques": [
+          {
+            "id": "T1548.003",
+            "name": "Abuse Elevation Control Mechanism: Sudo and Sudo Caching"
+          }
+        ]
+      }
+    }
+  }
+}

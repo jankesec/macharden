@@ -1,0 +1,359 @@
+.TH MACHARDEN 1 "2026-09-12" "macharden 1.0.0" "macOS Security Manual"
+.SH NAME
+macharden \- macOS Security Hardening & Audit Scanner
+.SH SYNOPSIS
+.B macharden
+[\fB\-h\fR | \fB\-\-help\fR]
+[\fB\-v\fR | \fB\-\-version\fR]
+[\fB\-c\fR | \fB\-\-category\fR \fIcategory\fR]
+[\fB\-f\fR | \fB\-\-format\fR \fIformat\fR]
+[\fB\-o\fR | \fB\-\-output\fR \fIfile\fR]
+[\fB\-q\fR | \fB\-\-quiet\fR]
+[\fB\-\-fix\fR]
+[\fB\-\-generate\-fix\fR [\fIfile\fR]]
+[\fB\-\-no\-color\fR]
+[\fB\-\-compliance\fR \fIframework\fR]
+.SH DESCRIPTION
+.B macharden
+is a modular, non-destructive security auditing, posture assessment, and
+automated remediation tool designed exclusively for Apple macOS systems
+(macOS 12 Monterey, macOS 13 Ventura, macOS 14 Sonoma, macOS 15 Sequoia,
+and later).
+.PP
+The tool performs comprehensive security health checks against system
+configuration settings, system services, networking daemons, local storage
+security, exposed credentials, and persistence mechanisms. Results are
+evaluated against industry-standard benchmarks such as CIS (Center for
+Internet Security), NIST SP 800-53, and the MITRE ATT&CK Matrix for
+Enterprise (macOS).
+.PP
+By default,
+.B macharden
+runs purely in read-only inspection mode. It computes an aggregate, weighted
+.B Hardening Index
+(0.0% to 100.0%) reflecting the overall defense posture of the host, details
+individual findings with actionable rationales, and optionally outputs reports
+to terminal, JSON, Markdown, or HTML formats.
+.PP
+When remediation is needed,
+.B macharden
+can either interactively prompt and execute fixes (\fB\-\-fix\fR) or generate
+a standalone, self-contained shell script (\fB\-\-generate\-fix\fR) for review
+and execution under administrative privileges.
+.SH OPTIONS
+.TP
+.BR \-h ", " \-\-help
+Display a summary of available command-line options and exit.
+.TP
+.BR \-v ", " \-\-version
+Display the current program version and exit.
+.TP
+.BR \-c ", " \-\-category " " \fIcategory\fR
+Execute audit checks only for the specified security category. Supported values:
+.RS
+.TP
+.B hardening
+Core operating system configuration, System Integrity Protection (SIP),
+Gatekeeper, FileVault full-disk encryption, automatic software updates,
+firmware password, Secure Boot, and screen lock timeouts.
+.TP
+.B network
+Application Firewall, stealth mode (ICMP echo suppression), open listening
+ports, Remote Login (SSH), Apple Remote Desktop, AirDrop, Internet Sharing,
+and file sharing daemons.
+.TP
+.B secrets
+Detection of unencrypted SSH private keys, AWS and cloud API credentials,
+cleartext tokens in shell history files, exposed configuration files, and
+keychain permissions.
+.TP
+.B persistence
+Detection of unauthorized or suspicious LaunchDaemons, LaunchAgents,
+privileged helper tools, user/system crontabs, and Login Items.
+.TP
+.B all
+Execute all audit checks across every category (default behavior).
+.RE
+.TP
+.BR \-f ", " \-\-format " " \fIformat\fR
+Select the output report presentation format. Supported values:
+.RS
+.TP
+.B term
+Human-readable, colorized terminal summary featuring tables, categorized status
+banners, and hardening grade indicators (default).
+.TP
+.B json
+Machine-readable, structured JSON output adhering to a validated schema,
+containing detailed metadata, system telemetry, individual check statuses,
+weights, and raw remediation commands. Ideal for CI/CD integration, SIEM
+ingestion, and automated pipelines.
+.TP
+.B markdown
+Comprehensive GitHub-flavored Markdown document containing executive summaries,
+benchmark alignment matrices, and copy-pasteable remediation playbooks.
+.TP
+.B html
+Standalone, single-file HTML report featuring responsive CSS styling, score
+dashboard cards, filtering, and visual status badges suitable for management
+review and compliance archival.
+.RE
+.TP
+.BR \-o ", " \-\-output " " \fIfile\fR
+Write the report output to the specified filesystem path instead of stdout.
+When saving a \fBterm\fR format report to a file, ANSI escape sequences are
+automatically stripped to maintain clean plaintext formatting.
+.TP
+.BR \-q ", " \-\-quiet
+Minimal output mode. Suppresses verbose per-check progress indicators and ASCII
+art banners, printing only the final executive summary and score.
+.TP
+.B \-\-fix
+Interactively step through each failed check or warning that provides an
+automated fix. Prompts the user before applying each command, displaying the
+remediation command and rationale. Supports applying individual fixes (\fBy\fR),
+skipping (\fBn\fR), applying all remaining fixes (\fBa\fR), or aborting
+(\fBq\fR).
+.TP
+.BR \-\-generate\-fix " [" \fIfile\fR ]
+Generate a standalone, executable Zsh remediation script containing all
+corrective commands necessary to resolve detected failures and warnings.
+If \fIfile\fR is omitted, a default filename (such as \fBfix_hardening.sh\fR or
+a timestamped variant) is created in the current working directory. The
+generated script is marked executable (\fBchmod +x\fR) and includes pre-flight
+safety checks.
+.TP
+.B \-\-no\-color
+Disable ANSI color codes and text formatting in terminal output. This can also
+be enabled by setting the \fBNO_COLOR\fR environment variable to any non-empty
+value.
+.TP
+.BR \-\-compliance " " \fIframework\fR
+Filter or align the audit checks with a specific security compliance framework:
+.RS
+.TP
+.B cis
+Center for Internet Security (CIS) Apple macOS Benchmark.
+.TP
+.B nist
+National Institute of Standards and Technology (NIST) Special Publication
+800-53 Rev. 5 and the NIST Cybersecurity Framework (CSF).
+.TP
+.B mitre
+MITRE ATT&CK Matrix for Enterprise (macOS Tactical Techniques).
+.RE
+.SH AUDIT CATEGORIES
+.B macharden
+organizes security checks into four primary domains:
+.TP
+.B 1. System Hardening (\fBhardening\fR)
+Evaluates critical macOS system integrity settings. Verifies that System
+Integrity Protection (SIP) is fully enabled, Gatekeeper is active with
+developer validation, FileVault full-disk encryption is active, Automatic
+Software Updates and security response updates are configured, screen saver
+password delay is set to immediate, Remote Apple Events are disabled, and
+firmware/Secure Boot integrity is maintained.
+.TP
+.B 2. Network Security (\fBnetwork\fR)
+Evaluates local network exposure and daemon attack surfaces. Checks that the
+macOS Application Firewall is enabled, stealth mode is enabled to drop
+unsolicited ICMP and probe packets, unnecessary open listening ports (TCP/UDP)
+are identified, SSH Remote Login is either secured or disabled, Remote Desktop
+/ Apple Remote Desktop is disabled if not required, AirDrop is restricted,
+and Internet Sharing is turned off.
+.TP
+.B 3. Secrets & Credentials (\fBsecrets\fR)
+Inspects the filesystem and user environment for exposed secrets that could
+lead to credential harvesting. Scans for unencrypted private SSH keys, AWS/cloud
+API credentials in plain files, tokens leaked into shell history files
+(\fB.zsh_history\fR, \fB.bash_history\fR), world-readable dotfiles, and
+insecure file permissions on sensitive directories.
+.TP
+.B 4. Persistence Mechanisms (\fBpersistence\fR)
+Scans locations frequently abused by malware and attackers for persistence
+on macOS. Inspects LaunchDaemons (\fB/Library/LaunchDaemons\fR,
+\fB/System/Library/LaunchDaemons\fR), LaunchAgents
+(\fB~/Library/LaunchAgents\fR, \fB/Library/LaunchAgents\fR), scheduled cron
+jobs, Login Items, and third-party kernel/system extensions.
+.SH SCORING ALGORITHM
+The
+.B Hardening Index
+is calculated as a normalized percentage (0.0% to 100.0%) based on weighted
+evaluations:
+.IP \(bu 3
+Each check is assigned a criticality weight (\fBW\fR) between 1 and 10 points.
+.IP \(bu 3
+Checks with status \fBPASS\fR earn 100% of their weight.
+.IP \(bu 3
+Checks with status \fBWARN\fR earn 50% of their weight.
+.IP \(bu 3
+Checks with status \fBFAIL\fR earn 0% of their weight.
+.IP \(bu 3
+Checks with status \fBINFO\fR or \fBSUGG\fR are excluded from the total point
+denominator to ensure informational items do not unfairly penalize system score.
+.PP
+The resulting Hardening Index maps to a grade:
+.RS
+.TP
+.B 90.0% \- 100.0%
+Grade A (Hardened / Excellent Posture)
+.TP
+.B 80.0% \- 89.9%
+Grade B (Good Posture / Minor Hardening Needed)
+.TP
+.B 70.0% \- 79.9%
+Grade C (Fair Posture / Several Deficiencies)
+.TP
+.B 60.0% \- 69.9%
+Grade D (Poor Posture / Significant Risk)
+.TP
+.B Below 60.0%
+Grade F (Critical Risk / Urgent Remediation Required)
+.RE
+.SH EXIT CODES
+.TP
+.B 0
+Successful scan execution. All checks passed, or the Hardening Index meets the
+acceptable threshold without unhandled errors.
+.TP
+.B 1
+Audit completed with critical security failures, hardening score below
+acceptable threshold, invalid command-line invocation, or running on an
+unsupported operating system.
+.TP
+.B 2
+Insufficient permissions to execute certain checks or remediations, or
+operation interrupted by user (SIGINT/SIGTERM).
+.SH ENVIRONMENT
+.TP
+.B NO_COLOR
+If set to any non-empty value, disables colorized ANSI terminal output
+(equivalent to \fB\-\-no\-color\fR).
+.TP
+.B MACHAR_NO_COLOR
+When set to 1, forces monochrome terminal mode.
+.TP
+.B MACHAR_QUIET
+When set to 1, suppresses detailed check output and displays only summary
+results.
+.SH FILES
+.TP
+.I /usr/local/bin/macharden
+The primary executable wrapper and orchestrator.
+.TP
+.I /usr/local/lib/macharden/
+Directory containing core engine modules and category check scripts:
+.RS
+.TP
+.I ui.sh
+Terminal styling, ANSI palettes, progress displays, and banners.
+.TP
+.I engine.sh
+Check registry, execution loop, scoring calculations, and state tracking.
+.TP
+.I report.sh
+Terminal, JSON, Markdown, and HTML report formatters.
+.TP
+.I remediate.sh
+Interactive remediation runner and fix script generator.
+.TP
+.I audit_*.sh
+Modular security check definitions for hardening, network, secrets, and
+persistence.
+.RE
+.TP
+.I /usr/local/share/man/man1/macharden.1
+UNIX manual page.
+.TP
+.I /usr/local/share/zsh/site-functions/_macharden
+Native Zsh autocompletion definition.
+.TP
+.I /usr/local/share/bash-completion/completions/macharden
+Native Bash autocompletion script.
+.SH EXAMPLES
+Execute a full security audit with default colorized terminal output:
+.RS
+.PP
+.B macharden
+.RE
+.PP
+Audit only the system hardening domain:
+.RS
+.PP
+.B macharden \-c hardening
+.RE
+.PP
+Audit network exposure and export findings to a Markdown report:
+.RS
+.PP
+.B macharden \-c network \-f markdown \-o network_audit.md
+.RE
+.PP
+Run full audit, output structured JSON for SIEM or automated pipelines, and
+suppress terminal banners:
+.RS
+.PP
+.B macharden \-f json \-o audit_results.json \-q
+.RE
+.PP
+Generate a responsive HTML report for executive presentation:
+.RS
+.PP
+.B macharden \-f html \-o security_report.html
+.RE
+.PP
+Audit host compliance against the CIS Apple macOS Benchmark:
+.RS
+.PP
+.B macharden \-\-compliance cis
+.RE
+.PP
+Inspect security posture and generate a standalone remediation shell script
+without modifying system state:
+.RS
+.PP
+.B macharden \-\-generate\-fix fix_hardening.sh
+.RE
+.PP
+Interactively review and apply remediation fixes for detected vulnerabilities:
+.RS
+.PP
+.B sudo macharden \-\-fix
+.RE
+.SH SECURITY CONSIDERATIONS
+.B macharden
+is strictly non-destructive during standard audit execution. Reading
+configuration state via \fBdefaults\fR, \fBspctl\fR, \fBcsrutil\fR,
+\fBlaunchctl\fR, and network socket inspection does not alter any system files
+or runtime states.
+.PP
+Remediations applied via \fB\-\-fix\fR or through scripts created by
+\fB\-\-generate\-fix\fR frequently modify system preferences, firewall settings,
+or launch daemons. Administrative privileges (\fBsudo\fR) are required for
+applying remediations. Always review generated remediation scripts before
+executing them in production environments.
+.SH COMPATIBILITY
+Tested and verified on:
+.IP \(bu 3
+macOS 15 Sequoia
+.IP \(bu 3
+macOS 14 Sonoma
+.IP \(bu 3
+macOS 13 Ventura
+.IP \(bu 3
+macOS 12 Monterey
+.PP
+Architectures: Apple Silicon (ARM64: M1/M2/M3/M4) and Intel (x86_64).
+.SH AUTHORS
+Developed and maintained by the macharden security team.
+.SH REPORTING BUGS
+Report bugs and submit pull requests via the project repository issue tracker.
+.SH SEE ALSO
+.BR csrutil (8),
+.BR spctl (8),
+.BR fdesetup (8),
+.BR socketfilterfw (8),
+.BR launchctl (1),
+.BR defaults (1),
+.BR systemsetup (8),
+.BR system_profiler (8)

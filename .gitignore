@@ -1,0 +1,30 @@
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# macharden audit reports & generated scripts
+report.json
+report.md
+report.txt
+report_*.json
+report_*.md
+report_*.txt
+fix_hardening.sh
+macharden_fix_*.sh
+
+# Runtime & temporary working directories
+.runtime/
+tmp/
+.tmp/
+.test_tmp/
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

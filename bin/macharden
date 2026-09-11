@@ -1,0 +1,195 @@
+#!/bin/zsh
+# ==============================================================================
+# macharden - macOS Security Hardening & Audit Scanner
+# CLI Entrypoint & Execution Engine Orchestrator
+# ==============================================================================
+
+# Ensure execution under /bin/zsh even if invoked by bash or sh
+if [ -z "$ZSH_VERSION" ]; then
+    exec /bin/zsh "$0" "$@"
+fi
+
+# Configuration Defaults
+MACHAR_VERSION="1.0.0"
+MACHAR_CATEGORY="all"
+MACHAR_FORMAT="term"
+MACHAR_OUTPUT=""
+MACHAR_QUIET=0
+MACHAR_DO_FIX=0
+MACHAR_GEN_FIX=0
+MACHAR_GEN_FIX_FILE=""
+MACHAR_NO_COLOR=0
+
+# CLI Help and Usage
+show_help() {
+    cat <<EOF
+macharden - macOS Security Hardening & Audit Scanner (v${MACHAR_VERSION})
+
+Usage:
+  macharden [options]
+
+Options:
+  -h, --help                 Display this help message and exit
+  -v, --version              Print version information and exit
+  -c, --category <name>      Run specific category of audit checks
+                             Categories: hardening, network, secrets, persistence, all (default: all)
+  -f, --format <format>      Output report format: term, markdown, json (default: term)
+  -o, --output <file>        Save audit report to the specified file path
+  -q, --quiet                Minimal output, print only final executive summary
+  --fix                      Interactively prompt and apply remediation fixes for failed checks
+  --generate-fix [file]      Generate automated remediation shell script without applying
+  --no-color                 Disable ANSI terminal color output
+
+Examples:
+  macharden                                 # Run full audit suite with terminal output
+  macharden -c hardening                    # Run only hardening category checks
+  macharden -c network -f markdown -o audit.md  # Run network audit and save Markdown report
+  macharden -f json -o audit.json          # Export structured JSON audit report
+  macharden -q                              # Run quietly and display only executive summary
+  macharden --generate-fix fix.sh           # Generate standalone remediation script
+  macharden --fix                           # Interactively remediate failed security controls
+
+EOF
+}
+
+# Parse Command-Line Arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        -v|--version)
+            echo "macharden version ${MACHAR_VERSION}"
+            exit 0
+            ;;
+        -c|--category)
+            shift
+            if [[ $# -eq 0 || -z "$1" || "$1" == -* ]]; then
+                echo "Error: -c/--category requires a category name (e.g. hardening, network, secrets, persistence, all)" >&2
+                exit 1
+            fi
+            MACHAR_CATEGORY="${1:l}"
+            ;;
+        -f|--format)
+            shift
+            if [[ $# -eq 0 || -z "$1" || "$1" == -* ]]; then
+                echo "Error: -f/--format requires a format type (term, markdown, json)" >&2
+                exit 1
+            fi
+            MACHAR_FORMAT="${1:l}"
+            if [[ "$MACHAR_FORMAT" != "term" && "$MACHAR_FORMAT" != "markdown" && "$MACHAR_FORMAT" != "json" ]]; then
+                echo "Error: Invalid format '$MACHAR_FORMAT'. Supported formats: term, markdown, json" >&2
+                exit 1
+            fi
+            ;;
+        -o|--output)
+            shift
+            if [[ $# -eq 0 || -z "$1" || "$1" == -* ]]; then
+                echo "Error: -o/--output requires a target file path" >&2
+                exit 1
+            fi
+            MACHAR_OUTPUT="$1"
+            ;;
+        -q|--quiet)
+            MACHAR_QUIET=1
+            ;;
+        --no-color)
+            MACHAR_NO_COLOR=1
+            ;;
+        --fix)
+            MACHAR_DO_FIX=1
+            ;;
+        --generate-fix)
+            MACHAR_GEN_FIX=1
+            # Check if optional next argument is a filename
+            if [[ $# -gt 1 && "$2" != -* ]]; then
+                shift
+                MACHAR_GEN_FIX_FILE="$1"
+            fi
+            ;;
+        *)
+            echo "Error: Unknown option '$1'" >&2
+            echo "Run 'macharden --help' for available options." >&2
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+# Resolve paths
+SCRIPT_PATH="${(%):-%x}" 2>/dev/null || SCRIPT_PATH="$0"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+BASE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+LIB_DIR="$BASE_DIR/lib"
+
+# Ensure operating system is macOS (Darwin) for audit execution
+if [[ "$(uname -s)" != "Darwin" ]]; then
+    echo "Error: macharden audit scans are designed exclusively for macOS (Darwin). Current OS: $(uname -s)" >&2
+    exit 1
+fi
+
+# Load Core Modules
+for mod in ui.sh engine.sh report.sh remediate.sh; do
+    if [[ -f "$LIB_DIR/$mod" ]]; then
+        source "$LIB_DIR/$mod"
+    else
+        echo "Error: Required engine module '$mod' not found in $LIB_DIR" >&2
+        exit 1
+    fi
+done
+
+# Initialize UI styling
+if (( MACHAR_NO_COLOR )); then
+    ui_disable_colors
+else
+    ui_init_colors
+fi
+
+# Load all available audit modules dynamically
+for audit_file in "$LIB_DIR"/audit_*.sh; do
+    if [[ -f "$audit_file" ]]; then
+        source "$audit_file"
+    fi
+done
+
+# Display Banner for Terminal UI mode
+if [[ "$MACHAR_FORMAT" == "term" && "$MACHAR_QUIET" -eq 0 ]]; then
+    ui_banner
+fi
+
+# Execute Audit Checks
+run_audit "$MACHAR_CATEGORY"
+
+# Generate Requested Report
+case "$MACHAR_FORMAT" in
+    term)
+        if [[ -n "$MACHAR_OUTPUT" ]]; then
+            # If writing terminal report to file, strip ANSI escape codes for clean text file
+            report_terminal | sed -E $'s/\x1B\\[[0-9;]*[a-zA-Z]//g' > "$MACHAR_OUTPUT"
+            if (( ! MACHAR_QUIET )); then
+                report_terminal
+                ui_success "Audit summary saved to: ${MACHAR_OUTPUT}"
+            fi
+        else
+            report_terminal
+        fi
+        ;;
+    markdown)
+        report_markdown "$MACHAR_OUTPUT"
+        ;;
+    json)
+        report_json "$MACHAR_OUTPUT"
+        ;;
+esac
+
+# Handle Fix Generation or Interactive Remediation
+if (( MACHAR_GEN_FIX )); then
+    generate_remediation_script "$MACHAR_GEN_FIX_FILE"
+fi
+
+if (( MACHAR_DO_FIX )); then
+    apply_remediations
+fi
+
+exit 0

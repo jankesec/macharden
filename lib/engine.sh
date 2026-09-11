@@ -1,0 +1,265 @@
+#!/bin/zsh
+# ==============================================================================
+# macharden - lib/engine.sh
+# Check registration, execution engine, scoring formulas, and state management
+# ==============================================================================
+
+# Global Registry Arrays
+typeset -ga REG_IDS=()
+typeset -ga REG_CATEGORIES=()
+typeset -ga REG_TITLES=()
+typeset -ga REG_WEIGHTS=()
+typeset -ga REG_FUNCS=()
+
+# Global Audit Result Arrays
+typeset -ga RES_IDS=()
+typeset -ga RES_CATEGORIES=()
+typeset -ga RES_TITLES=()
+typeset -ga RES_STATUSES=()
+typeset -ga RES_WEIGHTS=()
+typeset -ga RES_DETAILS=()
+typeset -ga RES_REMEDIATIONS=()
+
+# Global Score and Count Metrics
+typeset -g HARDENING_INDEX=0.0
+typeset -g TOTAL_POSSIBLE_POINTS=0.0
+typeset -g EARNED_POINTS=0.0
+typeset -gi COUNT_PASS=0
+typeset -gi COUNT_WARN=0
+typeset -gi COUNT_FAIL=0
+typeset -gi COUNT_INFO=0
+typeset -gi COUNT_SUGG=0
+typeset -gi COUNT_TOTAL=0
+
+# Register an audit check with the engine
+# Usage: register_check <id> <category> <title> <weight> [func]
+register_check() {
+    local id="$1"
+    local category="$2"
+    local title="$3"
+    local weight="${4:-5}"
+    local func="${5:-}"
+
+    # Default function name if omitted
+    if [[ -z "$func" ]]; then
+        local clean_id="${id//[-\.]/_}"
+        func="audit_${clean_id}"
+    fi
+
+    REG_IDS+=("$id")
+    REG_CATEGORIES+=("$category")
+    REG_TITLES+=("$title")
+    REG_WEIGHTS+=("$weight")
+    REG_FUNCS+=("$func")
+}
+
+# Record the outcome of an audit check
+# Note: Never declare 'status' as local in zsh as it is a reserved read-only parameter ($?)
+# Usage: record_result <id> <category> <title> <status> <weight> <details> <remediation_cmd>
+record_result() {
+    local id="$1"
+    local category="$2"
+    local title="$3"
+    local raw_status="${4:u}"
+    local weight="${5:-5}"
+    local details="${6:-}"
+    local remediation="${7:-}"
+
+    local normalized_status="INFO"
+    case "$raw_status" in
+        PASS|OK|SUCCESS)
+            normalized_status="PASS"
+            ;;
+        WARN|WARNING)
+            normalized_status="WARN"
+            ;;
+        FAIL|FAILURE|ERROR)
+            normalized_status="FAIL"
+            ;;
+        INFO|INFORMATIONAL)
+            normalized_status="INFO"
+            ;;
+        SUGG|SUGGESTION|RECOMMENDATION)
+            normalized_status="SUGG"
+            ;;
+        *)
+            normalized_status="INFO"
+            ;;
+    esac
+
+    RES_IDS+=("$id")
+    RES_CATEGORIES+=("$category")
+    RES_TITLES+=("$title")
+    RES_STATUSES+=("$normalized_status")
+    RES_WEIGHTS+=("$weight")
+    RES_DETAILS+=("$details")
+    RES_REMEDIATIONS+=("$remediation")
+
+    case "$normalized_status" in
+        PASS) (( ++COUNT_PASS )) ;;
+        WARN) (( ++COUNT_WARN )) ;;
+        FAIL) (( ++COUNT_FAIL )) ;;
+        INFO) (( ++COUNT_INFO )) ;;
+        SUGG) (( ++COUNT_SUGG )) ;;
+    esac
+    (( ++COUNT_TOTAL ))
+
+    # Live UI output when running in terminal format unless quiet mode is active
+    if [[ "${MACHAR_FORMAT:-term}" == "term" && "${MACHAR_QUIET:-0}" -eq 0 ]]; then
+        ui_result "$normalized_status" "$id" "$title" "$details"
+    fi
+}
+
+# Calculate the Hardening Index score based on weights
+# Formula:
+#   PASS: 100% weight
+#   WARN:  50% weight
+#   FAIL:   0% weight
+#   INFO / SUGG: Neutral (excluded from total and earned points)
+#   Index = (earned_points / total_possible_points) * 100
+calculate_hardening_index() {
+    local total=0.0
+    local earned=0.0
+    local n=${#RES_IDS[@]}
+
+    for (( i = 1; i <= n; i++ )); do
+        local st="${RES_STATUSES[i]}"
+        local w="${RES_WEIGHTS[i]:-5}"
+        [[ "$w" =~ ^[0-9]+(\.[0-9]+)?$ ]] || w=5.0
+
+        case "$st" in
+            PASS)
+                total=$(( total + w ))
+                earned=$(( earned + w ))
+                ;;
+            WARN)
+                total=$(( total + w ))
+                earned=$(( earned + (w * 0.5) ))
+                ;;
+            FAIL)
+                total=$(( total + w ))
+                ;;
+            INFO|SUGG)
+                # Neutral, does not penalize score
+                ;;
+        esac
+    done
+
+    TOTAL_POSSIBLE_POINTS=$(printf "%.1f" "$total")
+    EARNED_POINTS=$(printf "%.1f" "$earned")
+
+    if (( total > 0.0 )); then
+        local raw_index=$(( (earned / total) * 100.0 ))
+        HARDENING_INDEX=$(printf "%.1f" "$raw_index")
+    else
+        HARDENING_INDEX=100.0
+    fi
+}
+
+# Run the audit suite, optionally filtered by category
+# Usage: run_audit [category]
+run_audit() {
+    local filter_cat="${1:-all}"
+    filter_cat="${filter_cat:l}"
+
+    # Reset result tracking
+    RES_IDS=()
+    RES_CATEGORIES=()
+    RES_TITLES=()
+    RES_STATUSES=()
+    RES_WEIGHTS=()
+    RES_DETAILS=()
+    RES_REMEDIATIONS=()
+
+    COUNT_PASS=0
+    COUNT_WARN=0
+    COUNT_FAIL=0
+    COUNT_INFO=0
+    COUNT_SUGG=0
+    COUNT_TOTAL=0
+
+    local num_checks=${#REG_IDS[@]}
+    if (( num_checks == 0 )); then
+        if [[ "${MACHAR_FORMAT:-term}" == "term" && "${MACHAR_QUIET:-0}" -eq 0 ]]; then
+            ui_warn "No audit checks are currently registered."
+        fi
+        calculate_hardening_index
+        return 0
+    fi
+
+    local current_section=""
+
+    for (( i = 1; i <= num_checks; i++ )); do
+        local id="${REG_IDS[i]}"
+        local cat="${REG_CATEGORIES[i]}"
+        local cat_lower="${cat:l}"
+        local title="${REG_TITLES[i]}"
+        local weight="${REG_WEIGHTS[i]:-5}"
+        local func="${REG_FUNCS[i]}"
+
+        # Category filter check
+        if [[ "$filter_cat" != "all" && "$cat_lower" != "$filter_cat" ]]; then
+            continue
+        fi
+
+        # Print section banner if new category encountered
+        if [[ "${MACHAR_FORMAT:-term}" == "term" && "${MACHAR_QUIET:-0}" -eq 0 ]]; then
+            if [[ "$cat" != "$current_section" ]]; then
+                current_section="$cat"
+                local section_display="${(C)cat} Audit Checks"
+                ui_section "$section_display"
+            fi
+        fi
+
+        # Find the callable function
+        local clean_id="${id//[-\.]/_}"
+        local clean_id_lower="${clean_id:l}"
+        local clean_id_upper="${clean_id:u}"
+        local func_lower="${func:l}"
+        local callable=""
+
+        if typeset -f "$func" >/dev/null 2>&1; then
+            callable="$func"
+        elif typeset -f "$func_lower" >/dev/null 2>&1; then
+            callable="$func_lower"
+        elif typeset -f "audit_${clean_id}" >/dev/null 2>&1; then
+            callable="audit_${clean_id}"
+        elif typeset -f "audit_${clean_id_lower}" >/dev/null 2>&1; then
+            callable="audit_${clean_id_lower}"
+        elif typeset -f "audit_${clean_id_upper}" >/dev/null 2>&1; then
+            callable="audit_${clean_id_upper}"
+        elif typeset -f "check_${clean_id}" >/dev/null 2>&1; then
+            callable="check_${clean_id}"
+        elif typeset -f "check_${clean_id_lower}" >/dev/null 2>&1; then
+            callable="check_${clean_id_lower}"
+        elif typeset -f "check_${clean_id_upper}" >/dev/null 2>&1; then
+            callable="check_${clean_id_upper}"
+        elif typeset -f "audit_${id}" >/dev/null 2>&1; then
+            callable="audit_${id}"
+        elif typeset -f "check_${id}" >/dev/null 2>&1; then
+            callable="check_${id}"
+        fi
+
+        local pre_count=${#RES_IDS[@]}
+
+        if [[ -n "$callable" ]]; then
+            # Execute audit function
+            "$callable" "$id" "$cat" "$title" "$weight"
+            local exit_code=$?
+
+            # Fallback if function did not explicitly invoke record_result
+            if (( ${#RES_IDS[@]} == pre_count )); then
+                if (( exit_code == 0 )); then
+                    record_result "$id" "$cat" "$title" "PASS" "$weight" "Check succeeded" ""
+                else
+                    record_result "$id" "$cat" "$title" "FAIL" "$weight" "Check failed with exit code $exit_code" ""
+                fi
+            fi
+        else
+            record_result "$id" "$cat" "$title" "WARN" "$weight" "Audit implementation '$func' not found" ""
+        fi
+    done
+
+    calculate_hardening_index
+    return 0
+}

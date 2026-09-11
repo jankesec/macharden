@@ -1,0 +1,52 @@
+# bash completion for macharden                             -*- shell-script -*-
+# ==============================================================================
+# macharden - Bash Completion Script
+# Native completion definition for macOS Security Hardening & Audit Scanner
+# ==============================================================================
+
+_macharden_completions() {
+    local cur prev words cword
+    if declare -F _init_completion >/dev/null 2>&1; then
+        _init_completion -s || return
+    else
+        cur="${COMP_WORDS[COMP_CWORD]}"
+        prev="${COMP_WORDS[COMP_CWORD-1]}"
+        words=("${COMP_WORDS[@]}")
+        cword=$COMP_CWORD
+    fi
+
+    local categories="hardening network secrets persistence all"
+    local formats="term json markdown html"
+    local compliance_frameworks="cis nist mitre"
+    local all_flags="-h --help -v --version -c --category -f --format -o --output -q --quiet --fix --generate-fix --no-color --compliance"
+
+    case "${prev}" in
+        -c|--category)
+            COMPREPLY=( $(compgen -W "${categories}" -- "${cur}") )
+            return 0
+            ;;
+        -f|--format)
+            COMPREPLY=( $(compgen -W "${formats}" -- "${cur}") )
+            return 0
+            ;;
+        --compliance)
+            COMPREPLY=( $(compgen -W "${compliance_frameworks}" -- "${cur}") )
+            return 0
+            ;;
+        -o|--output|--generate-fix)
+            if declare -F _filedir >/dev/null 2>&1; then
+                _filedir
+            else
+                COMPREPLY=( $(compgen -f -- "${cur}") )
+            fi
+            return 0
+            ;;
+    esac
+
+    if [[ "${cur}" == -* ]]; then
+        COMPREPLY=( $(compgen -W "${all_flags}" -- "${cur}") )
+        return 0
+    fi
+}
+
+complete -F _macharden_completions macharden
