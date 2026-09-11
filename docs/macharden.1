@@ -13,6 +13,10 @@ macharden \- macOS Security Hardening & Audit Scanner
 [\fB\-\-generate\-fix\fR [\fIfile\fR]]
 [\fB\-\-no\-color\fR]
 [\fB\-\-compliance\fR \fIframework\fR]
+[\fB\-\-daemon\-install\fR [\fIschedule\fR]]
+[\fB\-\-daemon\-uninstall\fR]
+[\fB\-\-daemon\-status\fR]
+[\fB\-\-alert\fR]
 .SH DESCRIPTION
 .B macharden
 is a modular, non-destructive security auditing, posture assessment, and
@@ -142,6 +146,25 @@ National Institute of Standards and Technology (NIST) Special Publication
 .B mitre
 MITRE ATT&CK Matrix for Enterprise (macOS Tactical Techniques).
 .RE
+.TP
+.BR \-\-daemon\-install " [" \fIschedule\fR ]
+Install and schedule a background LaunchAgent in
+\fB~/Library/LaunchAgents/com.macharden.daemon.plist\fR to run periodic
+security audits. The optional \fIschedule\fR parameter can be \fBdaily\fR,
+\fBweekly\fR (default), \fBmonthly\fR, \fBhourly\fR, \fBon-login\fR, or an
+interval in seconds.
+.TP
+.B \-\-daemon\-uninstall
+Unload and remove the background LaunchAgent and associated scheduled tasks.
+.TP
+.B \-\-daemon\-status
+Display the current status of the background monitoring daemon, including
+LaunchAgent registration, PID, configured interval, and execution logs in
+\fB~/.macharden/logs/\fR.
+.TP
+.B \-\-alert
+Dispatch a native macOS desktop notification via Notification Center if
+critical hardening issues or secrets leaks are identified during the audit scan.
 .SH AUDIT CATEGORIES
 .B macharden
 organizes security checks into four primary domains:

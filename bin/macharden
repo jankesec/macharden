@@ -19,6 +19,10 @@ MACHAR_DO_FIX=0
 MACHAR_GEN_FIX=0
 MACHAR_GEN_FIX_FILE=""
 MACHAR_NO_COLOR=0
+MACHAR_ALERT=0
+MACHAR_DAEMON_CMD=""
+MACHAR_DAEMON_SCHEDULE="weekly"
+MACHAR_COMPLIANCE=""
 
 # CLI Help and Usage
 show_help() {
@@ -33,21 +37,33 @@ Options:
   -v, --version              Print version information and exit
   -c, --category <name>      Run specific category of audit checks
                              Categories: hardening, network, secrets, persistence, all (default: all)
-  -f, --format <format>      Output report format: term, markdown, json (default: term)
+  -f, --format <format>      Output report format: term, markdown, json, html (default: term)
   -o, --output <file>        Save audit report to the specified file path
   -q, --quiet                Minimal output, print only final executive summary
   --fix                      Interactively prompt and apply remediation fixes for failed checks
   --generate-fix [file]      Generate automated remediation shell script without applying
   --no-color                 Disable ANSI terminal color output
+  --compliance <framework>   Filter or align checks with benchmark: cis, nist, mitre
+  --daemon-install [sched]   Install and load LaunchAgent plist to run macharden periodically
+                             (schedules: daily, weekly, monthly, on-login; default: weekly)
+  --daemon-uninstall         Unload and remove background scan LaunchAgent
+  --daemon-status            Check whether background scan daemon is loaded and running
+  --alert                    Dispatch macOS desktop alert if critical issues or leaks found
 
 Examples:
   macharden                                 # Run full audit suite with terminal output
   macharden -c hardening                    # Run only hardening category checks
   macharden -c network -f markdown -o audit.md  # Run network audit and save Markdown report
   macharden -f json -o audit.json          # Export structured JSON audit report
+  macharden -f html -o audit.html          # Export interactive HTML5 security dashboard
+  macharden --compliance cis                # Run audit checks aligned with CIS benchmark
   macharden -q                              # Run quietly and display only executive summary
   macharden --generate-fix fix.sh           # Generate standalone remediation script
   macharden --fix                           # Interactively remediate failed security controls
+  macharden --daemon-install weekly         # Schedule weekly background security audit
+  macharden --daemon-status                 # Check daemon status and previous scan logs
+  macharden --daemon-uninstall              # Unload and remove background daemon
+  macharden --alert                         # Run audit and trigger macOS alert on critical issues
 
 EOF
 }
@@ -74,12 +90,12 @@ while [[ $# -gt 0 ]]; do
         -f|--format)
             shift
             if [[ $# -eq 0 || -z "$1" || "$1" == -* ]]; then
-                echo "Error: -f/--format requires a format type (term, markdown, json)" >&2
+                echo "Error: -f/--format requires a format type (term, markdown, json, html)" >&2
                 exit 1
             fi
             MACHAR_FORMAT="${1:l}"
-            if [[ "$MACHAR_FORMAT" != "term" && "$MACHAR_FORMAT" != "markdown" && "$MACHAR_FORMAT" != "json" ]]; then
-                echo "Error: Invalid format '$MACHAR_FORMAT'. Supported formats: term, markdown, json" >&2
+            if [[ "$MACHAR_FORMAT" != "term" && "$MACHAR_FORMAT" != "markdown" && "$MACHAR_FORMAT" != "json" && "$MACHAR_FORMAT" != "html" ]]; then
+                echo "Error: Invalid format '$MACHAR_FORMAT'. Supported formats: term, markdown, json, html" >&2
                 exit 1
             fi
             ;;
@@ -97,6 +113,19 @@ while [[ $# -gt 0 ]]; do
         --no-color)
             MACHAR_NO_COLOR=1
             ;;
+        --compliance)
+            shift
+            if [[ $# -eq 0 || -z "$1" || "$1" == -* ]]; then
+                echo "Error: --compliance requires a framework name (cis, nist, mitre)" >&2
+                exit 1
+            fi
+            MACHAR_COMPLIANCE="${1:l}"
+            if [[ "$MACHAR_COMPLIANCE" != "cis" && "$MACHAR_COMPLIANCE" != "nist" && "$MACHAR_COMPLIANCE" != "mitre" && "$MACHAR_COMPLIANCE" != "all" ]]; then
+                echo "Error: Invalid compliance framework '$MACHAR_COMPLIANCE'. Supported frameworks: cis, nist, mitre, all" >&2
+                exit 1
+            fi
+            export MACHAR_COMPLIANCE
+            ;;
         --fix)
             MACHAR_DO_FIX=1
             ;;
@@ -108,6 +137,23 @@ while [[ $# -gt 0 ]]; do
                 MACHAR_GEN_FIX_FILE="$1"
             fi
             ;;
+        --daemon-install)
+            MACHAR_DAEMON_CMD="install"
+            # Check if optional next argument is a schedule
+            if [[ $# -gt 1 && "$2" != -* ]]; then
+                shift
+                MACHAR_DAEMON_SCHEDULE="$1"
+            fi
+            ;;
+        --daemon-uninstall)
+            MACHAR_DAEMON_CMD="uninstall"
+            ;;
+        --daemon-status)
+            MACHAR_DAEMON_CMD="status"
+            ;;
+        --alert)
+            MACHAR_ALERT=1
+            ;;
         *)
             echo "Error: Unknown option '$1'" >&2
             echo "Run 'macharden --help' for available options." >&2
@@ -116,6 +162,11 @@ while [[ $# -gt 0 ]]; do
     esac
     shift
 done
+
+# Auto-detect HTML format if output filename ends in .html and format was not explicitly set or is default 'term'
+if [[ -n "$MACHAR_OUTPUT" && "$MACHAR_OUTPUT" == *.html && "$MACHAR_FORMAT" == "term" ]]; then
+    MACHAR_FORMAT="html"
+fi
 
 # Resolve paths
 SCRIPT_PATH="${(%):-%x}" 2>/dev/null || SCRIPT_PATH="$0"
@@ -130,7 +181,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 
 # Load Core Modules
-for mod in ui.sh engine.sh report.sh remediate.sh; do
+for mod in ui.sh engine.sh report.sh report_html.sh remediate.sh monitor.sh compliance.sh; do
     if [[ -f "$LIB_DIR/$mod" ]]; then
         source "$LIB_DIR/$mod"
     else
@@ -144,6 +195,24 @@ if (( MACHAR_NO_COLOR )); then
     ui_disable_colors
 else
     ui_init_colors
+fi
+
+# Dispatch Daemon Control Commands
+if [[ -n "$MACHAR_DAEMON_CMD" ]]; then
+    case "$MACHAR_DAEMON_CMD" in
+        install)
+            daemon_install "$MACHAR_DAEMON_SCHEDULE"
+            exit $?
+            ;;
+        uninstall)
+            daemon_uninstall
+            exit $?
+            ;;
+        status)
+            daemon_status
+            exit $?
+            ;;
+    esac
 fi
 
 # Load all available audit modules dynamically
@@ -162,26 +231,33 @@ fi
 run_audit "$MACHAR_CATEGORY"
 
 # Generate Requested Report
-case "$MACHAR_FORMAT" in
-    term)
-        if [[ -n "$MACHAR_OUTPUT" ]]; then
-            # If writing terminal report to file, strip ANSI escape codes for clean text file
-            report_terminal | sed -E $'s/\x1B\\[[0-9;]*[a-zA-Z]//g' > "$MACHAR_OUTPUT"
-            if (( ! MACHAR_QUIET )); then
+if [[ -n "$MACHAR_COMPLIANCE" ]]; then
+    report_compliance_framework "$MACHAR_COMPLIANCE" "$MACHAR_FORMAT" "$MACHAR_OUTPUT"
+else
+    case "$MACHAR_FORMAT" in
+        term)
+            if [[ -n "$MACHAR_OUTPUT" ]]; then
+                # If writing terminal report to file, strip ANSI escape codes for clean text file
+                report_terminal | sed -E $'s/\x1B\\[[0-9;]*[a-zA-Z]//g' > "$MACHAR_OUTPUT"
+                if (( ! MACHAR_QUIET )); then
+                    report_terminal
+                    ui_success "Audit summary saved to: ${MACHAR_OUTPUT}"
+                fi
+            else
                 report_terminal
-                ui_success "Audit summary saved to: ${MACHAR_OUTPUT}"
             fi
-        else
-            report_terminal
-        fi
-        ;;
-    markdown)
-        report_markdown "$MACHAR_OUTPUT"
-        ;;
-    json)
-        report_json "$MACHAR_OUTPUT"
-        ;;
-esac
+            ;;
+        markdown)
+            report_markdown "$MACHAR_OUTPUT"
+            ;;
+        json)
+            report_json "$MACHAR_OUTPUT"
+            ;;
+        html)
+            report_html "$MACHAR_OUTPUT"
+            ;;
+    esac
+fi
 
 # Handle Fix Generation or Interactive Remediation
 if (( MACHAR_GEN_FIX )); then
@@ -190,6 +266,11 @@ fi
 
 if (( MACHAR_DO_FIX )); then
     apply_remediations
+fi
+
+# Continuous Monitoring & Alerting
+if (( MACHAR_ALERT )); then
+    send_alert "$HARDENING_INDEX" "$COUNT_FAIL"
 fi
 
 exit 0

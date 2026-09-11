@@ -21,6 +21,7 @@ source "${PROJECT_ROOT}/lib/ui.sh"
 source "${PROJECT_ROOT}/lib/engine.sh"
 source "${PROJECT_ROOT}/lib/report.sh"
 source "${PROJECT_ROOT}/lib/remediate.sh"
+source "${PROJECT_ROOT}/lib/compliance.sh"
 
 # Test state
 TOTAL_TESTS=0
@@ -320,6 +321,431 @@ assert_match "## 2. Executive Summary" "$MD_CONTENT" "Markdown report contains E
 assert_match "## 3. Comprehensive Audit Results" "$MD_CONTENT" "Markdown report contains Audit Results table"
 assert_match "## 4. Remediation Playbook" "$MD_CONTENT" "Markdown report contains Remediation Playbook"
 assert_match "enabling filevault" "$MD_CONTENT" "Markdown report contains remediation code block"
+
+# ==============================================================================
+# Suite 6: Shell Completions & Documentation Validation
+# ==============================================================================
+echo "\n\033[1m[Suite 6] Shell Completions & Documentation Validation\033[0m"
+
+ZSH_COMP="${PROJECT_ROOT}/completions/macharden.zsh"
+BASH_COMP="${PROJECT_ROOT}/completions/macharden.bash"
+MAN_DOC="${PROJECT_ROOT}/docs/macharden.1"
+MAKEFILE="${PROJECT_ROOT}/Makefile"
+
+assert_file_exists "$ZSH_COMP" "Zsh completion script exists"
+if zsh -n "$ZSH_COMP" 2>/dev/null; then
+    log_test "PASS" "Zsh completion script passes 'zsh -n' syntax check"
+else
+    log_test "FAIL" "Zsh completion script failed 'zsh -n' syntax check"
+fi
+
+ZSH_COMP_CONTENT=$(cat "$ZSH_COMP")
+assert_match "^#compdef macharden" "$ZSH_COMP_CONTENT" "Zsh completion script contains #compdef macharden tag"
+assert_match "_arguments" "$ZSH_COMP_CONTENT" "Zsh completion uses _arguments mechanism"
+assert_match "compliance" "$ZSH_COMP_CONTENT" "Zsh completion supports --compliance flag"
+
+assert_file_exists "$BASH_COMP" "Bash completion script exists"
+if bash -n "$BASH_COMP" 2>/dev/null; then
+    log_test "PASS" "Bash completion script passes 'bash -n' syntax check"
+else
+    log_test "FAIL" "Bash completion script failed 'bash -n' syntax check"
+fi
+
+BASH_COMP_CONTENT=$(cat "$BASH_COMP")
+assert_match "complete -F _macharden_completions macharden" "$BASH_COMP_CONTENT" "Bash completion registers complete -F _macharden_completions macharden"
+
+# Test Bash completion functions directly
+BASH_TEST_RES=$(bash -c "source '$BASH_COMP'; COMP_WORDS=(macharden -c ''); COMP_CWORD=2; _macharden_completions; echo \"\${COMPREPLY[*]}\"")
+assert_match "hardening" "$BASH_TEST_RES" "Bash completion completes -c categories"
+assert_match "persistence" "$BASH_TEST_RES" "Bash completion includes persistence category"
+
+BASH_FORMAT_RES=$(bash -c "source '$BASH_COMP'; COMP_WORDS=(macharden -f ''); COMP_CWORD=2; _macharden_completions; echo \"\${COMPREPLY[*]}\"")
+assert_match "json" "$BASH_FORMAT_RES" "Bash completion completes -f formats (json)"
+assert_match "html" "$BASH_FORMAT_RES" "Bash completion completes -f formats (html)"
+
+assert_file_exists "$MAN_DOC" "UNIX manual page (docs/macharden.1) exists"
+MAN_CONTENT=$(cat "$MAN_DOC")
+assert_match "^\.TH MACHARDEN 1" "$MAN_CONTENT" "Manual page contains valid .TH header macro"
+assert_match "\.SH SYNOPSIS" "$MAN_CONTENT" "Manual page contains .SH SYNOPSIS section"
+assert_match "\.SH OPTIONS" "$MAN_CONTENT" "Manual page contains .SH OPTIONS section"
+assert_match "\.SH AUDIT CATEGORIES" "$MAN_CONTENT" "Manual page contains .SH AUDIT CATEGORIES section"
+assert_match "\.SH SCORING ALGORITHM" "$MAN_CONTENT" "Manual page contains .SH SCORING ALGORITHM section"
+assert_match "\.SH EXIT CODES" "$MAN_CONTENT" "Manual page contains .SH EXIT CODES section"
+
+if command -v mandoc >/dev/null 2>&1; then
+    MANDOC_ERR=$(mandoc -Tlint "$MAN_DOC" 2>&1)
+    if [[ -z "$MANDOC_ERR" ]]; then
+        log_test "PASS" "Manual page passes 'mandoc -Tlint' with zero warnings"
+    else
+        log_test "FAIL" "Manual page has mandoc lint warnings: $MANDOC_ERR"
+    fi
+fi
+
+assert_file_exists "$MAKEFILE" "Makefile exists"
+MAKE_CONTENT=$(cat "$MAKEFILE")
+assert_match "install-completions:" "$MAKE_CONTENT" "Makefile defines install-completions target"
+assert_match "install-man:" "$MAKE_CONTENT" "Makefile defines install-man target"
+
+# ==============================================================================
+# Suite 7: HTML Dashboard Report Generation & Zero-Dependency Validation
+# ==============================================================================
+echo "\n\033[1m[Suite 7] HTML Dashboard Report Generation & Interactive Feature Validation\033[0m"
+
+reset_engine
+record_result "HTML-01" "hardening" "Test Hardening Check" "PASS" 10 "All good" ""
+record_result "HTML-02" "network" "Test Network Check" "WARN" 8 "Warning details" "sudo network_fix"
+record_result "HTML-03" "secrets" "Test Secrets Check" "FAIL" 9 "Found secrets" "chmod 600 ~/.secret"
+calculate_hardening_index
+
+HTML_REPORT="${TEST_TMP_DIR}/test_report.html"
+report_html "$HTML_REPORT"
+
+assert_file_exists "$HTML_REPORT" "HTML report file was generated"
+
+HTML_CONTENT=$(cat "$HTML_REPORT")
+assert_match "<!DOCTYPE html>" "$HTML_CONTENT" "HTML contains <!DOCTYPE html> declaration"
+assert_match "<html lang=\"en\">" "$HTML_CONTENT" "HTML contains <html lang=\"en\"> tag"
+assert_match "Hardening Score" "$HTML_CONTENT" "HTML contains Hardening Score section"
+assert_match "gaugeRing" "$HTML_CONTENT" "HTML contains gaugeRing SVG element"
+assert_match "System Metadata" "$HTML_CONTENT" "HTML contains System Metadata section"
+assert_match "Target Hostname" "$HTML_CONTENT" "HTML contains Target Hostname field"
+assert_match "Total Controls" "$HTML_CONTENT" "HTML contains Total Controls KPI counter"
+assert_match "Passed" "$HTML_CONTENT" "HTML contains Passed checks counter"
+assert_match "Warnings" "$HTML_CONTENT" "HTML contains Warnings checks counter"
+assert_match "Failed" "$HTML_CONTENT" "HTML contains Failed checks counter"
+assert_match "data-category=\"hardening\"" "$HTML_CONTENT" "HTML contains Hardening category tab"
+assert_match "data-category=\"network\"" "$HTML_CONTENT" "HTML contains Network category tab"
+assert_match "data-category=\"secrets\"" "$HTML_CONTENT" "HTML contains Secrets category tab"
+assert_match "data-category=\"persistence\"" "$HTML_CONTENT" "HTML contains Persistence category tab"
+assert_match "data-status=\"all\"" "$HTML_CONTENT" "HTML contains All status filter"
+assert_match "data-status=\"FAIL\"" "$HTML_CONTENT" "HTML contains Fail status filter"
+assert_match "data-status=\"WARN\"" "$HTML_CONTENT" "HTML contains Warn status filter"
+assert_match "data-status=\"PASS\"" "$HTML_CONTENT" "HTML contains Pass status filter"
+assert_match "id=\"searchInput\"" "$HTML_CONTENT" "HTML contains search input element"
+assert_match "Copy Fix Command" "$HTML_CONTENT" "HTML contains Copy Fix Command button"
+assert_match "@media print" "$HTML_CONTENT" "HTML contains @media print styling"
+
+# Validate zero external links/scripts/stylesheets
+EXTERNAL_LINKS=$(python3 -c "
+import re
+content = open('$HTML_REPORT').read()
+links = re.findall(r'<(?:link|script|img)[^>]+(?:href|src)=[\"\x27](https?://[^\">>]+)[\"\x27]', content, re.I)
+print(len(links))
+")
+assert_eq "0" "$EXTERNAL_LINKS" "HTML report has zero external CDN links or scripts"
+
+# Verify CLI integration with -f html
+CLI_HTML_REPORT="${TEST_TMP_DIR}/cli_format.html"
+"${PROJECT_ROOT}/bin/macharden" -f html -o "$CLI_HTML_REPORT" >/dev/null 2>&1
+assert_file_exists "$CLI_HTML_REPORT" "macharden -f html -o file generates HTML report"
+CLI_HTML_CONTENT=$(cat "$CLI_HTML_REPORT")
+assert_match "<!DOCTYPE html>" "$CLI_HTML_CONTENT" "CLI -f html output is valid HTML"
+
+# Verify CLI auto-detection with -o *.html
+CLI_AUTO_REPORT="${TEST_TMP_DIR}/cli_auto.html"
+"${PROJECT_ROOT}/bin/macharden" -o "$CLI_AUTO_REPORT" >/dev/null 2>&1
+assert_file_exists "$CLI_AUTO_REPORT" "macharden -o *.html auto-detects HTML and generates report"
+CLI_AUTO_CONTENT=$(cat "$CLI_AUTO_REPORT")
+assert_match "<!DOCTYPE html>" "$CLI_AUTO_CONTENT" "CLI auto-detected .html output is valid HTML"
+
+# ==============================================================================
+# Suite 8: Continuous Background Monitoring & Daemon Management
+# ==============================================================================
+echo "\n\033[1m[Suite 8] Continuous Monitoring & Daemon Management\033[0m"
+
+DAEMON_PLIST_TEMPLATE="${PROJECT_ROOT}/launchd/com.macharden.daemon.plist"
+MONITOR_LIB="${PROJECT_ROOT}/lib/monitor.sh"
+
+assert_file_exists "$DAEMON_PLIST_TEMPLATE" "LaunchAgent plist template exists"
+if command -v plutil >/dev/null 2>&1; then
+    if plutil -lint "$DAEMON_PLIST_TEMPLATE" >/dev/null 2>&1; then
+        log_test "PASS" "LaunchAgent plist template passes 'plutil -lint' check"
+    else
+        log_test "FAIL" "LaunchAgent plist template failed 'plutil -lint'"
+    fi
+fi
+
+assert_file_exists "$MONITOR_LIB" "Monitoring library lib/monitor.sh exists"
+if zsh -n "$MONITOR_LIB" 2>/dev/null; then
+    log_test "PASS" "Monitoring library passes 'zsh -n' syntax check"
+else
+    log_test "FAIL" "Monitoring library failed 'zsh -n' syntax check"
+fi
+
+# Source monitor library
+source "$MONITOR_LIB"
+
+if typeset -f daemon_install >/dev/null 2>&1; then
+    log_test "PASS" "daemon_install function is defined"
+else
+    log_test "FAIL" "daemon_install function is missing"
+fi
+
+if typeset -f daemon_uninstall >/dev/null 2>&1; then
+    log_test "PASS" "daemon_uninstall function is defined"
+else
+    log_test "FAIL" "daemon_uninstall function is missing"
+fi
+
+if typeset -f daemon_status >/dev/null 2>&1; then
+    log_test "PASS" "daemon_status function is defined"
+else
+    log_test "FAIL" "daemon_status function is missing"
+fi
+
+if typeset -f send_alert >/dev/null 2>&1; then
+    log_test "PASS" "send_alert function is defined"
+else
+    log_test "FAIL" "send_alert function is missing"
+fi
+
+# Isolated sandbox for testing daemon install / uninstall
+SANDBOX_AGENTS="${TEST_TMP_DIR}/SandboxLaunchAgents"
+SANDBOX_LOGS="${TEST_TMP_DIR}/SandboxLogs"
+export MACHAR_LAUNCHAGENTS_DIR="$SANDBOX_AGENTS"
+export MACHAR_LOG_DIR="$SANDBOX_LOGS"
+
+# Test weekly install (default)
+daemon_install "weekly" >/dev/null 2>&1
+INSTALLED_PLIST="$SANDBOX_AGENTS/com.macharden.daemon.plist"
+assert_file_exists "$INSTALLED_PLIST" "daemon_install creates LaunchAgent plist file"
+
+PLIST_CONTENT=$(cat "$INSTALLED_PLIST" 2>/dev/null || echo "")
+assert_match "com.macharden.daemon" "$PLIST_CONTENT" "Installed plist contains service label"
+assert_match "604800" "$PLIST_CONTENT" "Weekly schedule configures StartInterval 604800"
+assert_match "$SANDBOX_LOGS" "$PLIST_CONTENT" "Installed plist points to correct logs directory"
+
+if command -v plutil >/dev/null 2>&1; then
+    if plutil -lint "$INSTALLED_PLIST" >/dev/null 2>&1; then
+        log_test "PASS" "Installed plist is 100% valid XML according to plutil"
+    else
+        log_test "FAIL" "Installed plist failed plutil validation"
+    fi
+fi
+
+# Test daily install
+daemon_install "daily" >/dev/null 2>&1
+PLIST_CONTENT=$(cat "$INSTALLED_PLIST" 2>/dev/null || echo "")
+assert_match "86400" "$PLIST_CONTENT" "Daily schedule configures StartInterval 86400"
+
+# Test login schedule
+daemon_install "login" >/dev/null 2>&1
+PLIST_CONTENT=$(cat "$INSTALLED_PLIST" 2>/dev/null || echo "")
+assert_match "<key>RunAtLoad</key>" "$PLIST_CONTENT" "Login schedule configures RunAtLoad"
+
+# Test daemon_status in sandbox
+STATUS_OUT=$(daemon_status 2>&1 || true)
+assert_match "Installed" "$STATUS_OUT" "daemon_status detects installed plist in sandbox"
+assert_match "com.macharden.daemon" "$STATUS_OUT" "daemon_status outputs service identifier"
+
+# Test daemon_uninstall
+daemon_uninstall >/dev/null 2>&1
+if [[ ! -f "$INSTALLED_PLIST" ]]; then
+    log_test "PASS" "daemon_uninstall removes LaunchAgent plist file"
+else
+    log_test "FAIL" "daemon_uninstall failed to remove LaunchAgent plist file"
+fi
+
+# Test invalid schedule error handling
+if daemon_install "invalid_sched" >/dev/null 2>&1; then
+    log_test "FAIL" "daemon_install should reject invalid schedule"
+else
+    log_test "PASS" "daemon_install rejects invalid schedule"
+fi
+
+# Test send_alert behavior
+ALERT_CLEAN_OUT=$(send_alert 100.0 0 2>&1)
+assert_match "suppressed" "$ALERT_CLEAN_OUT" "send_alert suppresses notification when audit is 100% clean"
+
+ALERT_FAIL_OUT=$(send_alert 60.0 3 2>&1)
+assert_match "alert" "$ALERT_FAIL_OUT" "send_alert triggers notification when failures > 0"
+
+# Test CLI integration with --daemon-status
+CLI_STATUS_OUT=$("${PROJECT_ROOT}/bin/macharden" --daemon-status 2>&1 || true)
+assert_match "macharden Background Daemon Status" "$CLI_STATUS_OUT" "CLI --daemon-status executes daemon_status"
+
+# Test CLI integration with --daemon-install in sandbox
+"${PROJECT_ROOT}/bin/macharden" --daemon-install daily >/dev/null 2>&1
+assert_file_exists "$INSTALLED_PLIST" "CLI --daemon-install daily installs LaunchAgent"
+"${PROJECT_ROOT}/bin/macharden" --daemon-uninstall >/dev/null 2>&1
+
+unset MACHAR_LAUNCHAGENTS_DIR
+unset MACHAR_LOG_DIR
+
+# ==============================================================================
+# Suite 9: Compliance & Security Framework Mapper (CIS, NIST, MITRE)
+# ==============================================================================
+echo "\n\033[1m[Suite 9] Compliance & Security Framework Mapper\033[0m"
+
+COMPLIANCE_FILE="${PROJECT_ROOT}/data/compliance_mappings.json"
+assert_file_exists "$COMPLIANCE_FILE" "Compliance mapping data/compliance_mappings.json exists"
+
+if python3 -m json.tool "$COMPLIANCE_FILE" >/dev/null 2>&1; then
+    log_test "PASS" "compliance_mappings.json is 100% valid JSON"
+else
+    log_test "FAIL" "compliance_mappings.json failed JSON syntax validation"
+fi
+
+# Verify mappings schema and coverage for core checks
+SCHEMA_CHECK_SCRIPT="import json, sys
+data = json.load(open(sys.argv[1]))
+assert 'mappings' in data, 'Missing mappings object'
+mappings = data['mappings']
+required_checks = [\"HARD-01\", \"HARD-02\", \"NET-01\", \"NET-04\", \"SEC-01\", \"PERS-01\"]
+for cid in required_checks:
+    assert cid in mappings, f'Missing check {cid}'
+    entry = mappings[cid]
+    assert 'cis' in entry and 'id' in entry['cis'], f'Missing CIS in {cid}'
+    assert 'nist' in entry and 'controls' in entry['nist'], f'Missing NIST in {cid}'
+    assert 'mitre' in entry and ('primary_technique' in entry['mitre'] or 'techniques' in entry['mitre']), f'Missing MITRE in {cid}'
+sys.exit(0)
+"
+if python3 -c "$SCHEMA_CHECK_SCRIPT" "$COMPLIANCE_FILE" >/dev/null 2>&1; then
+    log_test "PASS" "compliance_mappings.json contains all required frameworks and controls"
+else
+    log_test "FAIL" "compliance_mappings.json schema validation failed"
+fi
+
+# Function existence checks
+if typeset -f get_compliance_tags >/dev/null 2>&1; then
+    log_test "PASS" "get_compliance_tags function is defined"
+else
+    log_test "FAIL" "get_compliance_tags function is missing"
+fi
+
+if typeset -f calculate_compliance_metrics >/dev/null 2>&1; then
+    log_test "PASS" "calculate_compliance_metrics function is defined"
+else
+    log_test "FAIL" "calculate_compliance_metrics function is missing"
+fi
+
+if typeset -f report_compliance_summary >/dev/null 2>&1; then
+    log_test "PASS" "report_compliance_summary function is defined"
+else
+    log_test "FAIL" "report_compliance_summary function is missing"
+fi
+
+if typeset -f report_compliance_cis >/dev/null 2>&1; then
+    log_test "PASS" "report_compliance_cis function is defined"
+else
+    log_test "FAIL" "report_compliance_cis function is missing"
+fi
+
+if typeset -f report_compliance_nist >/dev/null 2>&1; then
+    log_test "PASS" "report_compliance_nist function is defined"
+else
+    log_test "FAIL" "report_compliance_nist function is missing"
+fi
+
+if typeset -f report_compliance_mitre >/dev/null 2>&1; then
+    log_test "PASS" "report_compliance_mitre function is defined"
+else
+    log_test "FAIL" "report_compliance_mitre function is missing"
+fi
+
+if typeset -f report_compliance_framework >/dev/null 2>&1; then
+    log_test "PASS" "report_compliance_framework function is defined"
+else
+    log_test "FAIL" "report_compliance_framework function is missing"
+fi
+
+# Tag retrieval tests
+TAGS_ALL=$(get_compliance_tags "HARD-01" 2>&1 || true)
+assert_match "CIS: 5.1.2" "$TAGS_ALL" "get_compliance_tags 'all' includes CIS tag"
+assert_match "NIST:" "$TAGS_ALL" "get_compliance_tags 'all' includes NIST tag"
+assert_match "MITRE:" "$TAGS_ALL" "get_compliance_tags 'all' includes MITRE tag"
+
+TAGS_CIS=$(get_compliance_tags "HARD-01" "cis" 2>&1 || true)
+assert_match "5.1.2" "$TAGS_CIS" "get_compliance_tags 'cis' returns CIS identifier"
+
+TAGS_NIST=$(get_compliance_tags "HARD-01" "nist" 2>&1 || true)
+assert_match "SI-7" "$TAGS_NIST" "get_compliance_tags 'nist' returns NIST controls"
+
+TAGS_MITRE=$(get_compliance_tags "HARD-01" "mitre" 2>&1 || true)
+assert_match "T1562.001" "$TAGS_MITRE" "get_compliance_tags 'mitre' returns MITRE technique"
+
+TAGS_JSON=$(get_compliance_tags "HARD-01" "json" 2>&1 || true)
+if echo "$TAGS_JSON" | python3 -m json.tool >/dev/null 2>&1; then
+    log_test "PASS" "get_compliance_tags 'json' returns valid JSON"
+else
+    log_test "FAIL" "get_compliance_tags 'json' returned invalid JSON"
+fi
+
+TAGS_UNKNOWN=$(get_compliance_tags "UNKNOWN-999" 2>&1 || true)
+assert_match "N/A" "$TAGS_UNKNOWN" "get_compliance_tags handles unknown check ID gracefully"
+
+# Framework metrics and scoring calculation tests
+reset_engine
+record_result "HARD-01" "hardening" "SIP Status" "PASS" 10 "SIP is enabled" ""
+record_result "HARD-02" "hardening" "FileVault Encryption" "FAIL" 10 "FileVault disabled" "fdesetup enable"
+record_result "NET-04" "network" "Remote Login (SSH)" "WARN" 5 "SSH is enabled" "systemsetup -setremotelogin off"
+record_result "PERS-06" "persistence" "Login Items Count" "INFO" 2 "Found 3 login items" ""
+
+calculate_compliance_metrics
+assert_eq "50.0" "$CIS_COMPLIANCE_PCT" "calculate_compliance_metrics calculates weighted CIS percentage"
+assert_eq "50.0" "$NIST_COMPLIANCE_PCT" "calculate_compliance_metrics calculates weighted NIST percentage"
+assert_eq "3" "$CIS_TOTAL_COUNT" "calculate_compliance_metrics excludes neutral INFO from CIS count"
+assert_eq "1" "$CIS_PASS_COUNT" "CIS_PASS_COUNT matches expected value"
+assert_eq "1" "$CIS_WARN_COUNT" "CIS_WARN_COUNT matches expected value"
+assert_eq "1" "$CIS_FAIL_COUNT" "CIS_FAIL_COUNT matches expected value"
+
+# Terminal Summary Report
+COMP_TERM_OUT=$(report_compliance_summary "term" 2>&1 || true)
+assert_match "ENTERPRISE COMPLIANCE POSTURE SUMMARY" "$COMP_TERM_OUT" "report_compliance_summary terminal output contains header"
+assert_match "CIS Apple macOS Benchmark" "$COMP_TERM_OUT" "report_compliance_summary terminal output includes CIS"
+assert_match "NIST SP 800-53" "$COMP_TERM_OUT" "report_compliance_summary terminal output includes NIST"
+assert_match "MITRE ATT&CK Defense Coverage" "$COMP_TERM_OUT" "report_compliance_summary terminal output includes MITRE"
+
+# Markdown Summary Report
+COMP_MD_FILE="${TEST_TMP_DIR}/compliance_summary.md"
+report_compliance_summary "markdown" "$COMP_MD_FILE" >/dev/null 2>&1
+assert_file_exists "$COMP_MD_FILE" "report_compliance_summary markdown file was created"
+COMP_MD_CONTENT=$(cat "$COMP_MD_FILE" 2>/dev/null || echo "")
+assert_match "Compliance Score" "$COMP_MD_CONTENT" "Compliance markdown report contains Compliance Score header"
+assert_match "CIS Apple macOS Benchmark" "$COMP_MD_CONTENT" "Compliance markdown report contains CIS entry"
+
+# JSON Summary Report
+COMP_JSON_FILE="${TEST_TMP_DIR}/compliance_summary.json"
+report_compliance_summary "json" "$COMP_JSON_FILE" >/dev/null 2>&1
+assert_file_exists "$COMP_JSON_FILE" "report_compliance_summary JSON file was created"
+if python3 -m json.tool "$COMP_JSON_FILE" >/dev/null 2>&1; then
+    log_test "PASS" "report_compliance_summary JSON file is valid JSON"
+else
+    log_test "FAIL" "report_compliance_summary JSON file failed JSON validation"
+fi
+
+# Framework specific reports
+CIS_TERM_OUT=$(report_compliance_cis "term" 2>&1 || true)
+assert_match "CIS APPLE macOS BENCHMARK" "$CIS_TERM_OUT" "report_compliance_cis terminal report outputs header"
+
+NIST_TERM_OUT=$(report_compliance_nist "term" 2>&1 || true)
+assert_match "NIST SP 800-53" "$NIST_TERM_OUT" "report_compliance_nist terminal report outputs header"
+
+MITRE_TERM_OUT=$(report_compliance_mitre "term" 2>&1 || true)
+assert_match "MITRE ATT&CK MATRIX FOR macOS" "$MITRE_TERM_OUT" "report_compliance_mitre terminal report outputs header"
+
+# Test CLI --compliance integration
+CLI_CIS_OUT=$("${PROJECT_ROOT}/bin/macharden" -c hardening -q --compliance cis 2>&1 || true)
+assert_match "CIS APPLE macOS BENCHMARK" "$CLI_CIS_OUT" "CLI --compliance cis outputs CIS benchmark posture"
+
+CLI_NIST_OUT=$("${PROJECT_ROOT}/bin/macharden" -c hardening -q --compliance nist 2>&1 || true)
+assert_match "NIST SP 800-53" "$CLI_NIST_OUT" "CLI --compliance nist outputs NIST 800-53 posture"
+
+CLI_MITRE_OUT=$("${PROJECT_ROOT}/bin/macharden" -c hardening -q --compliance mitre 2>&1 || true)
+assert_match "MITRE ATT&CK MATRIX FOR macOS" "$CLI_MITRE_OUT" "CLI --compliance mitre outputs MITRE ATT&CK posture"
+
+CLI_ALL_OUT=$("${PROJECT_ROOT}/bin/macharden" -c hardening -q --compliance all 2>&1 || true)
+assert_match "ENTERPRISE COMPLIANCE POSTURE SUMMARY" "$CLI_ALL_OUT" "CLI --compliance all outputs regulatory overview"
+
+CLI_JSON_OUT="${TEST_TMP_DIR}/cli_compliance_out.json"
+"${PROJECT_ROOT}/bin/macharden" -c hardening -q -f json --compliance all -o "$CLI_JSON_OUT" >/dev/null 2>&1
+assert_file_exists "$CLI_JSON_OUT" "CLI --compliance all -f json generates output file"
+if python3 -m json.tool "$CLI_JSON_OUT" >/dev/null 2>&1; then
+    log_test "PASS" "CLI --compliance all -f json produces valid JSON"
+else
+    log_test "FAIL" "CLI --compliance all -f json produced invalid JSON"
+fi
+
 
 # ==============================================================================
 # Final Test Summary

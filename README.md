@@ -77,11 +77,15 @@ cd macharden
 ### Option 3: System-Wide Installation
 
 ```bash
+# Install binary, shell autocompletions (Zsh & Bash), and UNIX man page
 make install
-macharden --version
+
+# Or install individual components:
+make install-completions   # Zsh (_macharden) & Bash autocompletions
+make install-man           # UNIX manual page (man macharden)
 ```
 
-*(Installs a symlink to `/usr/local/bin/macharden` or `~/.local/bin/macharden`)*
+*(Installs binary to `/usr/local/bin` or `~/.local/bin`, shell completions to Zsh/Bash site-functions, and man page to `share/man/man1/macharden.1`)*
 
 ---
 

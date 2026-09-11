@@ -33,6 +33,15 @@ _macharden() {
         'mitre:MITRE ATT&CK Enterprise Matrix for macOS'
     )
 
+    local -a daemon_schedules
+    daemon_schedules=(
+        'daily:Run background scan every 24 hours (86,400s)'
+        'weekly:Run background scan every 7 days (default)'
+        'monthly:Run background scan every 30 days'
+        'hourly:Run background scan every hour (3,600s)'
+        'on-login:Run background scan when user logs in (RunAtLoad)'
+    )
+
     _arguments -s -S \
         '(-h --help)'{-h,--help}'[Display help message and exit]' \
         '(-v --version)'{-v,--version}'[Print version information and exit]' \
@@ -44,6 +53,10 @@ _macharden() {
         '--generate-fix[Generate automated remediation shell script without applying]::remediation script output:_files -g "*.sh"' \
         '--no-color[Disable ANSI terminal color output]' \
         '--compliance[Filter or map audit checks against security compliance frameworks]:compliance framework:->compliance' \
+        '--daemon-install[Install and schedule background scan LaunchAgent]::schedule:->schedules' \
+        '--daemon-uninstall[Unload and remove background scan LaunchAgent]' \
+        '--daemon-status[Display background scan agent status and execution history]' \
+        '--alert[Trigger native macOS notification if critical vulnerabilities or leaks found]' \
         && return 0
 
     case $state in
@@ -55,6 +68,9 @@ _macharden() {
             ;;
         compliance)
             _describe -t compliance 'compliance framework' compliance_frameworks
+            ;;
+        schedules)
+            _describe -t schedules 'daemon schedule' daemon_schedules
             ;;
     esac
 }

@@ -423,3 +423,8 @@ print(json.dumps(data, indent=2))
         printf "%s\n" "$json_doc"
     fi
 }
+
+# Source HTML report engine if available
+if [[ -f "${0:A:h}/report_html.sh" ]]; then
+    source "${0:A:h}/report_html.sh"
+fi

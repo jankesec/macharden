@@ -18,7 +18,8 @@ _macharden_completions() {
     local categories="hardening network secrets persistence all"
     local formats="term json markdown html"
     local compliance_frameworks="cis nist mitre"
-    local all_flags="-h --help -v --version -c --category -f --format -o --output -q --quiet --fix --generate-fix --no-color --compliance"
+    local daemon_schedules="daily weekly monthly hourly on-login"
+    local all_flags="-h --help -v --version -c --category -f --format -o --output -q --quiet --fix --generate-fix --no-color --compliance --daemon-install --daemon-uninstall --daemon-status --alert"
 
     case "${prev}" in
         -c|--category)
@@ -31,6 +32,10 @@ _macharden_completions() {
             ;;
         --compliance)
             COMPREPLY=( $(compgen -W "${compliance_frameworks}" -- "${cur}") )
+            return 0
+            ;;
+        --daemon-install)
+            COMPREPLY=( $(compgen -W "${daemon_schedules}" -- "${cur}") )
             return 0
             ;;
         -o|--output|--generate-fix)

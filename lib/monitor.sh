@@ -414,14 +414,14 @@ send_alert() {
         score_num="${score%%.*}"
     fi
 
-    # Check for secrets leaks or critical failures in global engine state if present
+    # Check for secrets leaks or critical failures in global engine state if failures > 0
     local has_secrets_leak=0
     local has_critical_fail=0
     local leak_details=""
     local critical_titles=()
     local num_results=${#RES_IDS[@]}
 
-    if (( num_results > 0 )); then
+    if (( failures > 0 && num_results > 0 )); then
         for (( i = 1; i <= num_results; i++ )); do
             local st="${RES_STATUSES[i]}"
             if [[ "$st" == "FAIL" ]]; then
@@ -520,8 +520,8 @@ send_alert() {
     return 0
 }
 
-# Standalone CLI execution dispatching
-if [[ "${(%):-%x}" == "$0" || "$0" == *"/monitor.sh" ]]; then
+# Standalone CLI execution dispatching (only runs when executed directly, not when sourced)
+if [[ "$ZSH_EVAL_CONTEXT" != *":file"* ]]; then
     case "${1:-status}" in
         install)
             daemon_install "${2:-}"
