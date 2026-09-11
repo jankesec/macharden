@@ -44,11 +44,16 @@ if [[ -z "${BASE_DIR:-}" ]]; then
     elif [[ -f "../data/compliance_mappings.json" ]]; then
         BASE_DIR="$(cd .. && pwd)"
     else
-        BASE_DIR="<project_root>"
+        echo "Warning: compliance_mappings.json could not be resolved; compliance mapping disabled." >&2
+        BASE_DIR=""
     fi
 fi
 
-COMPLIANCE_DATA_FILE="${BASE_DIR}/data/compliance_mappings.json"
+if [[ -n "${BASE_DIR:-}" ]]; then
+    COMPLIANCE_DATA_FILE="${BASE_DIR}/data/compliance_mappings.json"
+else
+    COMPLIANCE_DATA_FILE=""
+fi
 
 # Global Compliance Metrics Variables
 typeset -g CIS_COMPLIANCE_PCT="0.0"

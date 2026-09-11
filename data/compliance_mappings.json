@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "metadata": {
     "name": "macharden-compliance-mappings",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Enterprise security compliance and regulatory framework mappings for macOS hardening checks",
     "frameworks": {
       "cis": {
@@ -738,6 +738,490 @@
           {
             "id": "T1548.003",
             "name": "Abuse Elevation Control Mechanism: Sudo and Sudo Caching"
+          }
+        ]
+      }
+    },
+    "HARD-08": {
+      "title": "Firmware Password / Recovery Lock",
+      "category": "hardening",
+      "cis": {
+        "id": "5.8",
+        "section": "5. System Access, Authentication and Authorization",
+        "title": "Ensure a firmware password is set (Intel) or Recovery Lock is considered (Apple Silicon)",
+        "profile": "Level 2"
+      },
+      "nist": {
+        "controls": ["AC-3", "SI-7", "SC-51"],
+        "primary": "SI-7",
+        "family": "System and Information Integrity",
+        "title": "Software, Firmware, and Information Integrity"
+      },
+      "mitre": {
+        "tactics": ["Defense Evasion", "Persistence"],
+        "primary_technique": "T1495",
+        "techniques": [
+          {
+            "id": "T1495",
+            "name": "Firmware Corruption"
+          },
+          {
+            "id": "T1542.001",
+            "name": "Pre-OS Boot: System Firmware"
+          }
+        ]
+      }
+    },
+    "HARD-09": {
+      "title": "Secure Boot / Authenticated Root",
+      "category": "hardening",
+      "cis": {
+        "id": "5.1.1",
+        "section": "5.1 System Integrity",
+        "title": "Ensure Secure Boot and Authenticated Root are enforcing",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["SI-7", "SI-7(9)", "CM-6"],
+        "primary": "SI-7",
+        "family": "System and Information Integrity",
+        "title": "Software, Firmware, and Information Integrity"
+      },
+      "mitre": {
+        "tactics": ["Defense Evasion", "Persistence"],
+        "primary_technique": "T1542.001",
+        "techniques": [
+          {
+            "id": "T1542.001",
+            "name": "Pre-OS Boot: System Firmware"
+          },
+          {
+            "id": "T1562.001",
+            "name": "Impair Defenses: Disable or Modify Tools"
+          }
+        ]
+      }
+    },
+    "HARD-10": {
+      "title": "Automatic Login Disabled",
+      "category": "hardening",
+      "cis": {
+        "id": "5.5",
+        "section": "5. System Access, Authentication and Authorization",
+        "title": "Ensure automatic login is disabled",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["AC-7", "IA-2", "AC-11"],
+        "primary": "IA-2",
+        "family": "Identification and Authentication",
+        "title": "Identification and Authentication (Organizational Users)"
+      },
+      "mitre": {
+        "tactics": ["Initial Access", "Privilege Escalation"],
+        "primary_technique": "T1078",
+        "techniques": [
+          {
+            "id": "T1078",
+            "name": "Valid Accounts"
+          }
+        ]
+      }
+    },
+    "HARD-11": {
+      "title": "Bluetooth Sharing",
+      "category": "hardening",
+      "cis": {
+        "id": "2.4.11",
+        "section": "2.4 Sharing Services",
+        "title": "Ensure Bluetooth Sharing is disabled",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["AC-18", "SC-8", "CM-7"],
+        "primary": "AC-18",
+        "family": "Access Control",
+        "title": "Wireless Access"
+      },
+      "mitre": {
+        "tactics": ["Lateral Movement", "Collection"],
+        "primary_technique": "T1011",
+        "techniques": [
+          {
+            "id": "T1011",
+            "name": "Exfiltration Over Other Network Medium"
+          },
+          {
+            "id": "T1040",
+            "name": "Network Sniffing"
+          }
+        ]
+      }
+    },
+    "NET-07": {
+      "title": "AirDrop",
+      "category": "network",
+      "cis": {
+        "id": "2.4.12",
+        "section": "2.4 Sharing Services",
+        "title": "Ensure AirDrop is disabled or restricted",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["AC-4", "AC-18", "SC-7"],
+        "primary": "SC-7",
+        "family": "System and Communications Protection",
+        "title": "Boundary Protection"
+      },
+      "mitre": {
+        "tactics": ["Lateral Movement", "Exfiltration"],
+        "primary_technique": "T1048",
+        "techniques": [
+          {
+            "id": "T1048",
+            "name": "Exfiltration Over Alternative Protocol"
+          }
+        ]
+      }
+    },
+    "NET-08": {
+      "title": "Internet Sharing",
+      "category": "network",
+      "cis": {
+        "id": "2.4.8",
+        "section": "2.4 Sharing Services",
+        "title": "Ensure Internet Sharing is disabled",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["SC-7", "AC-4", "CM-7"],
+        "primary": "SC-7",
+        "family": "System and Communications Protection",
+        "title": "Boundary Protection"
+      },
+      "mitre": {
+        "tactics": ["Lateral Movement", "Command and Control"],
+        "primary_technique": "T1572",
+        "techniques": [
+          {
+            "id": "T1572",
+            "name": "Protocol Tunneling"
+          }
+        ]
+      }
+    },
+    "NET-09": {
+      "title": "Firewall Logging",
+      "category": "network",
+      "cis": {
+        "id": "3.6",
+        "section": "3. Logging and Auditing",
+        "title": "Ensure firewall logging is enabled",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["AU-3", "AU-12", "SI-4"],
+        "primary": "AU-12",
+        "family": "Audit and Accountability",
+        "title": "Audit Record Generation"
+      },
+      "mitre": {
+        "tactics": ["Defense Evasion", "Discovery"],
+        "primary_technique": "T1562.004",
+        "techniques": [
+          {
+            "id": "T1562.004",
+            "name": "Impair Defenses: Disable or Modify System Firewall"
+          }
+        ]
+      }
+    },
+    "SEC-06": {
+      "title": "Unencrypted SSH Private Keys",
+      "category": "secrets",
+      "cis": {
+        "id": "5.2.3",
+        "section": "5.2 SSH",
+        "title": "Ensure SSH private keys are passphrase-protected",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["IA-5", "IA-5(1)", "SC-12"],
+        "primary": "IA-5",
+        "family": "Identification and Authentication",
+        "title": "Authenticator Management"
+      },
+      "mitre": {
+        "tactics": ["Credential Access", "Lateral Movement"],
+        "primary_technique": "T1552.004",
+        "techniques": [
+          {
+            "id": "T1552.004",
+            "name": "Unsecured Credentials: Private Keys"
+          }
+        ]
+      }
+    },
+    "SEC-07": {
+      "title": "Secrets in Shell History",
+      "category": "secrets",
+      "cis": {
+        "id": "6.2",
+        "section": "6. User Accounts and Environment",
+        "title": "Ensure shell history files do not contain plaintext secrets",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["SI-4", "AC-6", "IA-5"],
+        "primary": "SI-4",
+        "family": "System and Information Integrity",
+        "title": "System Monitoring"
+      },
+      "mitre": {
+        "tactics": ["Credential Access"],
+        "primary_technique": "T1552.001",
+        "techniques": [
+          {
+            "id": "T1552.001",
+            "name": "Unsecured Credentials: Credentials In Files"
+          }
+        ]
+      }
+    },
+    "PERS-07": {
+      "title": "Privileged Helper Tools",
+      "category": "persistence",
+      "cis": {
+        "id": "5.11",
+        "section": "5. System Access, Authentication and Authorization",
+        "title": "Ensure privileged helper tools are reviewed and code-signed",
+        "profile": "Level 2"
+      },
+      "nist": {
+        "controls": ["CM-5", "CM-7", "SI-7"],
+        "primary": "CM-7",
+        "family": "Configuration Management",
+        "title": "Least Functionality"
+      },
+      "mitre": {
+        "tactics": ["Persistence", "Privilege Escalation"],
+        "primary_technique": "T1543.001",
+        "techniques": [
+          {
+            "id": "T1543.001",
+            "name": "Create or Modify System Process: Launch Agent"
+          },
+          {
+            "id": "T1543.004",
+            "name": "Create or Modify System Process: Launch Daemon"
+          }
+        ]
+      }
+    },
+    "HARD-12": {
+      "title": "Home Directory Permissions",
+      "category": "hardening",
+      "cis": {
+        "id": "6.2",
+        "section": "6. User Accounts and Environment",
+        "title": "Ensure home directories are not world-writable or world-readable",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["AC-3", "AC-6", "SC-28"],
+        "primary": "AC-6",
+        "family": "Access Control",
+        "title": "Least Privilege"
+      },
+      "mitre": {
+        "tactics": ["Collection", "Credential Access"],
+        "primary_technique": "T1083",
+        "techniques": [
+          {
+            "id": "T1083",
+            "name": "File and Directory Discovery"
+          }
+        ]
+      }
+    },
+    "HARD-13": {
+      "title": "Network Time Synchronization",
+      "category": "hardening",
+      "cis": {
+        "id": "2.2.1",
+        "section": "2.2 Time",
+        "title": "Ensure network time synchronization is enabled",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["AU-8", "SC-45"],
+        "primary": "AU-8",
+        "family": "Audit and Accountability",
+        "title": "Time Stamps"
+      },
+      "mitre": {
+        "tactics": ["Defense Evasion"],
+        "primary_technique": "T1070.006",
+        "techniques": [
+          {
+            "id": "T1070.006",
+            "name": "Indicator Removal: Timestomp"
+          }
+        ]
+      }
+    },
+    "HARD-14": {
+      "title": "Built-in Malware Protection",
+      "category": "hardening",
+      "cis": {
+        "id": "2.6.3",
+        "section": "2.6 Security",
+        "title": "Ensure XProtect malware definitions are present",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["SI-3", "SI-4"],
+        "primary": "SI-3",
+        "family": "System and Information Integrity",
+        "title": "Malicious Code Protection"
+      },
+      "mitre": {
+        "tactics": ["Execution", "Defense Evasion"],
+        "primary_technique": "T1204.002",
+        "techniques": [
+          {
+            "id": "T1204.002",
+            "name": "User Execution: Malicious File"
+          }
+        ]
+      }
+    },
+    "NET-10": {
+      "title": "IP Forwarding",
+      "category": "network",
+      "cis": {
+        "id": "3.1",
+        "section": "3. Network",
+        "title": "Ensure IP forwarding is disabled",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["SC-7", "CM-7"],
+        "primary": "SC-7",
+        "family": "System and Communications Protection",
+        "title": "Boundary Protection"
+      },
+      "mitre": {
+        "tactics": ["Lateral Movement", "Command and Control"],
+        "primary_technique": "T1572",
+        "techniques": [
+          {
+            "id": "T1572",
+            "name": "Protocol Tunneling"
+          }
+        ]
+      }
+    },
+    "NET-11": {
+      "title": "Promiscuous Interfaces",
+      "category": "network",
+      "cis": {
+        "id": "3.4",
+        "section": "3. Network",
+        "title": "Ensure network interfaces are not in promiscuous mode unless required",
+        "profile": "Level 2"
+      },
+      "nist": {
+        "controls": ["SC-7", "SI-4"],
+        "primary": "SI-4",
+        "family": "System and Information Integrity",
+        "title": "System Monitoring"
+      },
+      "mitre": {
+        "tactics": ["Discovery", "Collection"],
+        "primary_technique": "T1040",
+        "techniques": [
+          {
+            "id": "T1040",
+            "name": "Network Sniffing"
+          }
+        ]
+      }
+    },
+    "SEC-08": {
+      "title": "SSH Daemon Hardening",
+      "category": "secrets",
+      "cis": {
+        "id": "5.2",
+        "section": "5.2 SSH",
+        "title": "Ensure sshd is hardened when Remote Login is enabled",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["AC-17", "IA-2", "CM-6"],
+        "primary": "AC-17",
+        "family": "Access Control",
+        "title": "Remote Access"
+      },
+      "mitre": {
+        "tactics": ["Initial Access", "Lateral Movement"],
+        "primary_technique": "T1021.004",
+        "techniques": [
+          {
+            "id": "T1021.004",
+            "name": "Remote Services: SSH"
+          }
+        ]
+      }
+    },
+    "SEC-09": {
+      "title": "Suspicious Shell History Files",
+      "category": "secrets",
+      "cis": {
+        "id": "6.2",
+        "section": "6. User Accounts and Environment",
+        "title": "Ensure shell history files are regular files",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["AU-12", "SI-4", "AU-10"],
+        "primary": "AU-12",
+        "family": "Audit and Accountability",
+        "title": "Audit Record Generation"
+      },
+      "mitre": {
+        "tactics": ["Defense Evasion"],
+        "primary_technique": "T1070.003",
+        "techniques": [
+          {
+            "id": "T1070.003",
+            "name": "Indicator Removal: Clear Command History"
+          }
+        ]
+      }
+    },
+    "PERS-08": {
+      "title": "Printer Sharing",
+      "category": "persistence",
+      "cis": {
+        "id": "2.4.6",
+        "section": "2.4 Sharing Services",
+        "title": "Ensure Printer Sharing is disabled",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["CM-7", "AC-3"],
+        "primary": "CM-7",
+        "family": "Configuration Management",
+        "title": "Least Functionality"
+      },
+      "mitre": {
+        "tactics": ["Lateral Movement", "Collection"],
+        "primary_technique": "T1046",
+        "techniques": [
+          {
+            "id": "T1046",
+            "name": "Network Service Discovery"
           }
         ]
       }

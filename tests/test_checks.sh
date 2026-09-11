@@ -20,6 +20,7 @@ export MACHAR_QUIET=1
 source "${PROJECT_ROOT}/lib/ui.sh"
 source "${PROJECT_ROOT}/lib/engine.sh"
 source "${PROJECT_ROOT}/lib/report.sh"
+source "${PROJECT_ROOT}/lib/report_html.sh"
 source "${PROJECT_ROOT}/lib/remediate.sh"
 source "${PROJECT_ROOT}/lib/compliance.sh"
 
@@ -404,7 +405,7 @@ assert_file_exists "$HTML_REPORT" "HTML report file was generated"
 
 HTML_CONTENT=$(cat "$HTML_REPORT")
 assert_match "<!DOCTYPE html>" "$HTML_CONTENT" "HTML contains <!DOCTYPE html> declaration"
-assert_match "<html lang=\"en\">" "$HTML_CONTENT" "HTML contains <html lang=\"en\"> tag"
+assert_match "<html[^>]*lang=\"en\"" "$HTML_CONTENT" "HTML contains <html lang=\"en\"> tag"
 assert_match "Hardening Score" "$HTML_CONTENT" "HTML contains Hardening Score section"
 assert_match "gaugeRing" "$HTML_CONTENT" "HTML contains gaugeRing SVG element"
 assert_match "System Metadata" "$HTML_CONTENT" "HTML contains System Metadata section"
@@ -447,6 +448,18 @@ CLI_AUTO_REPORT="${TEST_TMP_DIR}/cli_auto.html"
 assert_file_exists "$CLI_AUTO_REPORT" "macharden -o *.html auto-detects HTML and generates report"
 CLI_AUTO_CONTENT=$(cat "$CLI_AUTO_REPORT")
 assert_match "<!DOCTYPE html>" "$CLI_AUTO_CONTENT" "CLI auto-detected .html output is valid HTML"
+
+# Compliance chips must resolve mappings (not fake 85% / empty CIS tags)
+reset_engine
+record_result "HARD-01" "hardening" "System Integrity Protection (SIP)" "PASS" 10 "SIP enabled" ""
+calculate_hardening_index
+CHIP_HTML="${TEST_TMP_DIR}/chip_report.html"
+report_html "$CHIP_HTML"
+CHIP_CONTENT=$(cat "$CHIP_HTML")
+assert_match "CIS 5.1.2" "$CHIP_CONTENT" "HTML renders CIS chip from compliance mappings"
+assert_match "SI-7" "$CHIP_CONTENT" "HTML renders NIST chip from compliance mappings"
+assert_match "T1562.001" "$CHIP_CONTENT" "HTML renders MITRE chip from compliance mappings"
+assert_match "v1.1.0" "$CHIP_CONTENT" "HTML navbar shows scanner version 1.1.0"
 
 # ==============================================================================
 # Suite 8: Continuous Background Monitoring & Daemon Management
@@ -560,6 +573,9 @@ assert_match "suppressed" "$ALERT_CLEAN_OUT" "send_alert suppresses notification
 ALERT_FAIL_OUT=$(send_alert 60.0 3 2>&1)
 assert_match "alert" "$ALERT_FAIL_OUT" "send_alert triggers notification when failures > 0"
 
+ALERT_LOW_OUT=$(send_alert 65.0 0 2>&1)
+assert_match "threshold" "$ALERT_LOW_OUT" "send_alert notifies when score is below 70 with zero failures"
+
 # Test CLI integration with --daemon-status
 CLI_STATUS_OUT=$("${PROJECT_ROOT}/bin/macharden" --daemon-status 2>&1 || true)
 assert_match "macharden Background Daemon Status" "$CLI_STATUS_OUT" "CLI --daemon-status executes daemon_status"
@@ -591,7 +607,7 @@ SCHEMA_CHECK_SCRIPT="import json, sys
 data = json.load(open(sys.argv[1]))
 assert 'mappings' in data, 'Missing mappings object'
 mappings = data['mappings']
-required_checks = [\"HARD-01\", \"HARD-02\", \"NET-01\", \"NET-04\", \"SEC-01\", \"PERS-01\"]
+required_checks = [\"HARD-01\", \"HARD-02\", \"HARD-08\", \"HARD-11\", \"NET-01\", \"NET-07\", \"NET-09\", \"SEC-01\", \"SEC-06\", \"SEC-07\", \"PERS-01\", \"PERS-07\"]
 for cid in required_checks:
     assert cid in mappings, f'Missing check {cid}'
     entry = mappings[cid]
@@ -746,6 +762,63 @@ else
     log_test "FAIL" "CLI --compliance all -f json produced invalid JSON"
 fi
 
+
+# ==============================================================================
+# Suite 10: v1.1 Check Registry, CLI Validation, and Version
+# ==============================================================================
+echo "\n\033[1m[Suite 10] v1.1 Check Registry, CLI Validation, and Version\033[0m"
+
+reset_engine
+source "${PROJECT_ROOT}/lib/audit_hardening.sh"
+source "${PROJECT_ROOT}/lib/audit_network.sh"
+source "${PROJECT_ROOT}/lib/audit_secrets.sh"
+source "${PROJECT_ROOT}/lib/audit_persistence.sh"
+
+assert_eq "40" "${#REG_IDS[@]}" "v1.1 registers 40 audit checks"
+
+for expected_id in HARD-08 HARD-09 HARD-10 HARD-11 NET-07 NET-08 NET-09 SEC-06 SEC-07 PERS-07; do
+    found_id=0
+    for (( i = 1; i <= ${#REG_IDS[@]}; i++ )); do
+        if [[ "${REG_IDS[i]}" == "$expected_id" ]]; then
+            found_id=1
+            break
+        fi
+    done
+    if (( found_id )); then
+        log_test "PASS" "Registry includes ${expected_id}"
+    else
+        log_test "FAIL" "Registry includes ${expected_id}" "ID not found in REG_IDS"
+    fi
+done
+
+if typeset -f audit_firmware_password >/dev/null 2>&1 \
+    && typeset -f audit_secure_boot >/dev/null 2>&1 \
+    && typeset -f audit_autologin >/dev/null 2>&1 \
+    && typeset -f audit_bluetooth_sharing >/dev/null 2>&1 \
+    && typeset -f audit_airdrop >/dev/null 2>&1 \
+    && typeset -f audit_internet_sharing >/dev/null 2>&1 \
+    && typeset -f audit_firewall_logging >/dev/null 2>&1 \
+    && typeset -f audit_unencrypted_ssh_keys >/dev/null 2>&1 \
+    && typeset -f audit_shell_history_secrets >/dev/null 2>&1 \
+    && typeset -f audit_privileged_helpers >/dev/null 2>&1; then
+    log_test "PASS" "All v1.1 audit functions are defined"
+else
+    log_test "FAIL" "All v1.1 audit functions are defined"
+fi
+
+VERSION_OUT=$("${PROJECT_ROOT}/bin/macharden" --version 2>&1)
+assert_match "1.1.0" "$VERSION_OUT" "macharden --version reports 1.1.0"
+
+INVALID_CAT_OUT=$("${PROJECT_ROOT}/bin/macharden" -c bogus 2>&1) || true
+INVALID_CAT_EC=0
+"${PROJECT_ROOT}/bin/macharden" -c bogus >/dev/null 2>&1 || INVALID_CAT_EC=$?
+assert_eq "1" "$INVALID_CAT_EC" "Invalid -c category exits 1"
+assert_match "Invalid category" "$INVALID_CAT_OUT" "Invalid -c category prints error"
+
+HELP_OUT=$("${PROJECT_ROOT}/bin/macharden" --help 2>&1)
+assert_match "html" "$HELP_OUT" "Help lists html report format"
+assert_match "daemon-install" "$HELP_OUT" "Help lists --daemon-install"
+assert_match "compliance" "$HELP_OUT" "Help lists --compliance"
 
 # ==============================================================================
 # Final Test Summary

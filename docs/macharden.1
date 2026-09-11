@@ -1,4 +1,4 @@
-.TH MACHARDEN 1 "2026-09-12" "macharden 1.0.0" "macOS Security Manual"
+.TH MACHARDEN 1 "2026-09-12" "macharden 1.1.0" "macOS Security Manual"
 .SH NAME
 macharden \- macOS Security Hardening & Audit Scanner
 .SH SYNOPSIS
@@ -197,7 +197,8 @@ Scans locations frequently abused by malware and attackers for persistence
 on macOS. Inspects LaunchDaemons (\fB/Library/LaunchDaemons\fR,
 \fB/System/Library/LaunchDaemons\fR), LaunchAgents
 (\fB~/Library/LaunchAgents\fR, \fB/Library/LaunchAgents\fR), scheduled cron
-jobs, Login Items, and third-party kernel/system extensions.
+jobs, Login Items, privileged helper tools, and third-party
+kernel/system extensions.
 .SH SCORING ALGORITHM
 The
 .B Hardening Index

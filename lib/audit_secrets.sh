@@ -2,7 +2,8 @@
 # ==============================================================================
 # macharden - lib/audit_secrets.sh
 # Secrets & Credentials Audit Module: Shell Startup Files, Exposed .env Files,
-# Keychain Timeout, Kernel Core Dumps, and SSH File Permissions
+# Keychain Timeout, Kernel Core Dumps, SSH File Permissions,
+# Unencrypted SSH Private Keys, and Secrets in Shell History
 # ==============================================================================
 
 # Ensure record_result fallback exists if sourced standalone
@@ -15,6 +16,18 @@ fi
 # Helper to get file octal permissions portably (macOS and Linux)
 _get_octal_perms() {
     stat -f "%OLp" "$1" 2>/dev/null || stat -c "%a" "$1" 2>/dev/null || echo ""
+}
+
+# Secret assignment regex used by SEC-01 and SEC-07.
+# Matches known token names and `export NAME=value` without requiring whitespace around `=`.
+_SEC_SECRET_PATTERN='(H1_API_TOKEN|OPENAI_API_KEY|DEEPSEEK_API_KEY|ANTHROPIC_API_KEY|ANTHROPIC_AUTH_TOKEN|AWS_SECRET_ACCESS_KEY|AWS_ACCESS_KEY_ID|SLACK_TOKEN|GITHUB_TOKEN|GH_TOKEN|[A-Za-z0-9_]*(KEY|TOKEN|SECRET|PASSWORD|PASSWD))[[:space:]]*='
+
+# Extract the assignment name for masked reporting. Never return the secret value.
+_sec_secret_var_name() {
+    local line="$1"
+    local var_name=""
+    var_name=$(printf '%s\n' "$line" | grep -oE '[A-Za-z0-9_]*(KEY|TOKEN|SECRET|PASSWORD|PASSWD)[[:space:]]*=' | head -n 1 | sed -E 's/[[:space:]]*=$//')
+    printf '%s\n' "${var_name:-secret}"
 }
 
 # SEC-01: Plaintext Shell Secrets & Profile Permissions
@@ -49,8 +62,8 @@ audit_shell_secrets() {
     local line_content=""
     local sq="'"
 
-    # Pattern targeting popular API tokens and export patterns
-    local pattern='(H1_API_TOKEN|OPENAI_API_KEY|DEEPSEEK_API_KEY|ANTHROPIC_API_KEY|ANTHROPIC_AUTH_TOKEN|AWS_SECRET_ACCESS_KEY|AWS_ACCESS_KEY_ID|SLACK_TOKEN|GITHUB_TOKEN|GH_TOKEN|export[[:space:]]+[A-Za-z0-9_]*(KEY|TOKEN|SECRET|PASSWORD|PASSWD)[[:space:]]*=)'
+    # Pattern targeting popular API tokens and export assignments (no required whitespace around =)
+    local pattern="$_SEC_SECRET_PATTERN"
 
     for file in "${target_files[@]}"; do
         [[ ! -f "$file" ]] && continue
@@ -78,11 +91,10 @@ audit_shell_secrets() {
                 continue
             fi
 
-            # Extract variable name and partially masked snippet
-            var_name=$(echo "$line_content" | sed -n 's/.*export[[:space:]]*\([A-Za-z0-9_]*\)=.*/\1/p')
-            [[ -z "$var_name" ]] && var_name=$(echo "$line_content" | sed -n 's/.*\([A-Za-z0-9_]*\)=.*/\1/p')
+            # Extract variable name only; never include the secret value
+            var_name=$(_sec_secret_var_name "$line_content")
 
-            local entry="${file##*/}:${line_num} (${var_name:-secret}=***)"
+            local entry="${file##*/}:${line_num} (${var_name}=***)"
             found_secrets="${found_secrets:+$found_secrets; }${entry}"
             (( secret_count++ ))
         done <<< "$(grep -nE "$pattern" "$file" 2>/dev/null || true)"
@@ -336,12 +348,174 @@ audit_ssh_permissions() {
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
 }
 
+# SEC-06: Unencrypted SSH Private Keys
+# Scans `~/.ssh` for private keys (same discovery as SEC-05). WARN if any key
+# is stored without a passphrase. Remediation is a reviewable `ssh-keygen -p`
+# command; do not auto-change passphrases.
+audit_unencrypted_ssh_keys() {
+    local check_id="${1:-SEC-06}"
+    local category="${2:-secrets}"
+    local title="${3:-Unencrypted SSH Private Keys}"
+    local weight="${4:-8}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    local ssh_dir="$HOME/.ssh"
+    if [[ ! -d "$ssh_dir" ]]; then
+        res_status="PASS"
+        details="No ~/.ssh directory exists."
+        record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+        return 0
+    fi
+
+    local unencrypted_names=""
+    local fix_cmds=""
+    local unencrypted_count=0
+    local seen_keys="|"
+    local key_file=""
+    local key_base=""
+    local display_path=""
+
+    # Collect private keys: filename patterns (same as SEC-05) plus PRIVATE KEY headers
+    while IFS= read -r key_file; do
+        [[ -z "$key_file" ]] && continue
+        [[ ! -f "$key_file" ]] && continue
+        key_base="${key_file##*/}"
+        [[ "$key_base" == *.pub ]] && continue
+        if [[ "$seen_keys" == *"|$key_file|"* ]]; then
+            continue
+        fi
+        seen_keys="${seen_keys}${key_file}|"
+
+        # PEM/PKCS#8: encrypted if the file contains these markers
+        if grep -qE 'ENCRYPTED|Proc-Type: 4,ENCRYPTED' "$key_file" 2>/dev/null; then
+            continue
+        fi
+
+        # OpenSSH new-format keys omit those markers even when passphrase-protected.
+        # Test empty passphrase without prompting; success means unencrypted.
+        if grep -q "BEGIN OPENSSH PRIVATE KEY" "$key_file" 2>/dev/null; then
+            if ssh-keygen -y -P "" -f "$key_file" </dev/null >/dev/null 2>&1; then
+                unencrypted_names="${unencrypted_names:+$unencrypted_names, }${key_base}"
+                display_path="${key_file/#$HOME/~}"
+                fix_cmds="${fix_cmds:+$fix_cmds; }ssh-keygen -p -f ${display_path}"
+                (( unencrypted_count++ ))
+            fi
+            continue
+        fi
+
+        # Other private keys without encryption markers are unencrypted
+        unencrypted_names="${unencrypted_names:+$unencrypted_names, }${key_base}"
+        display_path="${key_file/#$HOME/~}"
+        fix_cmds="${fix_cmds:+$fix_cmds; }ssh-keygen -p -f ${display_path}"
+        (( unencrypted_count++ ))
+    done <<< "$(
+        {
+            find "$ssh_dir" -maxdepth 1 -type f \( -name "id_*" -o -name "*_id_*" -o -name "*.pem" -o -name "*.key" \) ! -name "*.pub" 2>/dev/null
+            grep -l "PRIVATE KEY" "$ssh_dir"/* 2>/dev/null
+        } | sort -u
+        true
+    )"
+
+    if (( unencrypted_count > 0 )); then
+        res_status="WARN"
+        details="Unencrypted SSH private key(s) found (${unencrypted_count}): ${unencrypted_names}"
+        remediation="${fix_cmds}"
+    else
+        res_status="PASS"
+        details="No unencrypted SSH private keys found in ~/.ssh."
+        remediation=""
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
+# SEC-07: Secrets in Shell History
+# Scans `~/.zsh_history`, `~/.zhistory`, and `~/.bash_history` with the SEC-01
+# secret regex. Never prints live secret values.
+audit_shell_history_secrets() {
+    local check_id="${1:-SEC-07}"
+    local category="${2:-secrets}"
+    local title="${3:-Secrets in Shell History}"
+    local weight="${4:-7}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    local history_files=(
+        "$HOME/.zsh_history"
+        "$HOME/.zhistory"
+        "$HOME/.bash_history"
+    )
+
+    local found_secrets=""
+    local secret_count=0
+    local file=""
+    local var_name=""
+    local line_num=""
+    local line_content=""
+    local cmd_text=""
+    local sq="'"
+    local pattern="$_SEC_SECRET_PATTERN"
+
+    for file in "${history_files[@]}"; do
+        [[ ! -f "$file" ]] && continue
+
+        while IFS=: read -r line_num line_content; do
+            [[ -z "$line_content" ]] && continue
+
+            # zsh EXTENDED_HISTORY: ": <timestamp>:<duration>;<command>"
+            cmd_text="$line_content"
+            if echo "$cmd_text" | grep -qE '^: [0-9]+:[0-9]+;'; then
+                cmd_text="${cmd_text#*;}"
+            fi
+
+            # Ignore commented lines
+            if echo "$cmd_text" | grep -qE '^[[:space:]]*#'; then
+                continue
+            fi
+            # Ignore command substitutions $(cat ...) or `cat ...`
+            if echo "$cmd_text" | grep -qE '(\$\(|`)'; then
+                continue
+            fi
+            # Ignore empty strings or dummy placeholder templates
+            if echo "$cmd_text" | grep -qiE "=[[:space:]]*[\"$sq ]*(your_|xxx|<|placeholder|\\$|\"\"|${sq}${sq})"; then
+                continue
+            fi
+
+            # Extract variable name only; never include the secret value
+            var_name=$(_sec_secret_var_name "$cmd_text")
+
+            local entry="${file##*/}:${line_num} (${var_name}=***)"
+            found_secrets="${found_secrets:+$found_secrets; }${entry}"
+            (( secret_count++ ))
+        done <<< "$(grep -nE "$pattern" "$file" 2>/dev/null || true)"
+    done
+
+    if (( secret_count > 0 )); then
+        res_status="WARN"
+        details="Secrets found in shell history (${secret_count}): ${found_secrets}"
+        remediation="Remove matching lines from shell history files (do not truncate the entire history). Example: sed -i '' '/TOKEN/d' ~/.zsh_history"
+    else
+        res_status="PASS"
+        details="No secrets detected in shell history files."
+        remediation=""
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
 # Aliases for ID-based execution
 audit_sec_01() { audit_shell_secrets "$@"; }
 audit_sec_02() { audit_env_files "$@"; }
 audit_sec_03() { audit_keychain_timeout "$@"; }
 audit_sec_04() { audit_core_dumps "$@"; }
 audit_sec_05() { audit_ssh_permissions "$@"; }
+audit_sec_06() { audit_unencrypted_ssh_keys "$@"; }
+audit_sec_07() { audit_shell_history_secrets "$@"; }
 
 # Category Runner
 run_audit_secrets() {
@@ -350,6 +524,8 @@ run_audit_secrets() {
     audit_keychain_timeout
     audit_core_dumps
     audit_ssh_permissions
+    audit_unencrypted_ssh_keys
+    audit_shell_history_secrets
 }
 
 # Auto-registration with engine.sh
@@ -360,6 +536,8 @@ register_secrets_checks() {
         register_check "SEC-03" "secrets" "Keychain Auto-Lock Timeout" 5 audit_keychain_timeout
         register_check "SEC-04" "secrets" "Kernel Core Dumps" 4 audit_core_dumps
         register_check "SEC-05" "secrets" "SSH Keys and Config Permissions" 7 audit_ssh_permissions
+        register_check "SEC-06" "secrets" "Unencrypted SSH Private Keys" 8 audit_unencrypted_ssh_keys
+        register_check "SEC-07" "secrets" "Secrets in Shell History" 7 audit_shell_history_secrets
     fi
 }
 

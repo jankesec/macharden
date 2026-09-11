@@ -2,7 +2,8 @@
 # ==============================================================================
 # macharden - lib/audit_persistence.sh
 # Persistence Mechanisms Audit Module: User/System LaunchAgents,
-# System LaunchDaemons, Crontabs, Login Items, Authorized Keys, and Sudoers
+# System LaunchDaemons, Crontabs, Login Items, Authorized Keys, Sudoers,
+# Privileged Helper Tools, and Printer Sharing
 # ==============================================================================
 
 # Ensure record_result fallback exists if sourced standalone
@@ -356,6 +357,140 @@ audit_sudoers() {
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
 }
 
+# PERS-07: Privileged Helper Tools
+# Lists files in `/Library/PrivilegedHelperTools` and verifies code signatures.
+# Never deletes helpers; unsigned/invalid signatures are reported for review.
+audit_privileged_helpers() {
+    local check_id="${1:-PERS-07}"
+    local category="${2:-persistence}"
+    local title="${3:-Privileged Helper Tools}"
+    local weight="${4:-6}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    local helper_dir="/Library/PrivilegedHelperTools"
+    local helper_count=0
+    local unsigned_list=""
+    local helper_names=""
+    local preview_limit=5
+    local file=""
+    local fname=""
+    local can_codesign=0
+
+    if command -v codesign >/dev/null 2>&1; then
+        can_codesign=1
+    fi
+
+    if [[ -d "$helper_dir" ]]; then
+        while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+            (( helper_count++ ))
+            fname="${file##*/}"
+            if (( helper_count <= preview_limit )); then
+                helper_names="${helper_names:+$helper_names, }${fname}"
+            fi
+
+            if (( can_codesign == 1 )); then
+                if ! codesign -v --verify "$file" 2>/dev/null; then
+                    unsigned_list="${unsigned_list:+$unsigned_list, }${fname}"
+                fi
+            fi
+        done <<< "$(find "$helper_dir" -maxdepth 1 -type f 2>/dev/null || true)"
+    fi
+
+    if (( helper_count == 0 )); then
+        res_status="PASS"
+        details="No privileged helper tools installed."
+        remediation=""
+    elif [[ -n "$unsigned_list" ]]; then
+        res_status="WARN"
+        details="Unsigned or invalid-signature privileged helper(s): ${unsigned_list}"
+        remediation="Review unsigned privileged helpers with 'codesign -dv --verbose=2 <path>'. Remove only after confirming they are unexpected. Do not blindly delete."
+    elif (( can_codesign == 1 )); then
+        res_status="INFO"
+        details="Reviewed ${helper_count} privileged helper tool(s); all signatures verified"
+        if [[ -n "$helper_names" ]]; then
+            if (( helper_count > preview_limit )); then
+                details="${details} (${helper_names}, ...)"
+            else
+                details="${details} (${helper_names})"
+            fi
+        fi
+        remediation=""
+    else
+        res_status="INFO"
+        details="Reviewed ${helper_count} privileged helper tool(s); codesign unavailable to verify signatures"
+        if [[ -n "$helper_names" ]]; then
+            if (( helper_count > preview_limit )); then
+                details="${details} (${helper_names}, ...)"
+            else
+                details="${details} (${helper_names})"
+            fi
+        fi
+        remediation=""
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
+# PERS-08: Printer Sharing
+# Uses cupsctl when present. WARN if printers are shared; PASS if CUPS is not
+# sharing, or if cupsctl is missing and there is no evidence of sharing.
+audit_printer_sharing() {
+    local check_id="${1:-PERS-08}"
+    local category="${2:-persistence}"
+    local title="${3:-Printer Sharing}"
+    local weight="${4:-5}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    local cupsctl_bin=""
+    local cups_out=""
+    local sharing_on=0
+    local evidence=""
+
+    if command -v cupsctl >/dev/null 2>&1; then
+        cupsctl_bin=$(command -v cupsctl)
+    elif [[ -x /usr/sbin/cupsctl ]]; then
+        cupsctl_bin="/usr/sbin/cupsctl"
+    fi
+
+    if [[ -n "$cupsctl_bin" ]]; then
+        cups_out=$("$cupsctl_bin" 2>/dev/null || true)
+        if echo "$cups_out" | grep -qE '_share_printers=1([^0-9]|$)'; then
+            sharing_on=1
+            evidence="_share_printers=1"
+        elif echo "$cups_out" | grep -qiE 'SharePrinters[[:space:]]*[=:]?[[:space:]]*Yes'; then
+            sharing_on=1
+            evidence="SharePrinters Yes"
+        elif launchctl list org.cups.cupsd >/dev/null 2>&1 \
+            && echo "$cups_out" | grep -qiE '(^|[[:space:]])Browsing[[:space:]]*[=:][[:space:]]*(On|Yes|1)([^A-Za-z0-9]|$)'; then
+            sharing_on=1
+            evidence="org.cups.cupsd loaded with browsing enabled"
+        fi
+    fi
+
+    if (( sharing_on == 1 )); then
+        res_status="WARN"
+        details="Printer Sharing is enabled (${evidence}). Shared printers increase the local attack surface via CUPS."
+        remediation="cupsctl --no-share-printers; or System Settings > General > Sharing > Printer Sharing off"
+    else
+        res_status="PASS"
+        if [[ -z "$cupsctl_bin" ]]; then
+            details="cupsctl not found; no evidence of printer sharing."
+        else
+            details="Printer Sharing is disabled (CUPS is not sharing printers)."
+        fi
+        remediation=""
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
 # Aliases for ID-based execution
 audit_pers_01() { audit_launch_agents "$@"; }
 audit_pers_02() { audit_launch_daemons "$@"; }
@@ -363,6 +498,8 @@ audit_pers_03() { audit_crontabs "$@"; }
 audit_pers_04() { audit_login_items "$@"; }
 audit_pers_05() { audit_authorized_keys "$@"; }
 audit_pers_06() { audit_sudoers "$@"; }
+audit_pers_07() { audit_privileged_helpers "$@"; }
+audit_pers_08() { audit_printer_sharing "$@"; }
 
 # Category Runner
 run_audit_persistence() {
@@ -372,6 +509,8 @@ run_audit_persistence() {
     audit_login_items
     audit_authorized_keys
     audit_sudoers
+    audit_privileged_helpers
+    audit_printer_sharing
 }
 
 # Auto-registration with engine.sh
@@ -383,6 +522,8 @@ register_persistence_checks() {
         register_check "PERS-04" "persistence" "User Login Items" 4 audit_login_items
         register_check "PERS-05" "persistence" "SSH Authorized Public Keys" 6 audit_authorized_keys
         register_check "PERS-06" "persistence" "Sudoers Configuration & NOPASSWD Rules" 8 audit_sudoers
+        register_check "PERS-07" "persistence" "Privileged Helper Tools" 6 audit_privileged_helpers
+        register_check "PERS-08" "persistence" "Printer Sharing" 5 audit_printer_sharing
     fi
 }
 

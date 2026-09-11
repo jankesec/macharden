@@ -10,7 +10,7 @@
   <a href="#license"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
   <a href="https://apple.com/macos"><img src="https://img.shields.io/badge/Platform-macOS%2012%2B%20%7C%20Apple%20Silicon%20%26%20Intel-black.svg?logo=apple&logoColor=white" alt="Platform: macOS"></a>
   <a href="#"><img src="https://img.shields.io/badge/Shell-Zsh%20%2F%20Bash-orange.svg" alt="Shell: Zsh / Bash"></a>
-  <a href="#audit-categories--checks"><img src="https://img.shields.io/badge/Audits-24%2B%20Controls-purple.svg" alt="Audit Checks"></a>
+  <a href="#audit-categories--checks"><img src="https://img.shields.io/badge/Audits-42%2B%20Controls-purple.svg" alt="Audit Checks"></a>
   <a href="#"><img src="https://img.shields.io/badge/Dependencies-Zero%20(Pure%20Native)-success.svg" alt="Dependencies"></a>
 </p>
 
@@ -48,7 +48,7 @@ Security engineers, DevOps professionals, and privacy-conscious Mac users face a
 | **Plaintext Shell & `.env` Secrets Scanner** | **Yes** | No | No | No |
 | **Firewall Exception Permissiveness Audit** | **Yes** | No | Basic | Manual |
 | **BPF Packet Sniffing & Daemon Checks** | **Yes** | No | No | Manual |
-| **Export Formats** | **Terminal, Markdown, JSON** | Text, DAT | XML, SCAP | None |
+| **Export Formats** | **Terminal, Markdown, JSON, HTML** | Text, DAT | XML, SCAP | None |
 | **Non-MDM / Developer Machine Ready** | **Yes (Instant)** | Yes | No (Complex setup) | Manual |
 
 ---
@@ -92,7 +92,7 @@ make install-man           # UNIX manual page (man macharden)
 ## 💻 CLI Usage & Examples
 
 ```text
-macharden - macOS Security Hardening & Audit Scanner (v1.0.0)
+macharden - macOS Security Hardening & Audit Scanner (v1.1.0)
 
 Usage:
   macharden [options]
@@ -102,12 +102,17 @@ Options:
   -v, --version              Print version information and exit
   -c, --category <name>      Run specific category of audit checks
                              Categories: hardening, network, secrets, persistence, all (default: all)
-  -f, --format <format>      Output report format: term, markdown, json (default: term)
+  -f, --format <format>      Output report format: term, markdown, json, html (default: term)
   -o, --output <file>        Save audit report to the specified file path
   -q, --quiet                Minimal output, print only final executive summary
   --fix                      Interactively prompt and apply remediation fixes for failed checks
   --generate-fix [file]      Generate automated remediation shell script without applying
   --no-color                 Disable ANSI terminal color output
+  --compliance <framework>   Align report with cis, nist, mitre, or all
+  --daemon-install [sched]   Install LaunchAgent (daily, weekly, monthly, on-login)
+  --daemon-uninstall         Unload and remove background scan LaunchAgent
+  --daemon-status            Show background daemon status and recent logs
+  --alert                    Native macOS notification on critical findings
 ```
 
 ### Common Commands
@@ -133,6 +138,15 @@ macharden --fix
 
 # 7. Quiet mode: print only the executive score summary
 macharden -q
+
+# 8. Interactive HTML dashboard
+macharden -f html -o audit.html
+
+# 9. CIS-aligned compliance report
+macharden --compliance cis
+
+# 10. Schedule a weekly background audit
+macharden --daemon-install weekly
 ```
 
 ---
@@ -145,7 +159,7 @@ macharden -q
  | '_ ` _ \ / _` |/ __| '_ \ / _` | '__| / _` |/ _ \ '_ \ 
  | | | | | | (_| | (__| | | | (_| | |   | (_| |  __/ | | |
  |_| |_| |_|\__,_|\___|_| |_|\__,_|_|    \__,_|\___|_| |_|
-  macOS Security Hardening & Audit Scanner  v1.0.0
+  macOS Security Hardening & Audit Scanner  v1.1.0
 ──────────────────────────────────────────────────────────────────────
  Target Host:   macOS-Workstation (auditor)
  macOS Build:   macOS 15.3 (Build 24D60) [arm64]
@@ -245,7 +259,7 @@ macharden -q
 
 ## 🔍 Audit Categories & Checks
 
-`macharden` inspects **24+ security controls** across four essential categories:
+`macharden` inspects **42+ security controls** across four essential categories:
 
 ### 1. 🛡️ OS Hardening (`hardening`)
 | Check ID | Control Title | Description | Weight |
@@ -256,7 +270,14 @@ macharden -q
 | `HARD-04` | Screen Lock & Delay | Verifies screensaver password prompt and timeout (`<= 5s`) | 7 |
 | `HARD-05` | Guest Account Access | Ensures guest login window accounts are disabled | 6 |
 | `HARD-06` | Automatic Software Updates | Verifies automatic update checks and background security response downloads | 6 |
-| `HARD-07` | Sharing Services Attack Surface | Verifies SMB, NFS, TFTP, SSH (`sshd`), and VNC Remote Management are inactive | 8 |
+| `HARD-07` | Sharing Services Attack Surface | Verifies SMB, NFS, TFTP, SSH (`sshd`), Screen Sharing, and Remote Apple Events are inactive | 7 |
+| `HARD-08` | Firmware Password / Recovery Lock | Intel firmware password (`firmwarepasswd`); Apple Silicon reported as informational | 8 |
+| `HARD-09` | Secure Boot / Authenticated Root | Verifies `csrutil authenticated-root` and Apple Silicon Full Security | 8 |
+| `HARD-10` | Automatic Login Disabled | Ensures `autoLoginUser` is not set on the login window | 6 |
+| `HARD-11` | Bluetooth Sharing | Ensures Bluetooth file sharing services are disabled | 5 |
+| `HARD-12` | Home Directory Permissions | Ensures `$HOME` is 700/750 (Lynis HOME-9304 analogue) | 6 |
+| `HARD-13` | Network Time Synchronization | Verifies macOS network time (`systemsetup -getusingnetworktime`) | 5 |
+| `HARD-14` | Built-in Malware Protection | Verifies Apple XProtect/MRT presence | 6 |
 
 ### 2. 🌐 Network Security (`network`)
 | Check ID | Control Title | Description | Weight |
@@ -266,7 +287,12 @@ macharden -q
 | `NET-03` | Firewall Binary Exceptions | Scans allowed incoming apps for dangerous script interpreters (`python`, `bash`, `node`) | 8 |
 | `NET-04` | BPF Packet Capture Rights | Audits `/dev/bpf*` device permissions and unprivileged packet sniffing access | 7 |
 | `NET-05` | Hosts File Loopback Integrity | Ensures `127.0.0.1` and `::1` localhost definitions are intact in `/etc/hosts` | 9 |
-| `NET-06` | Listening Wildcard Services | Audits non-Apple daemon processes bound to wildcard addresses (`0.0.0.0` / `*`) | 7 |
+| `NET-06` | Listening Wildcard Services | Audits non-Apple daemon processes bound to wildcard addresses (`0.0.0.0` / `*`) | 6 |
+| `NET-07` | AirDrop | Ensures AirDrop is disabled or the AWDL radio is down | 6 |
+| `NET-08` | Internet Sharing | Ensures Internet Sharing / NAT is disabled | 7 |
+| `NET-09` | Firewall Logging | Verifies Application Firewall logging mode is enabled | 4 |
+| `NET-10` | IP Forwarding | Ensures `net.inet.ip.forwarding` is 0 | 7 |
+| `NET-11` | Promiscuous Interfaces | Flags NICs in PROMISC mode | 6 |
 
 ### 3. 🔑 Secrets & Privacy (`secrets`)
 | Check ID | Control Title | Description | Weight |
@@ -276,6 +302,10 @@ macharden -q
 | `SEC-03` | Keychain Inactivity Auto-Lock | Verifies login keychain timeout auto-lock (`security show-keychain-info`) | 5 |
 | `SEC-04` | Kernel Core Memory Dumps | Verifies that crash coredumps do not dump process memory to disk (`kern.coredump`) | 5 |
 | `SEC-05` | SSH Keys & Config Permissions | Audits file permissions of `~/.ssh/` (`700`), private keys (`600`), and `config` (`600`) | 7 |
+| `SEC-06` | Unencrypted SSH Private Keys | Detects private keys without a passphrase | 8 |
+| `SEC-07` | Secrets in Shell History | Scans `~/.zsh_history` / `~/.bash_history` for plaintext API tokens | 7 |
+| `SEC-08` | SSH Daemon Hardening | When Remote Login is on, checks PermitRootLogin / MaxAuthTries / X11 | 7 |
+| `SEC-09` | Suspicious Shell History Files | Detects history files that are not regular files (Lynis HOME-9310) | 5 |
 
 ### 4. ⚙️ Persistence & System Integrity (`persistence`)
 | Check ID | Control Title | Description | Weight |
@@ -285,7 +315,9 @@ macharden -q
 | `PERS-03` | User & System Crontabs | Audits `crontab -l` and `/etc/cron*` tables for unauthorized periodic executions | 6 |
 | `PERS-04` | Login Items Persistence | Queries user login items via macOS System Events service | 5 |
 | `PERS-05` | SSH Authorized Keys | Audits `~/.ssh/authorized_keys` for unauthorized SSH backdoors | 7 |
-| `PERS-06` | Sudoers Configuration | Inspects `/etc/sudoers.d/` for dangerous `NOPASSWD` privilege escalation rules | 9 |
+| `PERS-06` | Sudoers Configuration | Inspects `/etc/sudoers.d/` for dangerous `NOPASSWD` privilege escalation rules | 8 |
+| `PERS-07` | Privileged Helper Tools | Reviews `/Library/PrivilegedHelperTools` for unsigned helpers | 6 |
+| `PERS-08` | Printer Sharing | Ensures CUPS printer sharing is disabled | 5 |
 
 ---
 

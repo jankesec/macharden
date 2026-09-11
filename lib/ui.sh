@@ -63,7 +63,7 @@ ui_disable_colors() {
 
 # Display ASCII banner with system metadata
 ui_banner() {
-    local version="${MACHAR_VERSION:-1.0.0}"
+    local version="${MACHAR_VERSION:-1.1.0}"
     local os_product os_version os_build arch current_time current_user hostname
 
     os_product=$(sw_vers -productName 2>/dev/null || echo "macOS")

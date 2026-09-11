@@ -2,7 +2,8 @@
 # ==============================================================================
 # macharden - lib/audit_network.sh
 # Network Security Audit Module: Application Firewall, Stealth Mode,
-# Firewall Exceptions, BPF Sniffing, Hosts File Integrity, Wildcard Listeners
+# Firewall Exceptions, BPF Sniffing, Hosts File Integrity, Wildcard Listeners,
+# AirDrop, Internet Sharing, Firewall Logging, IP Forwarding, Promiscuous Interfaces
 # ==============================================================================
 
 # Ensure record_result fallback exists if sourced standalone
@@ -34,7 +35,8 @@ audit_firewall() {
         fw_out=$(defaults read /Library/Preferences/com.apple.alf globalstate 2>/dev/null || echo "0")
     fi
 
-    if echo "$fw_out" | grep -qiE "Firewall is enabled|State = 1|State = 2"; then
+    # socketfilterfw prints "Firewall is enabled" / "State = 1|2"; defaults fallback is a bare 1 or 2
+    if echo "$fw_out" | grep -qiE "Firewall is enabled|State[[:space:]]*=[[:space:]]*[12]|^[[:space:]]*[12][[:space:]]*$"; then
         res_status="PASS"
         details="macOS Application Firewall (ALF) is enabled and monitoring incoming connections."
         remediation=""
@@ -354,6 +356,217 @@ audit_listening_wildcards() {
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
 }
 
+# NET-07: AirDrop
+# Checks `defaults read com.apple.NetworkBrowser DisableAirDrop` and `ifconfig awdl0`.
+# PASS if DisableAirDrop is 1/true, or awdl0 is down/absent. WARN if AirDrop radio is up.
+audit_airdrop() {
+    local check_id="${1:-NET-07}"
+    local category="${2:-network}"
+    local title="${3:-AirDrop}"
+    local weight="${4:-6}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    local disable_airdrop
+    disable_airdrop=$(defaults read com.apple.NetworkBrowser DisableAirDrop 2>/dev/null || echo "")
+
+    if echo "$disable_airdrop" | grep -qiE '^[[:space:]]*(1|true)[[:space:]]*$'; then
+        res_status="PASS"
+        details="AirDrop is disabled."
+        remediation=""
+    else
+        local awdl_out
+        awdl_out=$(ifconfig awdl0 2>/dev/null || echo "")
+
+        if [[ -n "$awdl_out" ]] && echo "$awdl_out" | grep -qiE '<[^>]*(UP|RUNNING)[^>]*>'; then
+            res_status="WARN"
+            details="AirDrop is not disabled and awdl0 is UP/RUNNING. Nearby devices can discover this Mac over AWDL."
+            remediation="defaults write com.apple.NetworkBrowser DisableAirDrop -bool true"
+        else
+            # awdl0 absent or down; prefer PASS even if DisableAirDrop is unset
+            res_status="PASS"
+            details="AirDrop radio (awdl0) is down or absent. DisableAirDrop is not explicitly set."
+            remediation=""
+        fi
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
+# NET-08: Internet Sharing
+# Checks `defaults read /Library/Preferences/SystemConfiguration/com.apple.nat NAT`.
+# FAIL if Enabled = 1 (or Enabled:1). PASS otherwise, including a missing plist.
+audit_internet_sharing() {
+    local check_id="${1:-NET-08}"
+    local category="${2:-network}"
+    local title="${3:-Internet Sharing}"
+    local weight="${4:-7}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    local nat_out
+    nat_out=$(defaults read /Library/Preferences/SystemConfiguration/com.apple.nat NAT 2>/dev/null || echo "")
+
+    if echo "$nat_out" | grep -qE 'Enabled[[:space:]]*[=:][[:space:]]*1([^0-9]|$)'; then
+        res_status="FAIL"
+        details="Internet Sharing (NAT) is enabled. This Mac is acting as a network gateway for other devices."
+        remediation="Disable Internet Sharing in System Settings > General > Sharing. sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.nat NAT -dict Enabled -int 0"
+    else
+        res_status="PASS"
+        details="Internet Sharing (NAT) is disabled or not configured."
+        remediation=""
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
+# NET-09: Firewall Logging
+# Prefers `/usr/libexec/ApplicationFirewall/socketfilterfw --getloggingmode`.
+# Fallback: `defaults read /Library/Preferences/com.apple.alf loggingenabled`.
+# PASS if on/enabled/1. SUGG if off (neutral; does not penalize score).
+audit_firewall_logging() {
+    local check_id="${1:-NET-09}"
+    local category="${2:-network}"
+    local title="${3:-Firewall Logging}"
+    local weight="${4:-4}"
+
+    local res_status="SUGG"
+    local details=""
+    local remediation=""
+
+    local fw_bin="/usr/libexec/ApplicationFirewall/socketfilterfw"
+    local log_out=""
+
+    if [[ -x "$fw_bin" ]]; then
+        log_out=$("$fw_bin" --getloggingmode 2>&1)
+    else
+        log_out=$(defaults read /Library/Preferences/com.apple.alf loggingenabled 2>/dev/null || echo "0")
+    fi
+
+    if echo "$log_out" | grep -qiE "is on|enabled|^[[:space:]]*(on|1)[[:space:]]*$"; then
+        res_status="PASS"
+        details="Application Firewall logging is enabled."
+        remediation=""
+    else
+        res_status="SUGG"
+        details="Firewall logging is off. Connection allow/deny events are not recorded."
+        remediation="sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setloggingmode on"
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
+# NET-10: IP Forwarding
+# Checks `sysctl -n net.inet.ip.forwarding` and `net.inet6.ip6.forwarding` if present.
+# PASS if both 0 / IPv6 missing. FAIL if IPv4 forwarding is 1 (host is a router).
+audit_ip_forwarding() {
+    local check_id="${1:-NET-10}"
+    local category="${2:-network}"
+    local title="${3:-IP Forwarding}"
+    local weight="${4:-7}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    local ipv4_fwd=""
+    ipv4_fwd=$(sysctl -n net.inet.ip.forwarding 2>/dev/null || echo "")
+    ipv4_fwd="${ipv4_fwd//[$'\n\r\t ']/}"
+
+    local ipv6_fwd=""
+    ipv6_fwd=$(sysctl -n net.inet6.ip6.forwarding 2>/dev/null || echo "")
+    ipv6_fwd="${ipv6_fwd//[$'\n\r\t ']/}"
+
+    if [[ -z "$ipv4_fwd" ]]; then
+        res_status="INFO"
+        details="Unable to read net.inet.ip.forwarding via sysctl."
+        [[ -n "$ipv6_fwd" ]] && details="${details} IPv6 forwarding is ${ipv6_fwd}."
+        remediation=""
+    elif [[ "$ipv4_fwd" != "0" ]]; then
+        res_status="FAIL"
+        details="IPv4 IP forwarding is enabled (net.inet.ip.forwarding=${ipv4_fwd}). This host is acting as a router (related to Internet Sharing)."
+        if [[ -n "$ipv6_fwd" ]]; then
+            details="${details} IPv6 forwarding is ${ipv6_fwd}."
+        fi
+        remediation="sudo sysctl -w net.inet.ip.forwarding=0"
+    elif [[ -n "$ipv6_fwd" && "$ipv6_fwd" != "0" ]]; then
+        res_status="WARN"
+        details="IPv4 forwarding is disabled (net.inet.ip.forwarding=0), but IPv6 forwarding is enabled (net.inet6.ip6.forwarding=${ipv6_fwd})."
+        remediation="sudo sysctl -w net.inet6.ip6.forwarding=0"
+    else
+        res_status="PASS"
+        if [[ -z "$ipv6_fwd" ]]; then
+            details="IPv4 forwarding is disabled (net.inet.ip.forwarding=0). IPv6 forwarding sysctl is not present."
+        else
+            details="IP forwarding is disabled (net.inet.ip.forwarding=0, net.inet6.ip6.forwarding=0)."
+        fi
+        remediation=""
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
+# NET-11: Promiscuous Interfaces
+# Checks `ifconfig -a` for PROMISC in interface flags (not comments).
+# WARN if any non-loopback interface is promiscuous. PASS otherwise.
+audit_promiscuous_interfaces() {
+    local check_id="${1:-NET-11}"
+    local category="${2:-network}"
+    local title="${3:-Promiscuous Interfaces}"
+    local weight="${4:-6}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    local ifconfig_out=""
+    ifconfig_out=$(ifconfig -a 2>/dev/null || echo "")
+
+    if [[ -z "$ifconfig_out" ]]; then
+        res_status="PASS"
+        details="ifconfig unavailable or no interfaces reported."
+        record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+        return 0
+    fi
+
+    local promisc_ifs=""
+    local rem_cmds=""
+    local count_promisc=0
+    local ifname=""
+    local line=""
+
+    # Match PROMISC inside flags <...>, only on interface header lines (not comments)
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        echo "$line" | grep -qE '^[^[:space:]].*<[^>]*PROMISC' || continue
+        ifname="${line%%:*}"
+        [[ -z "$ifname" ]] && continue
+        # Skip loopback interfaces (lo, lo0, lo1, ...)
+        if [[ "$ifname" == "lo" || "$ifname" == lo[0-9]* ]]; then
+            continue
+        fi
+        promisc_ifs="${promisc_ifs:+$promisc_ifs, }${ifname}"
+        rem_cmds="${rem_cmds:+$rem_cmds; }sudo ifconfig ${ifname} -promisc"
+        (( count_promisc++ ))
+    done <<< "$ifconfig_out"
+
+    if (( count_promisc > 0 )); then
+        res_status="WARN"
+        details="Non-loopback interface(s) in promiscuous mode (${count_promisc}): ${promisc_ifs}. Packet capture tools may be running."
+        remediation="Review packet-capture tools; ${rem_cmds}"
+    else
+        res_status="PASS"
+        details="No non-loopback interfaces are in promiscuous mode."
+        remediation=""
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
 # Aliases for ID-based execution
 audit_net_01() { audit_firewall "$@"; }
 audit_net_02() { audit_firewall_stealth "$@"; }
@@ -361,6 +574,11 @@ audit_net_03() { audit_firewall_exceptions "$@"; }
 audit_net_04() { audit_bpf_sniffing "$@"; }
 audit_net_05() { audit_hosts_integrity "$@"; }
 audit_net_06() { audit_listening_wildcards "$@"; }
+audit_net_07() { audit_airdrop "$@"; }
+audit_net_08() { audit_internet_sharing "$@"; }
+audit_net_09() { audit_firewall_logging "$@"; }
+audit_net_10() { audit_ip_forwarding "$@"; }
+audit_net_11() { audit_promiscuous_interfaces "$@"; }
 
 # Category Runner
 run_audit_network() {
@@ -370,6 +588,11 @@ run_audit_network() {
     audit_bpf_sniffing
     audit_hosts_integrity
     audit_listening_wildcards
+    audit_airdrop
+    audit_internet_sharing
+    audit_firewall_logging
+    audit_ip_forwarding
+    audit_promiscuous_interfaces
 }
 
 # Auto-registration with engine.sh
@@ -381,6 +604,11 @@ register_network_checks() {
         register_check "NET-04" "network" "BPF Packet Capture Permissions" 7 audit_bpf_sniffing
         register_check "NET-05" "network" "/etc/hosts Loopback Integrity" 8 audit_hosts_integrity
         register_check "NET-06" "network" "Wildcard Exposed TCP Listeners" 6 audit_listening_wildcards
+        register_check "NET-07" "network" "AirDrop" 6 audit_airdrop
+        register_check "NET-08" "network" "Internet Sharing" 7 audit_internet_sharing
+        register_check "NET-09" "network" "Firewall Logging" 4 audit_firewall_logging
+        register_check "NET-10" "network" "IP Forwarding" 7 audit_ip_forwarding
+        register_check "NET-11" "network" "Promiscuous Interfaces" 6 audit_promiscuous_interfaces
     fi
 }
 

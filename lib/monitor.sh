@@ -486,6 +486,10 @@ send_alert() {
         notif_subtitle="Security Warning: ${failures} Check(s) Failed (Score: ${score}%)"
         notif_message="Background audit identified ${failures} security failures. Run 'macharden' to review."
         sound_name="Sosumi"
+    elif (( score_num < 70.0 )); then
+        notif_subtitle="Hardening Index below threshold (${score}%)"
+        notif_message="Score ${score}% with ${failures} failure(s). Run 'macharden' to review warnings and suggestions."
+        sound_name="Sosumi"
     elif (( opt_force )); then
         notif_title="macharden Monitor Status"
         notif_subtitle="Hardening Index: ${score}% (All Checks Passing)"

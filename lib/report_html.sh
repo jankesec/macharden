@@ -16,7 +16,7 @@ fi
 # Usage: report_html [output_file]
 report_html() {
     local output_file="${1:-}"
-    local version="${MACHAR_VERSION:-1.0.0}"
+    local version="${MACHAR_VERSION:-1.1.0}"
     local _script_dir="${0:A:h}"
     local compliance_file="${_script_dir}/../data/compliance_mappings.json"
 
@@ -38,7 +38,7 @@ report_html() {
     fi
 
     # Execute Python generator with JSON payload and compliance mappings
-    AUDIT_JSON="$json_data" AUDIT_OUTPUT_FILE="$output_file" COMPLIANCE_JSON_FILE="$compliance_file" python3 - << 'PYEOF'
+    AUDIT_JSON="$json_data" AUDIT_OUTPUT_FILE="$output_file" COMPLIANCE_JSON_FILE="$compliance_file" AUDIT_VERSION="$version" python3 - << 'PYEOF'
 import os
 import sys
 import json
@@ -47,6 +47,7 @@ import html
 raw_json = os.environ.get('AUDIT_JSON', '{}')
 output_file = os.environ.get('AUDIT_OUTPUT_FILE', '')
 comp_file = os.environ.get('COMPLIANCE_JSON_FILE', '')
+scanner_ver = os.environ.get('AUDIT_VERSION', '1.1.0')
 
 try:
     data = json.loads(raw_json)
@@ -54,19 +55,30 @@ except Exception as e:
     sys.stderr.write(f"Error parsing audit JSON data: {e}\n")
     sys.exit(1)
 
-# Load compliance mappings if available
+# Robust compliance mappings search
 compliance_map = {}
-if comp_file and os.path.isfile(comp_file):
-    try:
-        with open(comp_file, 'r', encoding='utf-8') as f:
-            compliance_map = json.load(f)
-    except Exception:
-        pass
+search_paths = [
+    comp_file,
+    os.path.join(os.getcwd(), 'data', 'compliance_mappings.json'),
+    '<project_root>/data/compliance_mappings.json'
+]
+for p in search_paths:
+    if p and os.path.isfile(p):
+        try:
+            with open(p, 'r', encoding='utf-8') as f:
+                raw_c = json.load(f)
+                compliance_map = raw_c.get('mappings', raw_c)
+                if compliance_map:
+                    break
+        except Exception:
+            pass
 
 scanner = data.get('scanner', {})
 system = data.get('system', {})
 summary = data.get('summary', {})
 checks = data.get('checks', [])
+
+version = scanner.get('version') or scanner_ver
 
 # Extract summary metrics
 score = float(summary.get('hardening_index', 0.0))
@@ -89,28 +101,37 @@ fail_pct = round((fail_checks / total_checks * 100.0) if total_checks > 0 else 0
 circumference = 439.82
 gauge_offset = round(circumference * (1.0 - max(0.0, min(100.0, score)) / 100.0), 2)
 
-# Grade letter determination
-if score >= 95:
-    letter_grade = "A+"
+# Grade letter & color determination
+if score >= 90:
+    letter_grade = "A" if score < 95 else "A+"
     grade_color = "#10b981"
-elif score >= 90:
-    letter_grade = "A"
-    grade_color = "#10b981"
+    score_grad_start = "#10b981"
+    score_grad_end = "#06b6d4"
 elif score >= 80:
     letter_grade = "B+"
     grade_color = "#0ea5e9"
+    score_grad_start = "#0ea5e9"
+    score_grad_end = "#10b981"
 elif score >= 70:
     letter_grade = "B"
     grade_color = "#38bdf8"
+    score_grad_start = "#38bdf8"
+    score_grad_end = "#0ea5e9"
 elif score >= 60:
     letter_grade = "C"
     grade_color = "#f59e0b"
+    score_grad_start = "#f59e0b"
+    score_grad_end = "#fbbf24"
 elif score >= 50:
     letter_grade = "D"
     grade_color = "#f97316"
+    score_grad_start = "#f97316"
+    score_grad_end = "#f59e0b"
 else:
     letter_grade = "F"
-    grade_color = "#ef4444"
+    grade_color = "#f43f5e"
+    score_grad_start = "#f43f5e"
+    score_grad_end = "#e11d48"
 
 # Categories count aggregation
 cat_counts = {
@@ -136,7 +157,7 @@ for c in checks:
 remediable_checks = [c for c in checks if c.get('status') in ['FAIL', 'WARN'] and c.get('remediation')]
 remediable_count = len(remediable_checks)
 
-# Calculate compliance score
+# Calculate compliance metrics
 cis_total = 0
 cis_passed = 0
 nist_total = 0
@@ -145,13 +166,13 @@ for c in checks:
     cid = c.get('id', '')
     st = c.get('status', '')
     cmap = compliance_map.get(cid, {})
-    if cmap.get('cis_benchmark'):
+    if cmap.get('cis') or cmap.get('cis_benchmark'):
         cis_total += 1
         if st == 'PASS':
             cis_passed += 1
         elif st == 'WARN':
             cis_passed += 0.5
-    if cmap.get('nist_800_53'):
+    if cmap.get('nist') or cmap.get('nist_800_53'):
         nist_total += 1
         if st == 'PASS':
             nist_passed += 1
@@ -168,6 +189,18 @@ doc.append("<head>")
 doc.append("  <meta charset=\"UTF-8\" />")
 doc.append("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />")
 doc.append(f"  <title>macharden Security Audit Report — {html.escape(system.get('hostname', 'macOS'))}</title>")
+doc.append("""  <script>
+// Prevent flash of wrong theme
+(function() {
+  try {
+    var t = localStorage.getItem('macharden_theme');
+    if (!t) {
+      t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+    }
+    document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+})();
+  </script>""")
 doc.append("  <style>")
 doc.append("""
 :root {
@@ -175,17 +208,17 @@ doc.append("""
   --font-mono: "SF Mono", "Fira Code", Menlo, Monaco, Consolas, monospace;
 }
 
-:root[data-theme="dark"] {
-  --bg-page: #080c14;
-  --bg-subtle: #0d1322;
+:root[data-theme="dark"], html[data-theme="dark"] {
+  --bg-page: #090d16;
+  --bg-subtle: #0f172a;
   --bg-card: #111827;
   --bg-card-hover: #172237;
   --bg-card-expanded: #0f172a;
   --bg-code: #070b12;
   --bg-input: #0b111e;
   
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-card: rgba(255, 255, 255, 0.1);
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-card: rgba(255, 255, 255, 0.09);
   --border-active: #0ea5e9;
   
   --text-title: #f8fafc;
@@ -216,10 +249,10 @@ doc.append("""
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 16px -2px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.5);
-  --shadow-glow-cyan: 0 0 24px rgba(14, 165, 233, 0.2);
+  --gauge-bg-stroke: rgba(255, 255, 255, 0.06);
 }
 
-:root[data-theme="light"] {
+:root[data-theme="light"], html[data-theme="light"] {
   --bg-page: #f8fafc;
   --bg-subtle: #f1f5f9;
   --bg-card: #ffffff;
@@ -260,7 +293,7 @@ doc.append("""
   --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 14px 0 rgba(0, 0, 0, 0.07);
   --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.08);
-  --shadow-glow-cyan: 0 0 18px rgba(14, 165, 233, 0.15);
+  --gauge-bg-stroke: rgba(0, 0, 0, 0.06);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -273,13 +306,13 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.25s ease, color 0.25s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .app-wrapper {
-  max-width: 1280px;
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 24px 24px 80px 24px;
+  padding: 24px 20px 80px 20px;
 }
 
 /* Header */
@@ -371,10 +404,10 @@ body {
 
 .btn-nav svg { width: 15px; height: 15px; }
 
-/* Executive Overview (Hero Section) */
+/* Hero Overview Grid */
 .hero-grid {
   display: grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: 320px 1fr;
   gap: 20px;
   margin-bottom: 24px;
 }
@@ -407,20 +440,27 @@ body {
 
 .section-label svg { width: 15px; height: 15px; color: var(--color-info); }
 
-/* Hardening Score Card */
+/* Score Card & Circular Gauge */
 .score-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   text-align: center;
+}
+
+.gauge-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
 }
 
 .gauge-box {
   position: relative;
   width: 170px;
   height: 170px;
-  margin: 6px 0 14px 0;
+  margin: 4px auto 14px auto;
 }
 
 .gauge-svg {
@@ -431,13 +471,13 @@ body {
 
 .gauge-bg {
   fill: none;
-  stroke: var(--border-subtle);
-  stroke-width: 11;
+  stroke: var(--gauge-bg-stroke);
+  stroke-width: 10;
 }
 
 .gauge-ring {
   fill: none;
-  stroke-width: 11;
+  stroke-width: 10;
   stroke-linecap: round;
   transition: stroke-dashoffset 1.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -456,7 +496,7 @@ body {
 }
 
 .gauge-score {
-  font-size: 2.3rem;
+  font-size: 2.2rem;
   font-weight: 800;
   letter-spacing: -0.03em;
   color: var(--text-title);
@@ -469,14 +509,42 @@ body {
   color: var(--text-muted);
 }
 
-.grade-badge {
+.gauge-sub-badge {
   font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+}
+
+/* Rating Badge - Positioned comfortably outside the circle */
+.grade-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
   font-weight: 700;
-  padding: 3px 10px;
+  padding: 6px 14px;
   border-radius: 20px;
-  margin-top: 6px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  max-width: 100%;
+  word-break: keep-all;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 6px;
+}
+
+.badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
 }
 
 .grade-excellent { background: var(--color-pass-bg); color: var(--color-pass); border: 1px solid var(--color-pass-border); }
@@ -487,14 +555,14 @@ body {
 .score-points {
   font-size: 0.8rem;
   color: var(--text-muted);
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .score-points strong { color: var(--text-title); }
 
 .compliance-meters {
   width: 100%;
-  margin-top: 18px;
+  margin-top: 16px;
   padding-top: 14px;
   border-top: 1px solid var(--border-subtle);
   display: flex;
@@ -921,7 +989,7 @@ body {
   background: var(--color-info-bg);
 }
 
-/* Accordion / Table Check Items */
+/* Accordion Check Items */
 .checks-container {
   display: flex;
   flex-direction: column;
@@ -1213,7 +1281,7 @@ doc.append("<body>")
 doc.append("<div class=\"app-wrapper\">")
 
 # Top Navbar
-doc.append("""
+doc.append(f"""
   <nav class=\"navbar\">
     <div class=\"nav-brand\">
       <div class=\"brand-icon\">
@@ -1222,7 +1290,7 @@ doc.append("""
       <div>
         <div class=\"brand-title\">
           macharden
-          <span class=\"badge-version\">v1.0.0</span>
+          <span class=\"badge-version\">v{html.escape(version)}</span>
         </div>
         <div class=\"nav-sub\">macOS Security Hardening & Audit Scanner</div>
       </div>
@@ -1251,24 +1319,35 @@ doc.append("""
 # Hero Section
 doc.append("<div class=\"hero-grid\">")
 
-# Score Card
+# Score Card (Redesigned with rating badge placed outside the circle)
 doc.append(f"""
   <div class=\"hero-card score-card\">
     <div class=\"section-label\">
       <svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z\"/></svg>
       Hardening Score
     </div>
-    <div class=\"gauge-box\">
-      <svg class=\"gauge-svg\" viewBox=\"0 0 160 160\">
-        <circle class=\"gauge-bg\" cx=\"80\" cy=\"80\" r=\"70\" />
-        <circle id=\"gaugeRing\" class=\"gauge-ring\" cx=\"80\" cy=\"80\" r=\"70\" stroke=\"{grade_color}\" stroke-dasharray=\"{circumference}\" stroke-dashoffset=\"{gauge_offset}\" />
-      </svg>
-      <div class=\"gauge-inner\">
-        <div class=\"gauge-score\">{score:.1f}<span>%</span></div>
-        <div class=\"grade-badge grade-{'excellent' if score>=85 else 'good' if score>=70 else 'fair' if score>=50 else 'critical'}\">{html.escape(rating)}</div>
+    <div class=\"gauge-container\">
+      <div class=\"gauge-box\">
+        <svg class=\"gauge-svg\" viewBox=\"0 0 160 160\">
+          <defs>
+            <linearGradient id=\"gaugeGrad\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"100%\">
+              <stop offset=\"0%\" stop-color=\"{score_grad_start}\" />
+              <stop offset=\"100%\" stop-color=\"{score_grad_end}\" />
+            </linearGradient>
+          </defs>
+          <circle class=\"gauge-bg\" cx=\"80\" cy=\"80\" r=\"70\" />
+          <circle id=\"gaugeRing\" class=\"gauge-ring\" cx=\"80\" cy=\"80\" r=\"70\" stroke=\"url(#gaugeGrad)\" stroke-dasharray=\"{circumference}\" stroke-dashoffset=\"{gauge_offset}\" />
+        </svg>
+        <div class=\"gauge-inner\">
+          <div class=\"gauge-score\">{score:.1f}<span>%</span></div>
+          <div class=\"gauge-sub-badge\" style=\"color: {grade_color}\">{letter_grade}</div>
+        </div>
       </div>
+      <div class=\"grade-badge grade-{'excellent' if score>=85 else 'good' if score>=70 else 'fair' if score>=50 else 'critical'}\">
+        <span class=\"badge-dot\"></span> {html.escape(rating)}
+      </div>
+      <div class=\"score-points\">Earned <strong>{earned_points:.1f}</strong> of {total_points:.1f} weighted points</div>
     </div>
-    <div class=\"score-points\">Earned <strong>{earned_points:.1f}</strong> of {total_points:.1f} weighted points</div>
 
     <div class=\"compliance-meters\">
       <div>
@@ -1431,11 +1510,45 @@ for c in checks:
     details = html.escape(str(c.get('details', '')))
     remediation = c.get('remediation', '')
     
-    # Retrieve compliance tags
+    # Retrieve compliance tags from nested mappings
     cmap = compliance_map.get(cid, {})
-    cis_tag = cmap.get('cis_benchmark', '')
-    nist_tags = cmap.get('nist_800_53', [])
-    mitre_tags = cmap.get('mitre_attack', [])
+    
+    # CIS
+    cis_obj = cmap.get('cis', {})
+    if isinstance(cis_obj, dict):
+        cis_tag = cis_obj.get('id', '')
+    else:
+        cis_tag = str(cis_obj) if cis_obj else ''
+    if not cis_tag and cmap.get('cis_benchmark'):
+        cis_tag = str(cmap.get('cis_benchmark'))
+
+    # NIST
+    nist_obj = cmap.get('nist', {})
+    if isinstance(nist_obj, dict):
+        nist_tags = nist_obj.get('controls', [])
+        if not nist_tags and nist_obj.get('primary'):
+            nist_tags = [nist_obj.get('primary')]
+    elif isinstance(nist_obj, list):
+        nist_tags = nist_obj
+    else:
+        nist_tags = [str(nist_obj)] if nist_obj else []
+    if not nist_tags and cmap.get('nist_800_53'):
+        n_raw = cmap.get('nist_800_53')
+        nist_tags = n_raw if isinstance(n_raw, list) else [str(n_raw)]
+
+    # MITRE
+    mitre_obj = cmap.get('mitre', {})
+    if isinstance(mitre_obj, dict):
+        mitre_tags = mitre_obj.get('techniques', [])
+        if not mitre_tags and mitre_obj.get('primary'):
+            mitre_tags = [mitre_obj.get('primary')]
+    elif isinstance(mitre_obj, list):
+        mitre_tags = mitre_obj
+    else:
+        mitre_tags = [str(mitre_obj)] if mitre_obj else []
+    if not mitre_tags and cmap.get('mitre_attack'):
+        m_raw = cmap.get('mitre_attack')
+        mitre_tags = m_raw if isinstance(m_raw, list) else [str(m_raw)]
 
     status_cls = "item-pass" if status == "PASS" else "item-warn" if status == "WARN" else "item-fail" if status == "FAIL" else "item-info"
     badge_cls = "badge-pass" if status == "PASS" else "badge-warn" if status == "WARN" else "badge-fail" if status == "FAIL" else "badge-info"
@@ -1460,9 +1573,9 @@ for c in checks:
     if cis_tag:
         doc.append(f"""<span class=\"comp-chip chip-cis\" title=\"CIS Apple macOS Benchmark\">CIS {html.escape(cis_tag)}</span>""")
     if nist_tags:
-        doc.append(f"""<span class=\"comp-chip chip-nist\" title=\"NIST SP 800-53\">{html.escape(nist_tags[0])}</span>""")
+        doc.append(f"""<span class=\"comp-chip chip-nist\" title=\"NIST SP 800-53\">{html.escape(str(nist_tags[0]))}</span>""")
     if mitre_tags:
-        doc.append(f"""<span class=\"comp-chip chip-mitre\" title=\"MITRE ATT&CK\">{html.escape(mitre_tags[0])}</span>""")
+        doc.append(f"""<span class=\"comp-chip chip-mitre\" title=\"MITRE ATT&CK\">{html.escape(str(mitre_tags[0]))}</span>""")
 
     doc.append(f"""
         </div>
@@ -1518,7 +1631,8 @@ let searchQuery = '';
 // Theme Toggle (Local Persistence)
 function toggleTheme() {
   const htmlEl = document.documentElement;
-  const newTheme = htmlEl.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  const currentTheme = htmlEl.getAttribute('data-theme') || 'dark';
+  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
   htmlEl.setAttribute('data-theme', newTheme);
   localStorage.setItem('macharden_theme', newTheme);
   updateThemeButton(newTheme);

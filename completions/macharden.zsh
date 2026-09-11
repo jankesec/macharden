@@ -31,6 +31,7 @@ _macharden() {
         'cis:Center for Internet Security Apple macOS Benchmark'
         'nist:NIST SP 800-53 / NIST Cybersecurity Framework (CSF)'
         'mitre:MITRE ATT&CK Enterprise Matrix for macOS'
+        'all:Combined CIS, NIST, and MITRE compliance overview'
     )
 
     local -a daemon_schedules

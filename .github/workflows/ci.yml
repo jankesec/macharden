@@ -67,8 +67,16 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           echo "Executing macharden scans on macOS runner..."
-          # Terminal report summary
+          # Terminal report summary (exit 1 means failed checks, not a scanner crash)
+          set +e
           ./bin/macharden -q
+          SCAN_EC=$?
+          set -e
+          if [ "$SCAN_EC" -gt 1 ]; then
+            echo "macharden crashed with exit $SCAN_EC"
+            exit "$SCAN_EC"
+          fi
+          echo "Scan completed with exit $SCAN_EC (0=clean, 1=findings)"
 
           # Markdown report generation
           ./bin/macharden -c hardening -f markdown -o audit_hardening.md
