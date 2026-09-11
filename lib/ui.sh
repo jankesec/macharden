@@ -63,7 +63,7 @@ ui_disable_colors() {
 
 # Display ASCII banner with system metadata
 ui_banner() {
-    local version="${MACHAR_VERSION:-1.1.0}"
+    local version="${MACHAR_VERSION:-1.2.0}"
     local os_product os_version os_build arch current_time current_user hostname
 
     os_product=$(sw_vers -productName 2>/dev/null || echo "macOS")
@@ -185,6 +185,162 @@ ui_score_bar() {
     printf "  ${COLOR_BOLD}Hardening Index:${COLOR_RESET} [${bar_color}%s${COLOR_RESET}${COLOR_DIM}%s${COLOR_RESET}] ${COLOR_BOLD}%5.1f%%${COLOR_RESET} (${rating_color}%s${COLOR_RESET})\n" \
         "$filled_str" "$unfilled_str" "$score" "$rating"
 }
+
+# Visually aligned category score row with a colored 15-char progress bar and pass/warn/fail badges
+# Usage: ui_category_score_row <category_name> <score_percent> <passed> <warn> <fail>
+ui_category_score_row() {
+    local cat_name="$1"
+    local score="${2:-0.0}"
+    local passed="${3:-0}"
+    local warn="${4:-0}"
+    local fail="${5:-0}"
+
+    # Strip trailing percent symbol if present
+    score="${score%%%}"
+
+    local int_score=0
+    if [[ "$score" =~ ^[0-9]+ ]]; then
+        int_score=${score%%.*}
+    fi
+    (( int_score < 0 )) && int_score=0
+    (( int_score > 100 )) && int_score=100
+
+    local bar_width=15
+    local filled=$(( (int_score * bar_width) / 100 ))
+    local unfilled=$(( bar_width - filled ))
+    (( filled < 0 )) && filled=0
+    (( unfilled < 0 )) && unfilled=0
+
+    local bar_color="${COLOR_BRED}"
+    if (( int_score >= 85 )); then
+        bar_color="${COLOR_BGREEN}"
+    elif (( int_score >= 70 )); then
+        bar_color="${COLOR_BYELLOW}"
+    elif (( int_score >= 50 )); then
+        bar_color="${COLOR_YELLOW}"
+    else
+        bar_color="${COLOR_BRED}"
+    fi
+
+    local filled_str=""
+    local i
+    for (( i = 0; i < filled; i++ )); do
+        filled_str="${filled_str}█"
+    done
+
+    local unfilled_str=""
+    for (( i = 0; i < unfilled; i++ )); do
+        unfilled_str="${unfilled_str}░"
+    done
+
+    local score_num=0.0
+    if [[ "$score" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+        score_num="$score"
+    fi
+
+    printf "  ${COLOR_BOLD}%-14s${COLOR_RESET} [${bar_color}%s${COLOR_RESET}${COLOR_DIM}%s${COLOR_RESET}] ${COLOR_BOLD}%5.1f%%${COLOR_RESET}  ${COLOR_BGREEN}${COLOR_BOLD}[%d PASS]${COLOR_RESET} ${COLOR_BYELLOW}${COLOR_BOLD}[%d WARN]${COLOR_RESET} ${COLOR_BRED}${COLOR_BOLD}[%d FAIL]${COLOR_RESET}\n" \
+        "$cat_name" "$filled_str" "$unfilled_str" "$score_num" "$passed" "$warn" "$fail"
+}
+
+# Clean bordered ASCII box displaying overall grade and rating
+# Usage: ui_grade_box <score> <letter_grade> <rating_text>
+ui_grade_box() {
+    local score="${1:-0.0}"
+    local letter_grade="${2:-}"
+    local rating_text="${3:-}"
+
+    # Strip trailing percent symbol if present
+    score="${score%%%}"
+
+    local int_score=0
+    if [[ "$score" =~ ^[0-9]+ ]]; then
+        int_score=${score%%.*}
+    fi
+    (( int_score < 0 )) && int_score=0
+    (( int_score > 100 )) && int_score=100
+
+    if [[ -z "$letter_grade" ]]; then
+        if (( int_score >= 95 )); then
+            letter_grade="A+"
+        elif (( int_score >= 90 )); then
+            letter_grade="A"
+        elif (( int_score >= 80 )); then
+            letter_grade="B+"
+        elif (( int_score >= 70 )); then
+            letter_grade="B"
+        elif (( int_score >= 60 )); then
+            letter_grade="C"
+        elif (( int_score >= 50 )); then
+            letter_grade="D"
+        else
+            letter_grade="F"
+        fi
+    fi
+
+    if [[ -z "$rating_text" ]]; then
+        if (( int_score >= 85 )); then
+            rating_text="EXCELLENT / HARDENED"
+        elif (( int_score >= 70 )); then
+            rating_text="GOOD / ACCEPTABLE"
+        elif (( int_score >= 50 )); then
+            rating_text="FAIR / NEEDS ATTENTION"
+        else
+            rating_text="CRITICAL / VULNERABLE"
+        fi
+    fi
+
+    local score_fmt
+    if [[ "$score" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+        score_fmt=$(printf "%.1f" "$score")
+    else
+        score_fmt="$score"
+    fi
+
+    local grade_color="${COLOR_BRED}"
+    local border_color="${COLOR_BRED}"
+    if (( int_score >= 85 )); then
+        grade_color="${COLOR_BGREEN}"
+        border_color="${COLOR_BGREEN}"
+    elif (( int_score >= 70 )); then
+        grade_color="${COLOR_BYELLOW}"
+        border_color="${COLOR_BYELLOW}"
+    elif (( int_score >= 50 )); then
+        grade_color="${COLOR_YELLOW}"
+        border_color="${COLOR_YELLOW}"
+    else
+        grade_color="${COLOR_BRED}"
+        border_color="${COLOR_BRED}"
+    fi
+
+    local text="  GRADE: ${letter_grade} (${score_fmt}%)  •  ${rating_text}  "
+    local inner_len=${#text}
+    if (( inner_len < 42 )); then
+        inner_len=42
+    fi
+
+    local diff=$(( inner_len - ${#text} ))
+    local pad_right=""
+    local i
+    for (( i = 0; i < diff; i++ )); do
+        pad_right="${pad_right} "
+    done
+
+    local hline=""
+    for (( i = 0; i < inner_len; i++ )); do
+        hline="${hline}─"
+    done
+
+    printf "  %b┌%s┐%b\n" "${border_color}" "${hline}" "${COLOR_RESET}"
+    printf "  %b│%b  ${COLOR_BOLD}GRADE: %b%s%b (%s%%)  ${COLOR_DIM}•${COLOR_RESET}  %b%s%b  %s%b│%b\n" \
+        "${border_color}" "${COLOR_RESET}" \
+        "${grade_color}" "${letter_grade}" "${COLOR_RESET}" \
+        "${score_fmt}" \
+        "${grade_color}" "${rating_text}" "${COLOR_RESET}" \
+        "${pad_right}" \
+        "${border_color}" "${COLOR_RESET}"
+    printf "  %b└%s┘%b\n" "${border_color}" "${hline}" "${COLOR_RESET}"
+}
+
 
 # Status message helpers
 ui_info() {

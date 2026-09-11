@@ -1,0 +1,8 @@
+# macharden profile (Lynis-style)
+# Copy to ~/.macharden/profile or pass --profile PATH
+#
+# skip-test=<CHECK-ID>[,CHECK-ID...]
+# Skipped checks are recorded as INFO and do not affect the Hardening Index.
+
+# skip-test=HARD-08
+# skip-test=NET-07,HARD-11

@@ -1,4 +1,4 @@
-.TH MACHARDEN 1 "2026-09-12" "macharden 1.1.0" "macOS Security Manual"
+.TH MACHARDEN 1 "2026-09-12" "macharden 1.2.0" "macOS Security Manual"
 .SH NAME
 macharden \- macOS Security Hardening & Audit Scanner
 .SH SYNOPSIS
@@ -17,6 +17,9 @@ macharden \- macOS Security Hardening & Audit Scanner
 [\fB\-\-daemon\-uninstall\fR]
 [\fB\-\-daemon\-status\fR]
 [\fB\-\-alert\fR]
+[\fB\-\-skip\-test\fR \fIid\fR]
+[\fB\-\-profile\fR \fIfile\fR]
+[\fB\-\-no\-profile\fR]
 .SH DESCRIPTION
 .B macharden
 is a modular, non-destructive security auditing, posture assessment, and
@@ -165,6 +168,17 @@ LaunchAgent registration, PID, configured interval, and execution logs in
 .B \-\-alert
 Dispatch a native macOS desktop notification via Notification Center if
 critical hardening issues or secrets leaks are identified during the audit scan.
+.TP
+.BR \-\-skip\-test " " \fIid\fR
+Skip one or more check IDs (comma-separated, repeatable). Skipped checks
+are recorded as INFO and do not affect the Hardening Index.
+.TP
+.BR \-\-profile " " \fIfile\fR
+Load \fBskip-test=\fRID lines from a profile file (Lynis-style).
+.TP
+.B \-\-no\-profile
+Do not auto-load \fB~/.macharden/profile\fR or
+\fBmacharden.prf\fR from the project directory.
 .SH AUDIT CATEGORIES
 .B macharden
 organizes security checks into four primary domains:

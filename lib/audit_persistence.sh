@@ -491,6 +491,59 @@ audit_printer_sharing() {
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
 }
 
+# PERS-09: Sudo timestamp timeout
+# Lynis AUTH analogue. Prefer sudo -V; fall back to sudo -n -l Defaults.
+audit_sudo_timestamp() {
+    local check_id="${1:-PERS-09}"
+    local category="${2:-persistence}"
+    local title="${3:-Sudo Timestamp Timeout}"
+    local weight="${4:-5}"
+
+    local res_status="INFO"
+    local details=""
+    local remediation="Add 'Defaults timestamp_timeout=5' via visudo (0 = always re-prompt)."
+    local raw=""
+    local minutes=""
+
+    raw=$(sudo -n -l 2>/dev/null | grep -iE 'timestamp_timeout' | head -n 1 || true)
+    if [[ -n "$raw" && "$raw" == *timestamp_timeout* ]]; then
+        minutes=$(printf '%s\n' "$raw" | sed -E 's/.*timestamp_timeout[[:space:]]*=[[:space:]]*(-?[0-9.]+).*/\1/')
+    fi
+    if [[ -z "$minutes" ]]; then
+        raw=$(sudo -V 2>/dev/null | grep -i 'Authentication timestamp timeout' | head -n 1 || true)
+        if [[ -n "$raw" ]]; then
+            minutes=$(printf '%s\n' "$raw" | grep -oE '[0-9]+(\.[0-9]+)?' | head -n 1)
+        fi
+    fi
+
+    if [[ -z "$minutes" ]]; then
+        res_status="INFO"
+        details="Could not read sudo timestamp_timeout (sudoers may require a password). Default is typically 5 minutes."
+        remediation=""
+    else
+        # zsh arithmetic: compare as integers (minutes*10) when possible
+        local cmp
+        cmp=$(printf '%.0f' "$minutes" 2>/dev/null || echo "$minutes")
+        if [[ "$minutes" == "0" || "$minutes" == "0.0" || "$cmp" == "0" ]]; then
+            res_status="PASS"
+            details="sudo timestamp_timeout is 0 (always re-prompt for password)."
+            remediation=""
+        elif [[ "$cmp" -le 5 ]]; then
+            res_status="PASS"
+            details="sudo timestamp_timeout is ${minutes} minute(s) (at or below the 5-minute default)."
+            remediation=""
+        elif [[ "$cmp" -le 15 ]]; then
+            res_status="SUGG"
+            details="sudo timestamp_timeout is ${minutes} minute(s). Consider lowering to 5 or 0."
+        else
+            res_status="WARN"
+            details="sudo timestamp_timeout is ${minutes} minute(s), which leaves a long privilege window."
+        fi
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
 # Aliases for ID-based execution
 audit_pers_01() { audit_launch_agents "$@"; }
 audit_pers_02() { audit_launch_daemons "$@"; }
@@ -500,6 +553,7 @@ audit_pers_05() { audit_authorized_keys "$@"; }
 audit_pers_06() { audit_sudoers "$@"; }
 audit_pers_07() { audit_privileged_helpers "$@"; }
 audit_pers_08() { audit_printer_sharing "$@"; }
+audit_pers_09() { audit_sudo_timestamp "$@"; }
 
 # Category Runner
 run_audit_persistence() {
@@ -511,6 +565,7 @@ run_audit_persistence() {
     audit_sudoers
     audit_privileged_helpers
     audit_printer_sharing
+    audit_sudo_timestamp
 }
 
 # Auto-registration with engine.sh
@@ -524,6 +579,7 @@ register_persistence_checks() {
         register_check "PERS-06" "persistence" "Sudoers Configuration & NOPASSWD Rules" 8 audit_sudoers
         register_check "PERS-07" "persistence" "Privileged Helper Tools" 6 audit_privileged_helpers
         register_check "PERS-08" "persistence" "Printer Sharing" 5 audit_printer_sharing
+        register_check "PERS-09" "persistence" "Sudo Timestamp Timeout" 5 audit_sudo_timestamp
     fi
 }
 

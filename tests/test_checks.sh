@@ -106,6 +106,7 @@ reset_engine() {
     COUNT_INFO=0
     COUNT_SUGG=0
     COUNT_TOTAL=0
+    MACHAR_SKIP_IDS=()
 }
 
 echo ""
@@ -322,6 +323,32 @@ assert_match "## 2. Executive Summary" "$MD_CONTENT" "Markdown report contains E
 assert_match "## 3. Comprehensive Audit Results" "$MD_CONTENT" "Markdown report contains Audit Results table"
 assert_match "## 4. Remediation Playbook" "$MD_CONTENT" "Markdown report contains Remediation Playbook"
 assert_match "enabling filevault" "$MD_CONTENT" "Markdown report contains remediation code block"
+assert_match "Category Posture Breakdown" "$MD_CONTENT" "Markdown report contains Category Posture Breakdown table"
+assert_match "Risk & Severity Distribution" "$MD_CONTENT" "Markdown report contains Risk & Severity Distribution table"
+assert_match "Regulatory Framework Coverage" "$MD_CONTENT" "Markdown report contains Regulatory Framework Coverage summary"
+assert_match "CIS Apple macOS Benchmark" "$MD_CONTENT" "Markdown report includes CIS framework coverage"
+assert_match "NIST SP 800-53" "$MD_CONTENT" "Markdown report includes NIST framework coverage"
+assert_match "MITRE ATT&CK" "$MD_CONTENT" "Markdown report includes MITRE framework coverage"
+
+# Test Terminal UI functions & executive reporting
+ROW_OUT=$(ui_category_score_row "Hardening" 85.0 12 1 1 2>&1)
+assert_match "Hardening" "$ROW_OUT" "ui_category_score_row outputs category name"
+assert_match "85.0%" "$ROW_OUT" "ui_category_score_row outputs score percentage"
+assert_match "12 PASS" "$ROW_OUT" "ui_category_score_row outputs passed count"
+assert_match "1 WARN" "$ROW_OUT" "ui_category_score_row outputs warn count"
+assert_match "1 FAIL" "$ROW_OUT" "ui_category_score_row outputs fail count"
+
+BOX_OUT=$(ui_grade_box 80.0 "B+" "GOOD / ACCEPTABLE" 2>&1)
+assert_match "GRADE: B\+ \(80.0%\)" "$BOX_OUT" "ui_grade_box outputs letter grade and percentage"
+assert_match "GOOD / ACCEPTABLE" "$BOX_OUT" "ui_grade_box outputs rating text"
+assert_match "┌" "$BOX_OUT" "ui_grade_box renders top border"
+assert_match "└" "$BOX_OUT" "ui_grade_box renders bottom border"
+
+TERM_OUT=$(report_terminal 2>&1)
+assert_match "Category Posture Breakdown:" "$TERM_OUT" "report_terminal contains Category Posture Breakdown"
+assert_match "GRADE:" "$TERM_OUT" "report_terminal prominently displays grade box"
+assert_match "Severity:" "$TERM_OUT" "report_terminal displays severity tags in remediation actions"
+
 
 # ==============================================================================
 # Suite 6: Shell Completions & Documentation Validation
@@ -459,7 +486,7 @@ CHIP_CONTENT=$(cat "$CHIP_HTML")
 assert_match "CIS 5.1.2" "$CHIP_CONTENT" "HTML renders CIS chip from compliance mappings"
 assert_match "SI-7" "$CHIP_CONTENT" "HTML renders NIST chip from compliance mappings"
 assert_match "T1562.001" "$CHIP_CONTENT" "HTML renders MITRE chip from compliance mappings"
-assert_match "v1.1.0" "$CHIP_CONTENT" "HTML navbar shows scanner version 1.1.0"
+assert_match "v1.2.0" "$CHIP_CONTENT" "HTML navbar shows scanner version 1.2.0"
 
 # ==============================================================================
 # Suite 8: Continuous Background Monitoring & Daemon Management
@@ -607,7 +634,7 @@ SCHEMA_CHECK_SCRIPT="import json, sys
 data = json.load(open(sys.argv[1]))
 assert 'mappings' in data, 'Missing mappings object'
 mappings = data['mappings']
-required_checks = [\"HARD-01\", \"HARD-02\", \"HARD-08\", \"HARD-11\", \"NET-01\", \"NET-07\", \"NET-09\", \"SEC-01\", \"SEC-06\", \"SEC-07\", \"PERS-01\", \"PERS-07\"]
+required_checks = [\"HARD-01\", \"HARD-02\", \"HARD-08\", \"HARD-12\", \"HARD-14\", \"NET-01\", \"NET-10\", \"SEC-01\", \"SEC-08\", \"SEC-09\", \"PERS-01\", \"PERS-08\"]
 for cid in required_checks:
     assert cid in mappings, f'Missing check {cid}'
     entry = mappings[cid]
@@ -766,7 +793,7 @@ fi
 # ==============================================================================
 # Suite 10: v1.1 Check Registry, CLI Validation, and Version
 # ==============================================================================
-echo "\n\033[1m[Suite 10] v1.1 Check Registry, CLI Validation, and Version\033[0m"
+echo "\n\033[1m[Suite 10] Check Registry, CLI Validation, and Version\033[0m"
 
 reset_engine
 source "${PROJECT_ROOT}/lib/audit_hardening.sh"
@@ -774,9 +801,9 @@ source "${PROJECT_ROOT}/lib/audit_network.sh"
 source "${PROJECT_ROOT}/lib/audit_secrets.sh"
 source "${PROJECT_ROOT}/lib/audit_persistence.sh"
 
-assert_eq "40" "${#REG_IDS[@]}" "v1.1 registers 40 audit checks"
+assert_eq "44" "${#REG_IDS[@]}" "v1.2 registers 44 audit checks"
 
-for expected_id in HARD-08 HARD-09 HARD-10 HARD-11 NET-07 NET-08 NET-09 SEC-06 SEC-07 PERS-07; do
+for expected_id in HARD-08 HARD-09 HARD-10 HARD-11 HARD-12 HARD-13 HARD-14 HARD-15 NET-07 NET-08 NET-09 NET-10 NET-11 SEC-06 SEC-07 SEC-08 SEC-09 PERS-07 PERS-08 PERS-09; do
     found_id=0
     for (( i = 1; i <= ${#REG_IDS[@]}; i++ )); do
         if [[ "${REG_IDS[i]}" == "$expected_id" ]]; then
@@ -800,14 +827,24 @@ if typeset -f audit_firmware_password >/dev/null 2>&1 \
     && typeset -f audit_firewall_logging >/dev/null 2>&1 \
     && typeset -f audit_unencrypted_ssh_keys >/dev/null 2>&1 \
     && typeset -f audit_shell_history_secrets >/dev/null 2>&1 \
-    && typeset -f audit_privileged_helpers >/dev/null 2>&1; then
-    log_test "PASS" "All v1.1 audit functions are defined"
+    && typeset -f audit_privileged_helpers >/dev/null 2>&1 \
+    && typeset -f audit_home_permissions >/dev/null 2>&1 \
+    && typeset -f audit_network_time >/dev/null 2>&1 \
+    && typeset -f audit_malware_protection >/dev/null 2>&1 \
+    && typeset -f audit_ip_forwarding >/dev/null 2>&1 \
+    && typeset -f audit_promiscuous_interfaces >/dev/null 2>&1 \
+    && typeset -f audit_sshd_hardening >/dev/null 2>&1 \
+    && typeset -f audit_suspicious_history_files >/dev/null 2>&1 \
+    && typeset -f audit_printer_sharing >/dev/null 2>&1 \
+    && typeset -f audit_usb_restricted_mode >/dev/null 2>&1 \
+    && typeset -f audit_sudo_timestamp >/dev/null 2>&1; then
+    log_test "PASS" "All v1.2 audit functions are defined"
 else
-    log_test "FAIL" "All v1.1 audit functions are defined"
+    log_test "FAIL" "All v1.2 audit functions are defined"
 fi
 
 VERSION_OUT=$("${PROJECT_ROOT}/bin/macharden" --version 2>&1)
-assert_match "1.1.0" "$VERSION_OUT" "macharden --version reports 1.1.0"
+assert_match "1.2.0" "$VERSION_OUT" "macharden --version reports 1.2.0"
 
 INVALID_CAT_OUT=$("${PROJECT_ROOT}/bin/macharden" -c bogus 2>&1) || true
 INVALID_CAT_EC=0
@@ -819,6 +856,48 @@ HELP_OUT=$("${PROJECT_ROOT}/bin/macharden" --help 2>&1)
 assert_match "html" "$HELP_OUT" "Help lists html report format"
 assert_match "daemon-install" "$HELP_OUT" "Help lists --daemon-install"
 assert_match "compliance" "$HELP_OUT" "Help lists --compliance"
+assert_match "skip-test" "$HELP_OUT" "Help lists --skip-test"
+assert_match "profile" "$HELP_OUT" "Help lists --profile"
+
+# Skip-test engine + profile file
+reset_engine
+mock_keep() { record_result "$1" "$2" "$3" "PASS" "$4" "would pass" ""; }
+mock_skip() { record_result "$1" "$2" "$3" "FAIL" "$4" "should not run" "echo y"; }
+register_check "KEEP-01" "hardening" "Keep me" 10 "mock_keep"
+register_check "SKIP-01" "hardening" "Skip me" 10 "mock_skip"
+add_skip_test "SKIP-01"
+run_audit "all"
+assert_eq "2" "$COUNT_TOTAL" "skip-test still records a result for skipped IDs"
+assert_eq "INFO" "${RES_STATUSES[2]}" "Skipped check records INFO (neutral)"
+assert_eq "PASS" "${RES_STATUSES[1]}" "Non-skipped check still executes"
+assert_eq "100.0" "$HARDENING_INDEX" "Skipped check does not penalize Hardening Index"
+assert_eq "10.0" "$TOTAL_POSSIBLE_POINTS" "Skipped check is excluded from the Hardening Index denominator"
+
+SKIP_PRF="${TEST_TMP_DIR}/macharden.prf"
+printf '# comment\nskip-test=HARD-99\nskip-test=NET-01,SEC-02\n' > "$SKIP_PRF"
+reset_engine
+MACHAR_SKIP_IDS=()
+load_skip_profile "$SKIP_PRF"
+if is_skipped "HARD-99" && is_skipped "NET-01" && is_skipped "SEC-02"; then
+    log_test "PASS" "load_skip_profile parses skip-test lines and comma lists"
+else
+    log_test "FAIL" "load_skip_profile parses skip-test lines and comma lists"
+fi
+
+CLI_SKIP_OUT=$("${PROJECT_ROOT}/bin/macharden" --skip-test HARD-08 -c hardening -q -f json -o "${TEST_TMP_DIR}/skip.json" 2>&1) || true
+if python3 - "$TEST_TMP_DIR/skip.json" << 'PY'
+import json, sys
+data=json.load(open(sys.argv[1]))
+hits=[c for c in data.get("checks", []) if c.get("id")=="HARD-08"]
+assert hits, "HARD-08 missing"
+assert hits[0]["status"]=="INFO"
+assert "Skipped" in hits[0].get("details","")
+PY
+then
+    log_test "PASS" "CLI --skip-test HARD-08 records INFO skipped in JSON"
+else
+    log_test "FAIL" "CLI --skip-test HARD-08 records INFO skipped in JSON"
+fi
 
 # ==============================================================================
 # Final Test Summary

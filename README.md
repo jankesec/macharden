@@ -10,7 +10,7 @@
   <a href="#license"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
   <a href="https://apple.com/macos"><img src="https://img.shields.io/badge/Platform-macOS%2012%2B%20%7C%20Apple%20Silicon%20%26%20Intel-black.svg?logo=apple&logoColor=white" alt="Platform: macOS"></a>
   <a href="#"><img src="https://img.shields.io/badge/Shell-Zsh%20%2F%20Bash-orange.svg" alt="Shell: Zsh / Bash"></a>
-  <a href="#audit-categories--checks"><img src="https://img.shields.io/badge/Audits-42%2B%20Controls-purple.svg" alt="Audit Checks"></a>
+  <a href="#audit-categories--checks"><img src="https://img.shields.io/badge/Audits-44%2B%20Controls-purple.svg" alt="Audit Checks"></a>
   <a href="#"><img src="https://img.shields.io/badge/Dependencies-Zero%20(Pure%20Native)-success.svg" alt="Dependencies"></a>
 </p>
 
@@ -92,7 +92,7 @@ make install-man           # UNIX manual page (man macharden)
 ## 💻 CLI Usage & Examples
 
 ```text
-macharden - macOS Security Hardening & Audit Scanner (v1.1.0)
+macharden - macOS Security Hardening & Audit Scanner (v1.2.0)
 
 Usage:
   macharden [options]
@@ -108,6 +108,9 @@ Options:
   --fix                      Interactively prompt and apply remediation fixes for failed checks
   --generate-fix [file]      Generate automated remediation shell script without applying
   --no-color                 Disable ANSI terminal color output
+  --skip-test <id>[,id...]   Skip check IDs (repeatable)
+  --profile <file>           Load skip-test=ID lines from a profile
+  --no-profile               Do not auto-load ~/.macharden/profile
   --compliance <framework>   Align report with cis, nist, mitre, or all
   --daemon-install [sched]   Install LaunchAgent (daily, weekly, monthly, on-login)
   --daemon-uninstall         Unload and remove background scan LaunchAgent
@@ -159,7 +162,7 @@ macharden --daemon-install weekly
  | '_ ` _ \ / _` |/ __| '_ \ / _` | '__| / _` |/ _ \ '_ \ 
  | | | | | | (_| | (__| | | | (_| | |   | (_| |  __/ | | |
  |_| |_| |_|\__,_|\___|_| |_|\__,_|_|    \__,_|\___|_| |_|
-  macOS Security Hardening & Audit Scanner  v1.1.0
+  macOS Security Hardening & Audit Scanner  v1.2.0
 ──────────────────────────────────────────────────────────────────────
  Target Host:   macOS-Workstation (auditor)
  macOS Build:   macOS 15.3 (Build 24D60) [arm64]
@@ -259,7 +262,7 @@ macharden --daemon-install weekly
 
 ## 🔍 Audit Categories & Checks
 
-`macharden` inspects **42+ security controls** across four essential categories:
+`macharden` inspects **44+ security controls** across four essential categories:
 
 ### 1. 🛡️ OS Hardening (`hardening`)
 | Check ID | Control Title | Description | Weight |
@@ -278,6 +281,7 @@ macharden --daemon-install weekly
 | `HARD-12` | Home Directory Permissions | Ensures `$HOME` is 700/750 (Lynis HOME-9304 analogue) | 6 |
 | `HARD-13` | Network Time Synchronization | Verifies macOS network time (`systemsetup -getusingnetworktime`) | 5 |
 | `HARD-14` | Built-in Malware Protection | Verifies Apple XProtect/MRT presence | 6 |
+| `HARD-15` | USB Restricted Mode | Ensures accessories cannot attach while locked (T2 / Apple Silicon) | 5 |
 
 ### 2. 🌐 Network Security (`network`)
 | Check ID | Control Title | Description | Weight |
@@ -318,6 +322,7 @@ macharden --daemon-install weekly
 | `PERS-06` | Sudoers Configuration | Inspects `/etc/sudoers.d/` for dangerous `NOPASSWD` privilege escalation rules | 8 |
 | `PERS-07` | Privileged Helper Tools | Reviews `/Library/PrivilegedHelperTools` for unsigned helpers | 6 |
 | `PERS-08` | Printer Sharing | Ensures CUPS printer sharing is disabled | 5 |
+| `PERS-09` | Sudo Timestamp Timeout | Ensures `timestamp_timeout` is 5 minutes or less | 5 |
 
 ---
 

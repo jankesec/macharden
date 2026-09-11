@@ -19,7 +19,7 @@ _macharden_completions() {
     local formats="term json markdown html"
     local compliance_frameworks="cis nist mitre all"
     local daemon_schedules="daily weekly monthly hourly on-login"
-    local all_flags="-h --help -v --version -c --category -f --format -o --output -q --quiet --fix --generate-fix --no-color --compliance --daemon-install --daemon-uninstall --daemon-status --alert"
+    local all_flags="-h --help -v --version -c --category -f --format -o --output -q --quiet --fix --generate-fix --no-color --compliance --daemon-install --daemon-uninstall --daemon-status --alert --skip-test --profile --no-profile"
 
     case "${prev}" in
         -c|--category)
@@ -36,6 +36,14 @@ _macharden_completions() {
             ;;
         --daemon-install)
             COMPREPLY=( $(compgen -W "${daemon_schedules}" -- "${cur}") )
+            return 0
+            ;;
+        --profile)
+            if declare -F _filedir >/dev/null 2>&1; then
+                _filedir
+            else
+                COMPREPLY=( $(compgen -f -- "${cur}") )
+            fi
             return 0
             ;;
         -o|--output|--generate-fix)

@@ -16,7 +16,7 @@ fi
 # Usage: report_html [output_file]
 report_html() {
     local output_file="${1:-}"
-    local version="${MACHAR_VERSION:-1.1.0}"
+    local version="${MACHAR_VERSION:-1.2.0}"
     local _script_dir="${0:A:h}"
     local compliance_file="${_script_dir}/../data/compliance_mappings.json"
 
@@ -47,7 +47,7 @@ import html
 raw_json = os.environ.get('AUDIT_JSON', '{}')
 output_file = os.environ.get('AUDIT_OUTPUT_FILE', '')
 comp_file = os.environ.get('COMPLIANCE_JSON_FILE', '')
-scanner_ver = os.environ.get('AUDIT_VERSION', '1.1.0')
+scanner_ver = os.environ.get('AUDIT_VERSION', '1.2.0')
 
 try:
     data = json.loads(raw_json)
@@ -133,55 +133,266 @@ else:
     score_grad_start = "#f43f5e"
     score_grad_end = "#e11d48"
 
-# Categories count aggregation
-cat_counts = {
-    "all": total_checks,
-    "hardening": 0,
-    "network": 0,
-    "secrets": 0,
-    "persistence": 0
+# -----------------------------------------------------------------------------
+# 1. Category Score Breakdown Panel Calculation
+# -----------------------------------------------------------------------------
+core_categories = ["hardening", "network", "secrets", "persistence"]
+cat_data = {}
+for ck in core_categories:
+    cat_data[ck] = {
+        "name": ck.capitalize(),
+        "earned": 0.0,
+        "possible": 0.0,
+        "pass": 0,
+        "warn": 0,
+        "fail": 0,
+        "info": 0,
+        "sugg": 0,
+        "total": 0,
+        "score_pct": 100.0
+    }
+
+for c in checks:
+    cat_raw = str(c.get('category', '')).strip().lower()
+    if not cat_raw:
+        continue
+    if cat_raw not in cat_data:
+        cat_data[cat_raw] = {
+            "name": cat_raw.capitalize(),
+            "earned": 0.0,
+            "possible": 0.0,
+            "pass": 0,
+            "warn": 0,
+            "fail": 0,
+            "info": 0,
+            "sugg": 0,
+            "total": 0,
+            "score_pct": 100.0
+        }
+    st = str(c.get('status', 'INFO')).upper()
+    try:
+        w = float(c.get('weight', 5.0))
+    except Exception:
+        w = 5.0
+    
+    cat_data[cat_raw]["total"] += 1
+    if st == "PASS":
+        cat_data[cat_raw]["pass"] += 1
+        cat_data[cat_raw]["earned"] += w
+        cat_data[cat_raw]["possible"] += w
+    elif st == "WARN":
+        cat_data[cat_raw]["warn"] += 1
+        cat_data[cat_raw]["earned"] += (w * 0.5)
+        cat_data[cat_raw]["possible"] += w
+    elif st == "FAIL":
+        cat_data[cat_raw]["fail"] += 1
+        cat_data[cat_raw]["possible"] += w
+    elif st == "INFO":
+        cat_data[cat_raw]["info"] += 1
+    elif st == "SUGG":
+        cat_data[cat_raw]["sugg"] += 1
+
+# Calculate final category score percentages
+for k, v in cat_data.items():
+    if v["possible"] > 0:
+        v["score_pct"] = round((v["earned"] / v["possible"]) * 100.0, 1)
+    else:
+        v["score_pct"] = 100.0
+
+ordered_categories = ["all"] + [c for c in core_categories if c in cat_data]
+for c in cat_data:
+    if c not in ordered_categories:
+        ordered_categories.append(c)
+
+# -----------------------------------------------------------------------------
+# 2. Risk & Severity Breakdown Matrix Calculation
+# -----------------------------------------------------------------------------
+def get_severity(w):
+    try:
+        val = float(w)
+    except Exception:
+        val = 5.0
+    if val >= 9.0:
+        return "CRITICAL"
+    elif val >= 7.0:
+        return "HIGH"
+    elif val >= 5.0:
+        return "MEDIUM"
+    else:
+        return "LOW"
+
+sev_stats = {
+    "CRITICAL": {"total": 0, "fail": 0, "warn": 0, "pass": 0},
+    "HIGH": {"total": 0, "fail": 0, "warn": 0, "pass": 0},
+    "MEDIUM": {"total": 0, "fail": 0, "warn": 0, "pass": 0},
+    "LOW": {"total": 0, "fail": 0, "warn": 0, "pass": 0}
 }
 
 for c in checks:
-    cat_raw = str(c.get('category', '')).strip().lower()
-    if cat_raw:
-        cat_counts[cat_raw] = cat_counts.get(cat_raw, 0) + 1
+    w = c.get('weight', 5)
+    sev = get_severity(w)
+    st = str(c.get('status', 'INFO')).upper()
+    sev_stats[sev]["total"] += 1
+    if st == "FAIL":
+        sev_stats[sev]["fail"] += 1
+    elif st == "WARN":
+        sev_stats[sev]["warn"] += 1
+    elif st == "PASS":
+        sev_stats[sev]["pass"] += 1
 
-ordered_categories = ["all", "hardening", "network", "secrets", "persistence"]
-for c in checks:
-    cat_raw = str(c.get('category', '')).strip().lower()
-    if cat_raw and cat_raw not in ordered_categories:
-        ordered_categories.append(cat_raw)
+# -----------------------------------------------------------------------------
+# 3. Compliance Framework Mappings & Metrics Calculation
+# -----------------------------------------------------------------------------
+def get_check_frameworks(cid, cmap):
+    m = cmap.get(cid)
+    if not m:
+        for k, v in cmap.items():
+            if k.replace("-", "_").upper() == cid.replace("-", "_").upper():
+                m = v
+                break
+    m = m or {}
+    
+    # CIS
+    has_cis = False
+    cis_tag = ""
+    cis_obj = m.get('cis') or m.get('cis_benchmark')
+    if cis_obj:
+        has_cis = True
+        if isinstance(cis_obj, dict):
+            cis_tag = cis_obj.get('id', '')
+        else:
+            cis_tag = str(cis_obj)
+            
+    # NIST
+    has_nist = False
+    nist_tags = []
+    nist_obj = m.get('nist') or m.get('nist_800_53')
+    if nist_obj:
+        has_nist = True
+        if isinstance(nist_obj, dict):
+            nist_tags = nist_obj.get('controls', [])
+            if not nist_tags and nist_obj.get('primary'):
+                nist_tags = [nist_obj.get('primary')]
+        elif isinstance(nist_obj, list):
+            nist_tags = nist_obj
+        else:
+            nist_tags = [str(nist_obj)]
+            
+    # MITRE
+    has_mitre = False
+    mitre_tags = []
+    mitre_obj = m.get('mitre') or m.get('mitre_attack')
+    if mitre_obj:
+        has_mitre = True
+        if isinstance(mitre_obj, dict):
+            mitre_tags = mitre_obj.get('techniques', [])
+            if not mitre_tags and mitre_obj.get('primary_technique'):
+                mitre_tags = [mitre_obj.get('primary_technique')]
+            elif not mitre_tags and mitre_obj.get('primary'):
+                mitre_tags = [mitre_obj.get('primary')]
+        elif isinstance(mitre_obj, list):
+            mitre_tags = mitre_obj
+        else:
+            mitre_tags = [str(mitre_obj)]
+            
+    mitre_tag_str = ""
+    if mitre_tags:
+        t0 = mitre_tags[0]
+        if isinstance(t0, dict):
+            mitre_tag_str = t0.get('id', '')
+        else:
+            mitre_tag_str = str(t0)
+            
+    nist_tag_str = str(nist_tags[0]) if nist_tags else ""
+    
+    return {
+        "has_cis": has_cis,
+        "cis_tag": cis_tag,
+        "has_nist": has_nist,
+        "nist_tags": nist_tags,
+        "nist_tag_str": nist_tag_str,
+        "has_mitre": has_mitre,
+        "mitre_tags": mitre_tags,
+        "mitre_tag_str": mitre_tag_str
+    }
 
-# Count remediable actions
-remediable_checks = [c for c in checks if c.get('status') in ['FAIL', 'WARN'] and c.get('remediation')]
-remediable_count = len(remediable_checks)
-
-# Calculate compliance metrics
 cis_total = 0
 cis_passed = 0
+cis_fw_count = 0
+
 nist_total = 0
 nist_passed = 0
+nist_fw_count = 0
+
+mitre_fw_count = 0
+
 for c in checks:
     cid = c.get('id', '')
     st = c.get('status', '')
-    cmap = compliance_map.get(cid, {})
-    if cmap.get('cis') or cmap.get('cis_benchmark'):
+    fws = get_check_frameworks(cid, compliance_map)
+    if fws["has_cis"]:
+        cis_fw_count += 1
         cis_total += 1
         if st == 'PASS':
             cis_passed += 1
         elif st == 'WARN':
             cis_passed += 0.5
-    if cmap.get('nist') or cmap.get('nist_800_53'):
+    if fws["has_nist"]:
+        nist_fw_count += 1
         nist_total += 1
         if st == 'PASS':
             nist_passed += 1
         elif st == 'WARN':
             nist_passed += 0.5
+    if fws["has_mitre"]:
+        mitre_fw_count += 1
 
 cis_pct = round((cis_passed / cis_total * 100) if cis_total > 0 else 85.0, 1)
 nist_pct = round((nist_passed / nist_total * 100) if nist_total > 0 else 82.0, 1)
 
+# -----------------------------------------------------------------------------
+# 4. Remediation Playbook Script Preparation
+# -----------------------------------------------------------------------------
+remediable_checks = [c for c in checks if c.get('status') in ['FAIL', 'WARN'] and c.get('remediation')]
+remediable_count = len(remediable_checks)
+
+remed_script_lines = [
+    "#!/bin/zsh",
+    "# ==============================================================================",
+    "# macharden - Automated Remediation Playbook",
+    f"# Target Host: {system.get('hostname', 'macOS')} | Operator: {system.get('user', 'unknown')}",
+    f"# Generated: {scanner.get('timestamp', '')} | Scanner Version: v{version}",
+    "# ==============================================================================",
+    "set -euo pipefail",
+    "",
+    "echo \"[*] Initiating macharden security hardening remediation playbook...\"",
+    "echo \"[*] Target host: $(hostname)\"",
+    ""
+]
+
+if remediable_checks:
+    for c in remediable_checks:
+        cid = c.get('id', '')
+        ctitle = c.get('title', '')
+        csev = get_severity(c.get('weight', 5))
+        rem = c.get('remediation', '')
+        remed_script_lines.append(f"# ------------------------------------------------------------------------------")
+        remed_script_lines.append(f"# [{cid}] {ctitle} (Severity: {csev})")
+        remed_script_lines.append(f"# ------------------------------------------------------------------------------")
+        remed_script_lines.append(f"echo \"[+] Applying fix for {cid}: {ctitle}...\"")
+        remed_script_lines.append(rem)
+        remed_script_lines.append("")
+    remed_script_lines.append("echo \"[✔] All remediation commands executed successfully.\"")
+    remed_script_lines.append("echo \"[✔] Re-run macharden audit to verify hardening posture.\"")
+else:
+    remed_script_lines.append("# No automated remediation commands required! Security posture is fully hardened.")
+    remed_script_lines.append("echo \"[✔] No failed or warning controls detected. System is hardened.\"")
+
+raw_playbook_script = "\n".join(remed_script_lines)
+
+# -----------------------------------------------------------------------------
+# HTML Document Assembly
+# -----------------------------------------------------------------------------
 doc = []
 doc.append("<!DOCTYPE html>")
 doc.append("<html lang=\"en\">")
@@ -190,7 +401,7 @@ doc.append("  <meta charset=\"UTF-8\" />")
 doc.append("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />")
 doc.append(f"  <title>macharden Security Audit Report — {html.escape(system.get('hostname', 'macOS'))}</title>")
 doc.append("""  <script>
-// Prevent flash of wrong theme
+// Prevent flash of unstyled theme
 (function() {
   try {
     var t = localStorage.getItem('macharden_theme');
@@ -216,6 +427,8 @@ doc.append("""
   --bg-card-expanded: #0f172a;
   --bg-code: #070b12;
   --bg-input: #0b111e;
+  --bg-modal-backdrop: rgba(3, 7, 18, 0.78);
+  --bg-modal: #111827;
   
   --border-subtle: rgba(255, 255, 255, 0.07);
   --border-card: rgba(255, 255, 255, 0.09);
@@ -246,6 +459,22 @@ doc.append("""
   --color-sugg-bg: rgba(168, 85, 247, 0.12);
   --color-sugg-border: rgba(168, 85, 247, 0.3);
 
+  --sev-critical: #f43f5e;
+  --sev-critical-bg: rgba(244, 63, 94, 0.12);
+  --sev-critical-border: rgba(244, 63, 94, 0.35);
+
+  --sev-high: #f97316;
+  --sev-high-bg: rgba(249, 115, 22, 0.12);
+  --sev-high-border: rgba(249, 115, 22, 0.35);
+
+  --sev-medium: #eab308;
+  --sev-medium-bg: rgba(234, 179, 8, 0.12);
+  --sev-medium-border: rgba(234, 179, 8, 0.35);
+
+  --sev-low: #38bdf8;
+  --sev-low-bg: rgba(56, 189, 248, 0.12);
+  --sev-low-border: rgba(56, 189, 248, 0.35);
+
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 16px -2px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.5);
@@ -260,6 +489,8 @@ doc.append("""
   --bg-card-expanded: #f8fafc;
   --bg-code: #0f172a;
   --bg-input: #ffffff;
+  --bg-modal-backdrop: rgba(15, 23, 42, 0.55);
+  --bg-modal: #ffffff;
   
   --border-subtle: rgba(0, 0, 0, 0.06);
   --border-card: rgba(0, 0, 0, 0.08);
@@ -289,6 +520,22 @@ doc.append("""
   --color-sugg: #9333ea;
   --color-sugg-bg: rgba(168, 85, 247, 0.1);
   --color-sugg-border: rgba(168, 85, 247, 0.3);
+
+  --sev-critical: #e11d48;
+  --sev-critical-bg: rgba(225, 29, 72, 0.08);
+  --sev-critical-border: rgba(225, 29, 72, 0.25);
+
+  --sev-high: #ea580c;
+  --sev-high-bg: rgba(234, 88, 12, 0.08);
+  --sev-high-border: rgba(234, 88, 12, 0.25);
+
+  --sev-medium: #d97706;
+  --sev-medium-bg: rgba(217, 119, 6, 0.08);
+  --sev-medium-border: rgba(217, 119, 6, 0.25);
+
+  --sev-low: #0284c7;
+  --sev-low-bg: rgba(2, 132, 199, 0.08);
+  --sev-low-border: rgba(2, 132, 199, 0.25);
 
   --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 14px 0 rgba(0, 0, 0, 0.07);
@@ -326,6 +573,8 @@ body {
   border-radius: 14px;
   margin-bottom: 24px;
   box-shadow: var(--shadow-sm);
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .nav-brand {
@@ -376,7 +625,8 @@ body {
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .btn-nav {
@@ -403,6 +653,29 @@ body {
 }
 
 .btn-nav svg { width: 15px; height: 15px; }
+
+.btn-nav-playbook {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(244, 63, 94, 0.12));
+  border-color: rgba(245, 158, 11, 0.35);
+  color: var(--color-warn);
+}
+
+.btn-nav-playbook:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(244, 63, 94, 0.2));
+  border-color: var(--color-warn);
+  color: var(--text-title);
+}
+
+kbd.nav-kbd {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--border-subtle);
+  border: 1px solid var(--border-card);
+  color: var(--text-dim);
+}
 
 /* Hero Overview Grid */
 .hero-grid {
@@ -521,7 +794,7 @@ body {
   color: var(--text-muted);
 }
 
-/* Rating Badge - Positioned comfortably outside the circle */
+/* Rating Badge - Positioned cleanly below the SVG circle */
 .grade-badge {
   display: inline-flex;
   align-items: center;
@@ -711,7 +984,260 @@ body {
   font-family: var(--font-mono);
 }
 
-/* Playbook / Remediation Callout Banner */
+/* =============================================================================
+   1. Category Score Breakdown Panel
+   ============================================================================= */
+.cat-breakdown-section {
+  margin-bottom: 24px;
+}
+
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 960px) {
+  .category-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 520px) {
+  .category-grid { grid-template-columns: 1fr; }
+}
+
+.cat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 14px;
+  padding: 18px 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.cat-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-active);
+  box-shadow: var(--shadow-md);
+  background: var(--bg-card-hover);
+}
+
+.cat-card.active {
+  border-color: var(--border-active);
+  background: var(--color-info-bg);
+  box-shadow: 0 0 0 1px var(--border-active), var(--shadow-sm);
+}
+
+.cat-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.cat-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cat-card-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--color-info);
+}
+
+.cat-card-icon svg { width: 17px; height: 17px; }
+
+.cat-card-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-title);
+}
+
+.cat-card-score {
+  font-size: 1.35rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+
+.cat-card-bar-wrap {
+  margin: 10px 0 12px 0;
+}
+
+.cat-card-bar-track {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-subtle);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.cat-card-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.cat-card-counts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.cat-count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.cnt-pass { background: var(--color-pass-bg); color: var(--color-pass); }
+.cnt-warn { background: var(--color-warn-bg); color: var(--color-warn); }
+.cnt-fail { background: var(--color-fail-bg); color: var(--color-fail); }
+
+/* =============================================================================
+   2. Risk & Severity Breakdown Matrix & Tags
+   ============================================================================= */
+.sev-section {
+  margin-bottom: 24px;
+}
+
+.sev-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .sev-strip { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .sev-strip { grid-template-columns: 1fr; }
+}
+
+.sev-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.sev-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.sev-card.active {
+  box-shadow: 0 0 0 2px var(--border-active);
+}
+
+.sev-card.sev-card-critical { border-left: 4px solid var(--sev-critical); }
+.sev-card.sev-card-high { border-left: 4px solid var(--sev-high); }
+.sev-card.sev-card-medium { border-left: 4px solid var(--sev-medium); }
+.sev-card.sev-card-low { border-left: 4px solid var(--sev-low); }
+
+.sev-card-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.sev-card-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.sev-card-critical .sev-card-title { color: var(--sev-critical); }
+.sev-card-high .sev-card-title { color: var(--sev-high); }
+.sev-card-medium .sev-card-title { color: var(--sev-medium); }
+.sev-card-low .sev-card-title { color: var(--sev-low); }
+
+.sev-card-desc {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.sev-card-right {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.sev-card-val {
+  font-size: 1.4rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--text-title);
+  line-height: 1;
+}
+
+.sev-card-subval {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Subtle Severity Badges for Accordion */
+.badge-severity {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  font-family: var(--font-sans);
+}
+
+.badge-sev-critical {
+  background: var(--sev-critical-bg);
+  color: var(--sev-critical);
+  border: 1px solid var(--sev-critical-border);
+}
+
+.badge-sev-high {
+  background: var(--sev-high-bg);
+  color: var(--sev-high);
+  border: 1px solid var(--sev-high-border);
+}
+
+.badge-sev-medium {
+  background: var(--sev-medium-bg);
+  color: var(--sev-medium);
+  border: 1px solid var(--sev-medium-border);
+}
+
+.badge-sev-low {
+  background: var(--sev-low-bg);
+  color: var(--sev-low);
+  border: 1px solid var(--sev-low-border);
+}
+
+/* Remediation Playbook Callout Banner */
 .fix-banner {
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(244, 63, 94, 0.08));
   border: 1px solid rgba(245, 158, 11, 0.3);
@@ -723,6 +1249,7 @@ body {
   justify-content: space-between;
   gap: 16px;
   box-shadow: var(--shadow-sm);
+  flex-wrap: wrap;
 }
 
 .fix-banner-left {
@@ -756,6 +1283,12 @@ body {
   color: var(--text-muted);
 }
 
+.fix-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .btn-primary-fix {
   display: inline-flex;
   align-items: center;
@@ -779,6 +1312,31 @@ body {
 }
 
 .btn-primary-fix svg { width: 16px; height: 16px; }
+
+.btn-secondary-fix {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-body);
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.btn-secondary-fix:hover {
+  background: var(--border-card);
+  color: var(--text-title);
+  transform: translateY(-1px);
+}
+
+.btn-secondary-fix svg { width: 15px; height: 15px; }
 
 /* Filter & Controls Toolbar */
 .toolbar-panel {
@@ -840,6 +1398,83 @@ body {
 .cat-btn.active .cat-count {
   background: var(--color-info);
   color: #ffffff;
+}
+
+/* Framework Filter Row */
+.filter-subnav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.framework-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.framework-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  margin-right: 4px;
+}
+
+.fw-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.fw-pill:hover {
+  background: var(--border-card);
+  color: var(--text-title);
+}
+
+.fw-pill.active {
+  color: #ffffff;
+}
+
+.fw-pill.pill-fw-all.active {
+  background: #334155;
+  border-color: #475569;
+}
+
+.fw-pill.pill-fw-cis.active {
+  background: #0284c7;
+  border-color: #0284c7;
+}
+
+.fw-pill.pill-fw-nist.active {
+  background: #7c3aed;
+  border-color: #7c3aed;
+}
+
+.fw-pill.pill-fw-mitre.active {
+  background: #ea580c;
+  border-color: #ea580c;
+}
+
+.fw-badge-cnt {
+  font-size: 0.68rem;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .filter-row {
@@ -938,7 +1573,7 @@ body {
 
 .search-field {
   width: 100%;
-  padding: 7px 30px 7px 34px;
+  padding: 7px 54px 7px 34px;
   background: var(--bg-input);
   border: 1px solid var(--border-card);
   border-radius: 8px;
@@ -954,15 +1589,31 @@ body {
   box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
 }
 
+.search-kbd-hint {
+  position: absolute;
+  right: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
 .search-clear-btn {
   position: absolute;
-  right: 10px;
+  right: 8px;
   top: 50%;
   transform: translateY(-50%);
   background: none;
   border: none;
   color: var(--text-dim);
-  font-size: 1rem;
+  font-size: 0.95rem;
   cursor: pointer;
   display: none;
 }
@@ -1029,9 +1680,10 @@ body {
 .check-header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex: 1;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .badge-status {
@@ -1087,6 +1739,7 @@ body {
   display: flex;
   align-items: center;
   gap: 5px;
+  flex-wrap: wrap;
 }
 
 .comp-chip {
@@ -1167,7 +1820,7 @@ body {
 
 .finding-box-label svg { width: 13px; height: 13px; }
 
-/* Remediation Terminal */
+/* Remediation Terminal Box */
 .remed-box {
   margin-top: 12px;
   background: var(--bg-code);
@@ -1233,12 +1886,250 @@ body {
   line-height: 1.45;
 }
 
+/* =============================================================================
+   4. Glassmorphic Remediation Playbook Modal / Slide-Over
+   ============================================================================= */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-modal-backdrop);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.modal-backdrop.active {
+  display: flex;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-window {
+  background: var(--bg-modal);
+  border: 1px solid var(--border-card);
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  width: 100%;
+  max-width: 900px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.modal-title-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(244, 63, 94, 0.2));
+  color: var(--color-warn);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-title-icon svg { width: 20px; height: 20px; }
+
+.modal-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-title);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.modal-close-btn {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 1rem;
+}
+
+.modal-close-btn:hover {
+  background: var(--color-fail-bg);
+  color: var(--color-fail);
+  border-color: var(--color-fail-border);
+}
+
+.modal-toolbar {
+  padding: 10px 24px;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.modal-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.modal-stat-pill {
+  font-weight: 700;
+  color: var(--text-title);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-modal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.btn-modal svg { width: 14px; height: 14px; }
+
+.btn-modal-primary {
+  background: #f59e0b;
+  border: 1px solid #f59e0b;
+  color: #000000;
+  font-weight: 700;
+}
+
+.btn-modal-primary:hover {
+  background: #d97706;
+}
+
+.btn-modal-secondary {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-body);
+}
+
+.btn-modal-secondary:hover {
+  background: var(--border-card);
+  color: var(--text-title);
+}
+
+.modal-body {
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+  background: var(--bg-code);
+}
+
+.playbook-code-wrap {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  padding: 16px 0;
+}
+
+.code-line {
+  display: flex;
+  align-items: stretch;
+  padding: 0 16px;
+}
+
+.code-line:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.line-num {
+  width: 44px;
+  text-align: right;
+  padding-right: 16px;
+  color: #475569;
+  user-select: none;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.line-text {
+  color: #e2e8f0;
+  white-space: pre;
+  word-break: break-all;
+  flex: 1;
+}
+
+.line-comment { color: #64748b; font-style: italic; }
+.line-keyword { color: #38bdf8; font-weight: 700; }
+.line-command { color: #facc15; }
+
+.modal-footer {
+  padding: 12px 24px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
 /* Toast Notifications */
 .toast-container {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  z-index: 9999;
+  z-index: 99999;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1268,8 +2159,8 @@ body {
 /* Print Styles */
 @media print {
   body { background: #ffffff !important; color: #000000 !important; }
-  .navbar, .toolbar-panel, .fix-banner, .btn-nav, .view-actions, .toast-container { display: none !important; }
-  .hero-card, .check-item { box-shadow: none !important; border: 1px solid #cccccc !important; page-break-inside: avoid; }
+  .navbar, .toolbar-panel, .fix-banner, .btn-nav, .view-actions, .toast-container, .modal-backdrop { display: none !important; }
+  .hero-card, .check-item, .cat-card, .sev-card { box-shadow: none !important; border: 1px solid #cccccc !important; page-break-inside: avoid; }
   .check-body { display: block !important; }
   .remed-box { background: #f1f5f9 !important; border: 1px solid #cccccc !important; }
   .remed-code { color: #0f172a !important; }
@@ -1296,19 +2187,24 @@ doc.append(f"""
       </div>
     </div>
     <div class=\"nav-actions\">
-      <button class=\"btn-nav\" id=\"themeToggleBtn\" onclick=\"toggleTheme()\" title=\"Toggle Light/Dark Theme\">
-        <svg id=\"themeIconDark\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z\"/></svg>
+      <button class=\"btn-nav\" id=\"themeToggleBtn\" onclick=\"toggleTheme()\" title=\"Toggle Light/Dark Theme (Shortcut: T)\">
+        <svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z\"/></svg>
         <span id=\"themeLabel\">Theme</span>
+        <kbd class=\"nav-kbd\">T</kbd>
       </button>
       <button class=\"btn-nav\" onclick=\"window.print()\" title=\"Print or Export as PDF\">
         <svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z\"/></svg>
         <span>Print PDF</span>
       </button>
-      <button class=\"btn-nav\" onclick=\"copyAllFixCommands()\" title=\"Copy All Fix Commands to Clipboard\">
-        <svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3\"/></svg>
-        <span>Copy Fix Script</span>
+      <button class=\"btn-nav btn-nav-playbook\" onclick=\"openPlaybookModal()\" title=\"Open Interactive Remediation Playbook Drawer\">
+        <svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4\"/></svg>
+        <span>Remediation Playbook</span>
       </button>
-      <button class=\"btn-nav\" onclick=\"exportJsonData()\" title=\"Export Audit JSON\">
+      <button class=\"btn-nav\" onclick=\"exportMarkdownReport()\" title=\"Export Audit as Markdown (macharden-report.md)\">
+        <svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z\"/></svg>
+        <span>Export Markdown</span>
+      </button>
+      <button class=\"btn-nav\" onclick=\"exportJsonData()\" title=\"Export Raw Audit JSON\">
         <svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4\"/></svg>
         <span>JSON</span>
       </button>
@@ -1319,7 +2215,7 @@ doc.append(f"""
 # Hero Section
 doc.append("<div class=\"hero-grid\">")
 
-# Score Card (Redesigned with rating badge placed outside the circle)
+# Score Card
 doc.append(f"""
   <div class=\"hero-card score-card\">
     <div class=\"section-label\">
@@ -1441,6 +2337,115 @@ doc.append("""
 
 doc.append("</div>") # /hero-grid
 
+# -----------------------------------------------------------------------------
+# 1. Category Score Breakdown Panel UI
+# -----------------------------------------------------------------------------
+cat_icons = {
+    "hardening": "<svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z\"/></svg>",
+    "network": "<svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0\"/></svg>",
+    "secrets": "<svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z\"/></svg>",
+    "persistence": "<svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15\"/></svg>"
+}
+
+doc.append("""
+<div class=\"cat-breakdown-section\">
+  <div class=\"section-label\">
+    <svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z\"/></svg>
+    Category Score Breakdown
+  </div>
+  <div class=\"category-grid\">
+""")
+
+for cat_id in core_categories:
+    cd = cat_data.get(cat_id, {
+        "name": cat_id.capitalize(),
+        "score_pct": 100.0,
+        "pass": 0, "warn": 0, "fail": 0
+    })
+    c_score = cd["score_pct"]
+    c_icon = cat_icons.get(cat_id, "<svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9 12l2 2 4-4\"/></svg>")
+    
+    if c_score >= 85:
+        c_color = "#10b981"
+        c_grad = "linear-gradient(90deg, #10b981, #06b6d4)"
+    elif c_score >= 70:
+        c_color = "#0ea5e9"
+        c_grad = "linear-gradient(90deg, #0ea5e9, #10b981)"
+    elif c_score >= 50:
+        c_color = "#f59e0b"
+        c_grad = "linear-gradient(90deg, #f59e0b, #fbbf24)"
+    else:
+        c_color = "#f43f5e"
+        c_grad = "linear-gradient(90deg, #f43f5e, #e11d48)"
+
+    doc.append(f"""
+    <div class=\"cat-card\" data-category-card=\"{cat_id}\" onclick=\"filterCategory('{cat_id}')\" title=\"Click to filter controls by {cd['name']}\">
+      <div class=\"cat-card-top\">
+        <div class=\"cat-card-header\">
+          <div class=\"cat-card-icon\">{c_icon}</div>
+          <div class=\"cat-card-name\">{cd['name']}</div>
+        </div>
+        <div class=\"cat-card-score\" style=\"color: {c_color}\">{c_score:.1f}%</div>
+      </div>
+      <div class=\"cat-card-bar-wrap\">
+        <div class=\"cat-card-bar-track\">
+          <div class=\"cat-card-bar-fill\" style=\"width: {c_score}%; background: {c_grad};\"></div>
+        </div>
+      </div>
+      <div class=\"cat-card-counts\">
+        <span class=\"cat-count-badge cnt-pass\">✔ {cd['pass']} pass</span>
+        <span class=\"cat-count-badge cnt-warn\">▲ {cd['warn']} warn</span>
+        <span class=\"cat-count-badge cnt-fail\">✖ {cd['fail']} fail</span>
+      </div>
+    </div>
+""")
+
+doc.append("""
+  </div>
+</div>
+""")
+
+# -----------------------------------------------------------------------------
+# 2. Risk & Severity Breakdown Matrix UI
+# -----------------------------------------------------------------------------
+doc.append("""
+<div class=\"sev-section\">
+  <div class=\"section-label\">
+    <svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z\"/></svg>
+    Risk & Severity Distribution
+  </div>
+  <div class=\"sev-strip\">
+""")
+
+sev_levels = [
+    ("CRITICAL", "Critical Failures", "wt ≥ 9", sev_stats["CRITICAL"]),
+    ("HIGH", "High Risks", "wt 7-8", sev_stats["HIGH"]),
+    ("MEDIUM", "Medium Warnings", "wt 5-6", sev_stats["MEDIUM"]),
+    ("LOW", "Low / Baseline", "wt ≤ 4", sev_stats["LOW"])
+]
+
+for s_key, s_label, s_weight, s_obj in sev_levels:
+    fails = s_obj["fail"]
+    warns = s_obj["warn"]
+    total = s_obj["total"]
+    doc.append(f"""
+    <div class=\"sev-card sev-card-{s_key.lower()}\" data-severity-card=\"{s_key}\" onclick=\"filterSeverity('{s_key}')\" title=\"Click to filter {s_key} severity controls\">
+      <div class=\"sev-card-left\">
+        <div class=\"sev-card-title\">{s_key}</div>
+        <div class=\"sev-card-desc\">{fails} fails · {warns} warns</div>
+      </div>
+      <div class=\"sev-card-right\">
+        <div class=\"sev-card-val\">{total}</div>
+        <div class=\"sev-card-subval\">checks</div>
+      </div>
+    </div>
+""")
+
+doc.append("""
+  </div>
+</div>
+""")
+
 # Remediation Playbook Callout (if warnings/failures exist)
 if remediable_count > 0:
     doc.append(f"""
@@ -1454,14 +2459,22 @@ if remediable_count > 0:
         <div class=\"fix-banner-desc\">Automated shell fix commands are available for your failed and warning controls.</div>
       </div>
     </div>
-    <button class=\"btn-primary-fix\" onclick=\"copyAllFixCommands()\">
-      <svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3\"/></svg>
-      Copy All Fixes
-    </button>
+    <div class=\"fix-banner-actions\">
+      <button class=\"btn-primary-fix\" onclick=\"openPlaybookModal()\">
+        <svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z\"/><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M21 12a9 9 0 11-18 0 9 9 0 0118 0z\"/></svg>
+        Remediation Playbook
+      </button>
+      <button class=\"btn-secondary-fix\" onclick=\"copyAllFixCommands()\">
+        <svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3\"/></svg>
+        Copy All Fixes
+      </button>
+    </div>
   </div>
 """)
 
-# Toolbar & Filter Panel
+# -----------------------------------------------------------------------------
+# 3. Toolbar & Filters (Category + Status + Framework + Search)
+# -----------------------------------------------------------------------------
 doc.append("""
   <div class=\"toolbar-panel\">
     <div class=\"category-nav\">
@@ -1469,12 +2482,30 @@ doc.append("""
 
 for cat in ordered_categories:
     cat_label = cat.capitalize() if cat != "all" else "All Checks"
-    c_count = cat_counts.get(cat, 0)
+    c_count = total_checks if cat == "all" else cat_data.get(cat, {}).get("total", 0)
     active_cls = " active" if cat == "all" else ""
     doc.append(f"""      <button class=\"cat-btn{active_cls}\" data-category=\"{cat}\" onclick=\"filterCategory('{cat}')\">{cat_label} <span class=\"cat-count\">{c_count}</span></button>""")
 
 doc.append("""
     </div>
+
+    <!-- Framework Filter Row -->
+    <div class=\"filter-subnav\">
+      <div class=\"framework-filters\">
+        <span class=\"framework-label\">Framework:</span>
+        <button class=\"fw-pill pill-fw-all active\" data-framework=\"all\" onclick=\"filterFramework('all')\">All Controls</button>
+        <button class=\"fw-pill pill-fw-cis\" data-framework=\"cis\" onclick=\"filterFramework('cis')\">
+          CIS Benchmark <span class=\"fw-badge-cnt\">""" + str(cis_fw_count) + """</span>
+        </button>
+        <button class=\"fw-pill pill-fw-nist\" data-framework=\"nist\" onclick=\"filterFramework('nist')\">
+          NIST SP 800-53 <span class=\"fw-badge-cnt\">""" + str(nist_fw_count) + """</span>
+        </button>
+        <button class=\"fw-pill pill-fw-mitre\" data-framework=\"mitre\" onclick=\"filterFramework('mitre')\">
+          MITRE ATT&CK <span class=\"fw-badge-cnt\">""" + str(mitre_fw_count) + """</span>
+        </button>
+      </div>
+    </div>
+
     <div class=\"filter-row\">
       <div class=\"status-pills\">
         <button class=\"status-pill pill-all active\" data-status=\"all\" onclick=\"filterStatus('all')\">All ({total_checks})</button>
@@ -1487,6 +2518,7 @@ doc.append("""
         <div class=\"search-wrap\">
           <svg class=\"search-icon\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z\"/></svg>
           <input type=\"text\" id=\"searchInput\" class=\"search-field\" placeholder=\"Filter checks, IDs, or keywords...\" oninput=\"onSearchInput(this.value)\" />
+          <kbd class=\"search-kbd-hint\">/</kbd>
           <button class=\"search-clear-btn\" id=\"searchClearBtn\" onclick=\"clearSearch()\">✕</button>
         </div>
       </div>
@@ -1507,57 +2539,25 @@ for c in checks:
     title = html.escape(str(c.get('title', '')))
     status = str(c.get('status', 'INFO')).upper()
     weight = c.get('weight', 5)
+    severity = get_severity(weight)
     details = html.escape(str(c.get('details', '')))
     remediation = c.get('remediation', '')
     
-    # Retrieve compliance tags from nested mappings
-    cmap = compliance_map.get(cid, {})
-    
-    # CIS
-    cis_obj = cmap.get('cis', {})
-    if isinstance(cis_obj, dict):
-        cis_tag = cis_obj.get('id', '')
-    else:
-        cis_tag = str(cis_obj) if cis_obj else ''
-    if not cis_tag and cmap.get('cis_benchmark'):
-        cis_tag = str(cmap.get('cis_benchmark'))
-
-    # NIST
-    nist_obj = cmap.get('nist', {})
-    if isinstance(nist_obj, dict):
-        nist_tags = nist_obj.get('controls', [])
-        if not nist_tags and nist_obj.get('primary'):
-            nist_tags = [nist_obj.get('primary')]
-    elif isinstance(nist_obj, list):
-        nist_tags = nist_obj
-    else:
-        nist_tags = [str(nist_obj)] if nist_obj else []
-    if not nist_tags and cmap.get('nist_800_53'):
-        n_raw = cmap.get('nist_800_53')
-        nist_tags = n_raw if isinstance(n_raw, list) else [str(n_raw)]
-
-    # MITRE
-    mitre_obj = cmap.get('mitre', {})
-    if isinstance(mitre_obj, dict):
-        mitre_tags = mitre_obj.get('techniques', [])
-        if not mitre_tags and mitre_obj.get('primary'):
-            mitre_tags = [mitre_obj.get('primary')]
-    elif isinstance(mitre_obj, list):
-        mitre_tags = mitre_obj
-    else:
-        mitre_tags = [str(mitre_obj)] if mitre_obj else []
-    if not mitre_tags and cmap.get('mitre_attack'):
-        m_raw = cmap.get('mitre_attack')
-        mitre_tags = m_raw if isinstance(m_raw, list) else [str(m_raw)]
+    # Retrieve compliance tags
+    fws = get_check_frameworks(cid, compliance_map)
+    has_cis_val = "1" if fws["has_cis"] else "0"
+    has_nist_val = "1" if fws["has_nist"] else "0"
+    has_mitre_val = "1" if fws["has_mitre"] else "0"
 
     status_cls = "item-pass" if status == "PASS" else "item-warn" if status == "WARN" else "item-fail" if status == "FAIL" else "item-info"
     badge_cls = "badge-pass" if status == "PASS" else "badge-warn" if status == "WARN" else "badge-fail" if status == "FAIL" else "badge-info"
-    
+    sev_badge_cls = f"badge-sev-{severity.lower()}"
+
     # Auto-expand failed and warning checks
     expanded_cls = " expanded" if status in ["FAIL", "WARN"] else ""
 
     doc.append(f"""
-  <div class=\"check-item {status_cls}{expanded_cls}\" data-id=\"{cid}\" data-category=\"{cat}\" data-status=\"{status}\">
+  <div class=\"check-item {status_cls}{expanded_cls}\" data-id=\"{cid}\" data-category=\"{cat}\" data-status=\"{status}\" data-severity=\"{severity}\" data-cis=\"{has_cis_val}\" data-nist=\"{has_nist_val}\" data-mitre=\"{has_mitre_val}\">
     <div class=\"check-header\" onclick=\"toggleCard(this.parentElement)\">
       <div class=\"check-header-left\">
         <span class=\"badge-status {badge_cls}\">
@@ -1565,17 +2565,18 @@ for c in checks:
           {status}
         </span>
         <span class=\"check-id-badge\">{cid}</span>
+        <span class=\"badge-severity {sev_badge_cls}\">{severity}</span>
         <span class=\"check-title-text\">{title}</span>
       </div>
       <div class=\"check-header-right\">
         <div class=\"comp-chips\">""")
 
-    if cis_tag:
-        doc.append(f"""<span class=\"comp-chip chip-cis\" title=\"CIS Apple macOS Benchmark\">CIS {html.escape(cis_tag)}</span>""")
-    if nist_tags:
-        doc.append(f"""<span class=\"comp-chip chip-nist\" title=\"NIST SP 800-53\">{html.escape(str(nist_tags[0]))}</span>""")
-    if mitre_tags:
-        doc.append(f"""<span class=\"comp-chip chip-mitre\" title=\"MITRE ATT&CK\">{html.escape(str(mitre_tags[0]))}</span>""")
+    if fws["cis_tag"]:
+        doc.append(f"""<span class=\"comp-chip chip-cis\" title=\"CIS Apple macOS Benchmark\">CIS {html.escape(fws['cis_tag'])}</span>""")
+    if fws["nist_tag_str"]:
+        doc.append(f"""<span class=\"comp-chip chip-nist\" title=\"NIST SP 800-53\">{html.escape(fws['nist_tag_str'])}</span>""")
+    if fws["mitre_tag_str"]:
+        doc.append(f"""<span class=\"comp-chip chip-mitre\" title=\"MITRE ATT&CK\">{html.escape(fws['mitre_tag_str'])}</span>""")
 
     doc.append(f"""
         </div>
@@ -1615,20 +2616,86 @@ for c in checks:
 
 doc.append("</div>") # /checks-container
 doc.append("</div>") # /app-wrapper
-doc.append("<div class=\"toast-container\" id=\"toastContainer\"></div>")
 
-# Embedded JavaScript
+# -----------------------------------------------------------------------------
+# 4. Remediation Playbook Modal
+# -----------------------------------------------------------------------------
+doc.append(f"""
+<div class=\"modal-backdrop\" id=\"playbookModal\" onclick=\"onBackdropClick(event)\">
+  <div class=\"modal-window\" onclick=\"event.stopPropagation()\">
+    <div class=\"modal-header\">
+      <div class=\"modal-title-group\">
+        <div class=\"modal-title-icon\">
+          <svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4\"/></svg>
+        </div>
+        <div>
+          <div class=\"modal-title\">Remediation Playbook</div>
+          <div class=\"modal-subtitle\">Executable hardening shell script for detected vulnerabilities</div>
+        </div>
+      </div>
+      <button class=\"modal-close-btn\" onclick=\"closePlaybookModal()\" title=\"Close Playbook (Esc)\">✕</button>
+    </div>
+    <div class=\"modal-toolbar\">
+      <div class=\"modal-stats\">
+        <span class=\"modal-stat-pill\">{remediable_count} Actionable Fixes</span>
+        <span>Target: <strong>{html.escape(system.get('hostname', 'macOS'))}</strong></span>
+      </div>
+      <div class=\"modal-actions\">
+        <button class=\"btn-modal btn-modal-primary\" onclick=\"copyPlaybookScript(this)\" title=\"Copy complete shell script to clipboard\">
+          <svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3\"/></svg>
+          <span>Copy All</span>
+        </button>
+        <button class=\"btn-modal btn-modal-secondary\" onclick=\"downloadPlaybookScript()\" title=\"Download fix_hardening.sh script file\">
+          <svg fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4\"/></svg>
+          <span>Download fix_hardening.sh</span>
+        </button>
+      </div>
+    </div>
+    <div class=\"modal-body\">
+      <div class=\"playbook-code-wrap\">
+""")
+
+for idx, line in enumerate(remed_script_lines):
+    line_html = html.escape(line)
+    l_cls = ""
+    stripped = line.strip()
+    if stripped.startswith("#"):
+        l_cls = "line-comment"
+    elif stripped.startswith(("set ", "echo ", "if ", "then ", "fi ", "#!")):
+        l_cls = "line-keyword"
+    elif stripped.startswith(("sudo ", "defaults ", "spctl ", "fdesetup ", "csrutil ", "pfctl ", "launchctl ", "chmod ", "chown ")):
+        l_cls = "line-command"
+    doc.append(f"        <div class=\"code-line\"><span class=\"line-num\">{idx + 1}</span><span class=\"line-text {l_cls}\">{line_html}</span></div>")
+
+doc.append(f"""
+      </div>
+    </div>
+    <div class=\"modal-footer\">
+      <div>💡 <strong>Administrator privileges:</strong> Review commands thoroughly before executing with sudo.</div>
+      <div>Press <kbd class=\"nav-kbd\">Esc</kbd> to close</div>
+    </div>
+  </div>
+</div>
+<div class=\"toast-container\" id=\"toastContainer\"></div>
+""")
+
+# -----------------------------------------------------------------------------
+# Embedded JavaScript Engine
+# -----------------------------------------------------------------------------
 doc.append("""
 <script>
-// JSON Export Data
+// JSON Export Data & Playbook Script Payload
 const AUDIT_DATA = """ + json.dumps(data) + """;
+const PLAYBOOK_SCRIPT = """ + json.dumps(raw_playbook_script) + """;
 
-// State
+// Filter State Engine
 let currentCategory = 'all';
 let currentStatus = 'all';
+let currentFramework = 'all';
+let currentSeverity = 'all';
 let searchQuery = '';
 
-// Theme Toggle (Local Persistence)
+// Theme Toggle (Local Persistence & Keyboard Shortcut)
 function toggleTheme() {
   const htmlEl = document.documentElement;
   const currentTheme = htmlEl.getAttribute('data-theme') || 'dark';
@@ -1677,18 +2744,32 @@ function toggleAllCards() {
   btn.textContent = shouldExpand ? 'Collapse All' : 'Expand All';
 }
 
-// Category Filter
+// Category Filter (Syncs both Toolbar Tabs and Category Score Breakdown Cards)
 function filterCategory(cat) {
-  currentCategory = cat.toLowerCase();
+  const c = cat.toLowerCase();
+  if (currentCategory === c && c !== 'all') {
+    currentCategory = 'all';
+  } else {
+    currentCategory = c;
+  }
+
   document.querySelectorAll('.cat-btn').forEach(btn => {
     btn.classList.toggle('active', btn.getAttribute('data-category') === currentCategory);
+  });
+  document.querySelectorAll('.cat-card').forEach(card => {
+    card.classList.toggle('active', card.getAttribute('data-category-card') === currentCategory);
   });
   applyFilters();
 }
 
-// Status Filter
+// Status Filter (Syncs both Toolbar Status Pills and KPI Summary Boxes)
 function filterStatus(st) {
-  currentStatus = st;
+  if (currentStatus === st && st !== 'all') {
+    currentStatus = 'all';
+  } else {
+    currentStatus = st;
+  }
+
   document.querySelectorAll('.status-pill').forEach(pill => {
     pill.classList.toggle('active', pill.getAttribute('data-status') === currentStatus);
   });
@@ -1702,7 +2783,37 @@ function filterStatus(st) {
   applyFilters();
 }
 
-// Search
+// Framework Filter (CIS / NIST / MITRE)
+function filterFramework(fw) {
+  const f = fw.toLowerCase();
+  if (currentFramework === f && f !== 'all') {
+    currentFramework = 'all';
+  } else {
+    currentFramework = f;
+  }
+
+  document.querySelectorAll('.fw-pill').forEach(pill => {
+    pill.classList.toggle('active', pill.getAttribute('data-framework') === currentFramework);
+  });
+  applyFilters();
+}
+
+// Severity Filter (CRITICAL / HIGH / MEDIUM / LOW)
+function filterSeverity(sev) {
+  const s = sev.toUpperCase();
+  if (currentSeverity === s && s !== 'all') {
+    currentSeverity = 'all';
+  } else {
+    currentSeverity = s;
+  }
+
+  document.querySelectorAll('.sev-card').forEach(card => {
+    card.classList.toggle('active', card.getAttribute('data-severity-card') === currentSeverity);
+  });
+  applyFilters();
+}
+
+// Search Field Handlers
 function onSearchInput(val) {
   searchQuery = val.trim().toLowerCase();
   const clearBtn = document.getElementById('searchClearBtn');
@@ -1716,19 +2827,31 @@ function clearSearch() {
   onSearchInput('');
 }
 
-// Unified Filter Engine
+// Unified Multi-Dimension Filter Engine
 function applyFilters() {
   const cards = document.querySelectorAll('.check-item');
   cards.forEach(card => {
     const cardCat = (card.getAttribute('data-category') || '').toLowerCase();
     const cardStatus = (card.getAttribute('data-status') || '').toUpperCase();
+    const cardSeverity = (card.getAttribute('data-severity') || '').toUpperCase();
     const cardText = card.textContent.toLowerCase();
 
     const matchesCat = (currentCategory === 'all' || cardCat === currentCategory);
     const matchesStatus = (currentStatus === 'all' || cardStatus === currentStatus);
+    const matchesSeverity = (currentSeverity === 'all' || cardSeverity === currentSeverity);
+    
+    let matchesFramework = true;
+    if (currentFramework === 'cis') {
+      matchesFramework = card.getAttribute('data-cis') === '1';
+    } else if (currentFramework === 'nist') {
+      matchesFramework = card.getAttribute('data-nist') === '1';
+    } else if (currentFramework === 'mitre') {
+      matchesFramework = card.getAttribute('data-mitre') === '1';
+    }
+
     const matchesSearch = (!searchQuery || cardText.includes(searchQuery));
 
-    if (matchesCat && matchesStatus && matchesSearch) {
+    if (matchesCat && matchesStatus && matchesSeverity && matchesFramework && matchesSearch) {
       card.style.display = '';
     } else {
       card.style.display = 'none';
@@ -1736,64 +2859,127 @@ function applyFilters() {
   });
 }
 
-// Copy Single Code Snippet
-function copyCode(btn, code) {
+// Remediation Playbook Drawer / Modal Handlers
+function openPlaybookModal() {
+  const modal = document.getElementById('playbookModal');
+  if (modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closePlaybookModal() {
+  const modal = document.getElementById('playbookModal');
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+}
+
+function onBackdropClick(e) {
+  if (e.target && e.target.id === 'playbookModal') {
+    closePlaybookModal();
+  }
+}
+
+// Copy All Playbook Script
+function copyPlaybookScript(btn) {
   if (navigator.clipboard) {
-    navigator.clipboard.writeText(code).then(() => {
-      showCopied(btn, 'Copied fix command!');
-    }).catch(() => fallbackCopy(code, btn));
+    navigator.clipboard.writeText(PLAYBOOK_SCRIPT).then(() => {
+      showCopied(btn, 'Copied full remediation shell script!');
+    }).catch(() => fallbackCopy(PLAYBOOK_SCRIPT, btn));
   } else {
-    fallbackCopy(code, btn);
+    fallbackCopy(PLAYBOOK_SCRIPT, btn);
   }
 }
 
-function fallbackCopy(text, btn) {
-  const textarea = document.createElement('textarea');
-  textarea.value = text;
-  document.body.appendChild(textarea);
-  textarea.select();
-  document.execCommand('copy');
-  document.body.removeChild(textarea);
-  showCopied(btn, 'Copied fix command!');
+// Download fix_hardening.sh Script via Blob
+function downloadPlaybookScript() {
+  const blob = new Blob([PLAYBOOK_SCRIPT], { type: 'text/x-shellscript;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'fix_hardening.sh';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Downloaded fix_hardening.sh');
 }
 
-function showCopied(btn, msg) {
-  const orig = btn.innerHTML;
-  btn.innerHTML = '✓ Copied!';
-  btn.classList.add('copied');
-  showToast(msg || 'Copied to clipboard!');
-  setTimeout(() => {
-    btn.innerHTML = orig;
-    btn.classList.remove('copied');
-  }, 2000);
-}
+// Export Markdown Report (macharden-report.md)
+function exportMarkdownReport() {
+  const d = AUDIT_DATA;
+  const sys = d.system || {};
+  const sum = d.summary || {};
+  const scan = d.scanner || {};
+  const checks = d.checks || [];
 
-// Copy All Fix Commands
-function copyAllFixCommands() {
-  const fixes = [];
-  AUDIT_DATA.checks.forEach(c => {
-    if ((c.status === 'FAIL' || c.status === 'WARN') && c.remediation) {
-      fixes.push('# ' + c.id + ': ' + c.title);
-      fixes.push(c.remediation);
-      fixes.push('');
-    }
-  });
-  if (fixes.length === 0) {
-    showToast('No remediation commands required!');
-    return;
-  }
-  const fullScript = '#!/bin/zsh\\n# macharden remediation playbook\\nset -e\\n\\n' + fixes.join('\\n');
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(fullScript).then(() => {
-      showToast('Copied full remediation shell script!');
+  let md = '# macOS Security Hardening Audit Report\\n\\n';
+  md += '> **Automated Security & Compliance Scan**  \\n';
+  md += '> Generated by **macharden** v' + (scan.version || '1.2.0') + ' on `' + (scan.timestamp || new Date().toISOString()) + '`\\n\\n';
+  md += '---\\n\\n';
+  md += '## 1. System Metadata\\n\\n';
+  md += '| Attribute | System Information |\\n';
+  md += '| :--- | :--- |\\n';
+  md += '| **Target Hostname** | `' + (sys.hostname || 'macOS') + '` |\\n';
+  md += '| **Audit User** | `' + (sys.user || 'unknown') + '` |\\n';
+  md += '| **Operating System** | ' + (sys.os_product || 'macOS') + ' ' + (sys.os_version || '') + ' (Build `' + (sys.os_build || '') + '`) |\\n';
+  md += '| **Architecture** | `' + (sys.arch || 'arm64') + '` |\\n';
+  md += '| **Kernel Release** | `' + (sys.kernel || 'Darwin') + '` |\\n\\n';
+  md += '---\\n\\n';
+  md += '## 2. Executive Summary\\n\\n';
+  md += '### Hardening Index: **' + (sum.hardening_index || 0) + '%** — *' + (sum.rating || 'UNKNOWN') + '*\\n\\n';
+  md += '| Metric | Count / Value | Status |\\n';
+  md += '| :--- | :---: | :---: |\\n';
+  md += '| **Hardening Score** | **' + (sum.hardening_index || 0) + '%** | ' + (sum.rating || '') + ' |\\n';
+  md += '| **Total Checks Audited** | **' + (sum.total_checks || checks.length) + '** | - |\\n';
+  md += '| **Passed Checks** | **' + (sum.passed || 0) + '** | 🟢 PASS |\\n';
+  md += '| **Warnings** | **' + (sum.warnings || 0) + '** | 🟡 WARN |\\n';
+  md += '| **Failed Checks** | **' + (sum.failed || 0) + '** | 🔴 FAIL |\\n';
+  md += '| **Points Earned** | ' + (sum.earned_points || 0) + ' / ' + (sum.total_possible_points || 0) + ' | - |\\n\\n';
+  md += '---\\n\\n';
+  md += '## 3. Audit Results by Category\\n\\n';
+
+  const categories = ['hardening', 'network', 'secrets', 'persistence'];
+  categories.forEach(cat => {
+    const catChecks = checks.filter(c => (c.category || '').toLowerCase() === cat);
+    if (catChecks.length === 0) return;
+    md += '### ' + cat.charAt(0).toUpperCase() + cat.slice(1) + ' (' + catChecks.length + ' controls)\\n\\n';
+    md += '| Status | ID | Check Name | Weight |\\n';
+    md += '| :---: | :--- | :--- | :---: |\\n';
+    catChecks.forEach(c => {
+      const stIcon = c.status === 'PASS' ? '🟢 PASS' : c.status === 'WARN' ? '🟡 WARN' : c.status === 'FAIL' ? '🔴 FAIL' : 'ℹ️ INFO';
+      md += '| ' + stIcon + ' | `' + c.id + '` | ' + c.title + ' | ' + (c.weight || 5) + ' |\\n';
     });
-  } else {
-    fallbackCopy(fullScript, null);
-    showToast('Copied full remediation shell script!');
+    md += '\\n';
+  });
+
+  const remediations = checks.filter(c => (c.status === 'FAIL' || c.status === 'WARN') && c.remediation);
+  if (remediations.length > 0) {
+    md += '---\\n\\n';
+    md += '## 4. Actionable Remediation Commands\\n\\n';
+    md += '```bash\\n#!/bin/zsh\\n# macharden remediation playbook\\nset -euo pipefail\\n\\n';
+    remediations.forEach(c => {
+      md += '# ' + c.id + ': ' + c.title + '\\n';
+      md += c.remediation + '\\n\\n';
+    });
+    md += '```\\n';
   }
+
+  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'macharden-report.md';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Downloaded macharden-report.md');
 }
 
-// Export JSON
+// Export Raw JSON
 function exportJsonData() {
   const str = JSON.stringify(AUDIT_DATA, null, 2);
   const blob = new Blob([str], { type: 'application/json' });
@@ -1808,7 +2994,58 @@ function exportJsonData() {
   showToast('Downloaded macharden-audit.json');
 }
 
-// Toast
+// Copy Code Snippets
+function copyCode(btn, code) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(code).then(() => {
+      showCopied(btn, 'Copied fix command!');
+    }).catch(() => fallbackCopy(code, btn));
+  } else {
+    fallbackCopy(code, btn);
+  }
+}
+
+function copyAllFixCommands() {
+  if (!PLAYBOOK_SCRIPT) {
+    showToast('No remediation commands required!');
+    return;
+  }
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(PLAYBOOK_SCRIPT).then(() => {
+      showToast('Copied full remediation shell script!');
+    });
+  } else {
+    fallbackCopy(PLAYBOOK_SCRIPT, null);
+    showToast('Copied full remediation shell script!');
+  }
+}
+
+function fallbackCopy(text, btn) {
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+  if (btn) showCopied(btn, 'Copied to clipboard!');
+}
+
+function showCopied(btn, msg) {
+  if (!btn) {
+    showToast(msg || 'Copied to clipboard!');
+    return;
+  }
+  const orig = btn.innerHTML;
+  btn.innerHTML = '✔ Copied!';
+  btn.classList.add('copied');
+  showToast(msg || 'Copied to clipboard!');
+  setTimeout(() => {
+    btn.innerHTML = orig;
+    btn.classList.remove('copied');
+  }, 2000);
+}
+
+// Toast Notifications
 function showToast(msg) {
   const container = document.getElementById('toastContainer');
   if (!container) return;
@@ -1819,9 +3056,48 @@ function showToast(msg) {
   setTimeout(() => {
     toast.style.opacity = '0';
     toast.style.transition = 'opacity 0.2s ease';
-    setTimeout(() => container.removeChild(toast), 200);
+    setTimeout(() => {
+      if (toast.parentElement) toast.parentElement.removeChild(toast);
+    }, 200);
   }, 2500);
 }
+
+// 6. Keyboard Shortcuts Listeners
+document.addEventListener('keydown', function(e) {
+  const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
+  
+  // Escape closes any active modal or clears search
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('playbookModal');
+    if (modal && modal.classList.contains('active')) {
+      closePlaybookModal();
+      return;
+    }
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput && (searchInput.value || document.activeElement === searchInput)) {
+      clearSearch();
+      searchInput.blur();
+    }
+    return;
+  }
+  
+  if (isInput) return;
+  
+  // '/' focuses search immediately
+  if (e.key === '/') {
+    e.preventDefault();
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+      searchInput.focus();
+      searchInput.select();
+    }
+  } 
+  // 't' or 'T' toggles theme
+  else if (e.key === 't' || e.key === 'T') {
+    e.preventDefault();
+    toggleTheme();
+  }
+});
 </script>
 </body>
 </html>

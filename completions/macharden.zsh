@@ -58,6 +58,9 @@ _macharden() {
         '--daemon-uninstall[Unload and remove background scan LaunchAgent]' \
         '--daemon-status[Display background scan agent status and execution history]' \
         '--alert[Trigger native macOS notification if critical vulnerabilities or leaks found]' \
+        '*--skip-test[Skip one or more check IDs]:check id:' \
+        '--profile[Load skip-test lines from a profile file]:profile file:_files' \
+        '--no-profile[Do not auto-load ~/.macharden/profile or macharden.prf]' \
         && return 0
 
     case $state in

@@ -3,7 +3,8 @@
 # macharden - lib/audit_secrets.sh
 # Secrets & Credentials Audit Module: Shell Startup Files, Exposed .env Files,
 # Keychain Timeout, Kernel Core Dumps, SSH File Permissions,
-# Unencrypted SSH Private Keys, and Secrets in Shell History
+# Unencrypted SSH Private Keys, Secrets in Shell History,
+# SSH Daemon Hardening, and Suspicious History File Types
 # ==============================================================================
 
 # Ensure record_result fallback exists if sourced standalone
@@ -28,6 +29,82 @@ _sec_secret_var_name() {
     local var_name=""
     var_name=$(printf '%s\n' "$line" | grep -oE '[A-Za-z0-9_]*(KEY|TOKEN|SECRET|PASSWORD|PASSWD)[[:space:]]*=' | head -n 1 | sed -E 's/[[:space:]]*=$//')
     printf '%s\n' "${var_name:-secret}"
+}
+
+# Run a command with a hard deadline (seconds). stdin is /dev/null so prompts cannot block.
+# stdout is returned; stderr is discarded. Timed-out processes are SIGTERM then SIGKILL.
+_sec_run_limited() {
+    local secs="${1:-5}"
+    shift
+    [[ $# -gt 0 ]] || return 1
+
+    if ! command -v perl >/dev/null 2>&1; then
+        "$@" </dev/null 2>/dev/null
+        return $?
+    fi
+
+    perl -e '
+        use strict;
+        my $timeout = shift @ARGV;
+        my $pid = fork();
+        if (!defined $pid) { exit 1 }
+        if ($pid == 0) {
+            open(STDIN, "<", "/dev/null") or exit 1;
+            open(STDERR, ">", "/dev/null");
+            exec { $ARGV[0] } @ARGV;
+            exit 127;
+        }
+        $SIG{ALRM} = sub {
+            kill "TERM", $pid;
+            select(undef, undef, undef, 0.2);
+            kill "KILL", $pid;
+            waitpid($pid, 0);
+            exit 124;
+        };
+        alarm $timeout;
+        waitpid($pid, 0);
+        alarm 0;
+        my $st = $?;
+        if ($st == -1) { exit 1 }
+        if ($st & 127) { exit 1 }
+        exit($st >> 8);
+    ' "$secs" "$@"
+}
+
+# True if anything is in TCP LISTEN on port 22 (IPv4 or IPv6).
+_sec_has_tcp22_listener() {
+    local out=""
+    local bin=""
+
+    if command -v lsof >/dev/null 2>&1; then
+        bin=$(command -v lsof)
+        out=$(_sec_run_limited 5 "$bin" -nP -iTCP:22 -sTCP:LISTEN)
+        if printf '%s\n' "$out" | grep -q LISTEN; then
+            return 0
+        fi
+    fi
+
+    if command -v netstat >/dev/null 2>&1; then
+        bin=$(command -v netstat)
+        out=$(_sec_run_limited 5 "$bin" -an -p tcp)
+        if printf '%s\n' "$out" | grep -qE '[.:]22[[:space:]].*LISTEN'; then
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+# Last value for an sshd keyword in config text. Prints a lowercase token; empty if unset.
+_sec_ssh_option() {
+    local key="$1"
+    local text="$2"
+    printf '%s\n' "$text" | awk -v k="$key" '
+        BEGIN { key = tolower(k) }
+        $1 ~ /^#/ { next }
+        tolower($1) == key { val = tolower($2) }
+        END { if (val != "") print val }
+    '
 }
 
 # SEC-01: Plaintext Shell Secrets & Profile Permissions
@@ -508,6 +585,189 @@ audit_shell_history_secrets() {
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
 }
 
+# SEC-08: SSH Daemon Hardening
+# Skip with PASS when Remote Login is not On and nothing listens on TCP/22.
+# Otherwise inspect `sshd -T` (preferred) or readable `/etc/ssh/sshd_config`.
+# Never dumps config/secrets; never waits on admin prompts.
+audit_sshd_hardening() {
+    local check_id="${1:-SEC-08}"
+    local category="${2:-secrets}"
+    local title="${3:-SSH Daemon Hardening}"
+    local weight="${4:-7}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    local rl_out=""
+    local remote_on=0
+    local listening=0
+    local cfg=""
+    local config_ok=0
+    local sshd_bin=""
+    local val=""
+    local weak=""
+    local f=""
+    local -a cfg_files
+
+    if [[ -x /usr/sbin/systemsetup ]]; then
+        rl_out=$(_sec_run_limited 5 /usr/sbin/systemsetup -getremotelogin)
+    elif command -v systemsetup >/dev/null 2>&1; then
+        rl_out=$(_sec_run_limited 5 systemsetup -getremotelogin)
+    fi
+    if printf '%s\n' "$rl_out" | grep -qiE 'Remote Login:[[:space:]]*On'; then
+        remote_on=1
+    fi
+
+    if _sec_has_tcp22_listener; then
+        listening=1
+    fi
+
+    if (( remote_on == 0 && listening == 0 )); then
+        res_status="PASS"
+        details="sshd not exposed; daemon hardening skipped."
+        record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+        return 0
+    fi
+
+    if [[ -x /usr/sbin/sshd ]]; then
+        sshd_bin="/usr/sbin/sshd"
+    elif command -v sshd >/dev/null 2>&1; then
+        sshd_bin=$(command -v sshd)
+    fi
+
+    if [[ -n "$sshd_bin" ]]; then
+        cfg=$(_sec_run_limited 5 "$sshd_bin" -T)
+        if [[ -z "$cfg" ]] && command -v sudo >/dev/null 2>&1; then
+            cfg=$(_sec_run_limited 5 sudo -n "$sshd_bin" -T)
+        fi
+        if [[ -n "$cfg" ]] && printf '%s\n' "$cfg" | grep -qiE '^permitrootlogin|^passwordauthentication|^x11forwarding|^maxauthtries|^permitemptypasswords'; then
+            config_ok=1
+        elif [[ -n "$cfg" ]] && printf '%s\n' "$cfg" | grep -qE '^[a-z][a-z0-9]+[[:space:]]'; then
+            config_ok=1
+        else
+            cfg=""
+        fi
+    fi
+
+    if (( config_ok == 0 )); then
+        cfg_files=()
+        [[ -r /etc/ssh/sshd_config ]] && cfg_files+=("/etc/ssh/sshd_config")
+        for f in /etc/ssh/sshd_config.d/* /etc/ssh/crypto.conf; do
+            [[ -r "$f" ]] && cfg_files+=("$f")
+        done
+        if (( ${#cfg_files[@]} > 0 )); then
+            cfg=$(grep -hEi '^[[:space:]]*(PermitRootLogin|PasswordAuthentication|X11Forwarding|MaxAuthTries|PermitEmptyPasswords)[[:space:]]+' "${cfg_files[@]}" 2>/dev/null || true)
+            config_ok=1
+        fi
+    fi
+
+    if (( config_ok == 0 )); then
+        res_status="INFO"
+        details="SSH is exposed but configuration is unreadable (sshd -T failed and /etc/ssh/sshd_config is not readable)."
+        remediation="Inspect /etc/ssh/sshd_config (PermitRootLogin no, MaxAuthTries 4, X11Forwarding no). Do not rewrite sshd_config automatically."
+        record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+        return 0
+    fi
+
+    val=$(_sec_ssh_option "permitrootlogin" "$cfg")
+    if [[ "$val" == "yes" ]]; then
+        weak="${weak:+$weak, }PermitRootLogin yes"
+    fi
+    val=$(_sec_ssh_option "passwordauthentication" "$cfg")
+    if [[ "$val" == "yes" ]]; then
+        weak="${weak:+$weak, }PasswordAuthentication yes"
+    fi
+    val=$(_sec_ssh_option "x11forwarding" "$cfg")
+    if [[ "$val" == "yes" ]]; then
+        weak="${weak:+$weak, }X11Forwarding yes"
+    fi
+    val=$(_sec_ssh_option "maxauthtries" "$cfg")
+    if [[ "$val" =~ ^[0-9]+$ ]] && (( val > 6 )); then
+        weak="${weak:+$weak, }MaxAuthTries ${val}"
+    fi
+    val=$(_sec_ssh_option "permitemptypasswords" "$cfg")
+    if [[ "$val" == "yes" ]]; then
+        weak="${weak:+$weak, }PermitEmptyPasswords yes"
+    fi
+
+    if [[ -n "$weak" ]]; then
+        res_status="WARN"
+        details="SSH daemon exposed with weak settings: ${weak}"
+        remediation="Review /etc/ssh/sshd_config: set PermitRootLogin no, MaxAuthTries 4, X11Forwarding no. Do not rewrite sshd_config automatically."
+    else
+        res_status="PASS"
+        details="SSH daemon is exposed; no weak sshd options detected."
+        remediation=""
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
+# SEC-09: Suspicious Shell History Files
+# WARN if ~/.zsh_history, ~/.zhistory, or ~/.bash_history exists and is not a
+# regular file (symlink, directory, device). PASS if missing or regular files.
+audit_suspicious_history_files() {
+    local check_id="${1:-SEC-09}"
+    local category="${2:-secrets}"
+    local title="${3:-Suspicious Shell History Files}"
+    local weight="${4:-5}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    local history_files=(
+        "$HOME/.zsh_history"
+        "$HOME/.zhistory"
+        "$HOME/.bash_history"
+    )
+
+    local suspicious=""
+    local count=0
+    local file=""
+    local kind=""
+    local display=""
+
+    for file in "${history_files[@]}"; do
+        if [[ ! -e "$file" && ! -L "$file" ]]; then
+            continue
+        fi
+        if [[ -f "$file" && ! -L "$file" ]]; then
+            continue
+        fi
+
+        display="${file/#$HOME/~}"
+        if [[ -L "$file" ]]; then
+            kind="symlink"
+        elif [[ -d "$file" ]]; then
+            kind="directory"
+        elif [[ -p "$file" ]]; then
+            kind="fifo"
+        elif [[ -S "$file" ]]; then
+            kind="socket"
+        elif [[ -b "$file" || -c "$file" ]]; then
+            kind="device"
+        else
+            kind="non-regular"
+        fi
+        suspicious="${suspicious:+$suspicious, }${display} (${kind})"
+        (( count++ ))
+    done
+
+    if (( count > 0 )); then
+        res_status="WARN"
+        details="Suspicious shell history file type(s) (${count}): ${suspicious}"
+        remediation="Investigate redirected history files (symlinks can hide attacker activity). Replace with a regular file."
+    else
+        res_status="PASS"
+        details="Shell history files are missing or regular files (~/.zsh_history, ~/.zhistory, ~/.bash_history)."
+        remediation=""
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
 # Aliases for ID-based execution
 audit_sec_01() { audit_shell_secrets "$@"; }
 audit_sec_02() { audit_env_files "$@"; }
@@ -516,6 +776,8 @@ audit_sec_04() { audit_core_dumps "$@"; }
 audit_sec_05() { audit_ssh_permissions "$@"; }
 audit_sec_06() { audit_unencrypted_ssh_keys "$@"; }
 audit_sec_07() { audit_shell_history_secrets "$@"; }
+audit_sec_08() { audit_sshd_hardening "$@"; }
+audit_sec_09() { audit_suspicious_history_files "$@"; }
 
 # Category Runner
 run_audit_secrets() {
@@ -526,6 +788,8 @@ run_audit_secrets() {
     audit_ssh_permissions
     audit_unencrypted_ssh_keys
     audit_shell_history_secrets
+    audit_sshd_hardening
+    audit_suspicious_history_files
 }
 
 # Auto-registration with engine.sh
@@ -538,6 +802,8 @@ register_secrets_checks() {
         register_check "SEC-05" "secrets" "SSH Keys and Config Permissions" 7 audit_ssh_permissions
         register_check "SEC-06" "secrets" "Unencrypted SSH Private Keys" 8 audit_unencrypted_ssh_keys
         register_check "SEC-07" "secrets" "Secrets in Shell History" 7 audit_shell_history_secrets
+        register_check "SEC-08" "secrets" "SSH Daemon Hardening" 7 audit_sshd_hardening
+        register_check "SEC-09" "secrets" "Suspicious Shell History Files" 5 audit_suspicious_history_files
     fi
 }
 

@@ -20,6 +20,52 @@ typeset -ga RES_WEIGHTS=()
 typeset -ga RES_DETAILS=()
 typeset -ga RES_REMEDIATIONS=()
 
+# Skip-test list (Lynis-style skip-test=ID). INFO results; excluded from score.
+typeset -ga MACHAR_SKIP_IDS=()
+
+# Add one or more check IDs to the skip list (comma-separated, case-insensitive)
+# Usage: add_skip_test "HARD-08,NET-07"
+add_skip_test() {
+    local raw="${1:-}"
+    local piece id
+    raw="${raw// /}"
+    [[ -z "$raw" ]] && return 0
+    for piece in ${(s:,:)raw}; do
+        id="${piece:u}"
+        [[ -z "$id" ]] && continue
+        MACHAR_SKIP_IDS+=("$id")
+    done
+}
+
+# Load skip-test=ID lines from a profile file (comments and blanks ignored)
+# Usage: load_skip_profile /path/to/profile
+load_skip_profile() {
+    local file="$1"
+    local line val
+    [[ -n "$file" && -f "$file" && -r "$file" ]] || return 1
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line="${line%%#*}"
+        line="${line#"${line%%[![:space:]]*}"}"
+        line="${line%"${line##*[![:space:]]}"}"
+        [[ -z "$line" ]] && continue
+        if [[ "${line:l}" == skip-test=* ]]; then
+            val="${line#*=}"
+            add_skip_test "$val"
+        fi
+    done < "$file"
+    return 0
+}
+
+is_skipped() {
+    local id="${1:u}"
+    local s
+    [[ -z "$id" ]] && return 1
+    for s in "${MACHAR_SKIP_IDS[@]}"; do
+        [[ "${s:u}" == "$id" ]] && return 0
+    done
+    return 1
+}
+
 # Global Score and Count Metrics
 typeset -g HARDENING_INDEX=0.0
 typeset -g TOTAL_POSSIBLE_POINTS=0.0
@@ -199,6 +245,11 @@ run_audit() {
 
         # Category filter check
         if [[ "$filter_cat" != "all" && "$cat_lower" != "$filter_cat" ]]; then
+            continue
+        fi
+
+        if is_skipped "$id"; then
+            record_result "$id" "$cat" "$title" "INFO" "$weight" "Skipped via --skip-test or profile" ""
             continue
         fi
 

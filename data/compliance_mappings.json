@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "metadata": {
     "name": "macharden-compliance-mappings",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Enterprise security compliance and regulatory framework mappings for macOS hardening checks",
     "frameworks": {
       "cis": {
@@ -1222,6 +1222,58 @@
           {
             "id": "T1046",
             "name": "Network Service Discovery"
+          }
+        ]
+      }
+    },
+    "HARD-15": {
+      "title": "USB Restricted Mode",
+      "category": "hardening",
+      "cis": {
+        "id": "2.10.1",
+        "section": "2.10 Accessories",
+        "title": "Ensure USB Restricted Mode is enabled",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["SC-41", "MP-7", "AC-20"],
+        "primary": "SC-41",
+        "family": "System and Communications Protection",
+        "title": "Port and I/O Device Access"
+      },
+      "mitre": {
+        "tactics": ["Initial Access", "Lateral Movement"],
+        "primary_technique": "T1200",
+        "techniques": [
+          {
+            "id": "T1200",
+            "name": "Hardware Additions"
+          }
+        ]
+      }
+    },
+    "PERS-09": {
+      "title": "Sudo Timestamp Timeout",
+      "category": "persistence",
+      "cis": {
+        "id": "5.3",
+        "section": "5.3 System Access",
+        "title": "Ensure sudo timestamp_timeout is 5 minutes or less",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": ["AC-11", "AC-12", "IA-11"],
+        "primary": "AC-11",
+        "family": "Access Control",
+        "title": "Device Lock"
+      },
+      "mitre": {
+        "tactics": ["Privilege Escalation", "Defense Evasion"],
+        "primary_technique": "T1548.003",
+        "techniques": [
+          {
+            "id": "T1548.003",
+            "name": "Abuse Elevation Control Mechanism: Sudo and Sudo Caching"
           }
         ]
       }

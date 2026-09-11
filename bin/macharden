@@ -10,7 +10,7 @@ if [ -z "$ZSH_VERSION" ]; then
 fi
 
 # Configuration Defaults
-MACHAR_VERSION="1.1.0"
+MACHAR_VERSION="1.2.0"
 MACHAR_CATEGORY="all"
 MACHAR_FORMAT="term"
 MACHAR_OUTPUT=""
@@ -23,6 +23,9 @@ MACHAR_ALERT=0
 MACHAR_DAEMON_CMD=""
 MACHAR_DAEMON_SCHEDULE="weekly"
 MACHAR_COMPLIANCE=""
+MACHAR_PROFILE=""
+MACHAR_NO_PROFILE=0
+typeset -ga MACHAR_SKIP_CLI=()
 
 # CLI Help and Usage
 show_help() {
@@ -49,6 +52,9 @@ Options:
   --daemon-uninstall         Unload and remove background scan LaunchAgent
   --daemon-status            Check whether background scan daemon is loaded and running
   --alert                    Dispatch macOS desktop alert if critical issues or leaks found
+  --skip-test <id>[,id...]   Skip check IDs (repeatable; Lynis-style skip-test)
+  --profile <file>           Load skip-test=ID lines from a profile file
+  --no-profile               Do not auto-load ~/.macharden/profile or macharden.prf
 
 Examples:
   macharden                                 # Run full audit suite with terminal output
@@ -64,6 +70,8 @@ Examples:
   macharden --daemon-status                 # Check daemon status and previous scan logs
   macharden --daemon-uninstall              # Unload and remove background daemon
   macharden --alert                         # Run audit and trigger macOS alert on critical issues
+  macharden --skip-test HARD-08,NET-07      # Skip firmware and AirDrop checks
+  macharden --profile ~/.macharden/profile  # Load skip-test lines from a profile
 
 EOF
 }
@@ -158,6 +166,25 @@ while [[ $# -gt 0 ]]; do
         --alert)
             MACHAR_ALERT=1
             ;;
+        --skip-test)
+            shift
+            if [[ $# -eq 0 || -z "$1" || "$1" == -* ]]; then
+                echo "Error: --skip-test requires a check ID (e.g. HARD-08 or HARD-08,NET-07)" >&2
+                exit 1
+            fi
+            MACHAR_SKIP_CLI+=("$1")
+            ;;
+        --profile)
+            shift
+            if [[ $# -eq 0 || -z "$1" || "$1" == -* ]]; then
+                echo "Error: --profile requires a file path" >&2
+                exit 1
+            fi
+            MACHAR_PROFILE="$1"
+            ;;
+        --no-profile)
+            MACHAR_NO_PROFILE=1
+            ;;
         *)
             echo "Error: Unknown option '$1'" >&2
             echo "Run 'macharden --help' for available options." >&2
@@ -218,6 +245,21 @@ if [[ -n "$MACHAR_DAEMON_CMD" ]]; then
             ;;
     esac
 fi
+
+# Load skip-test profile (defaults, then --profile, then CLI --skip-test)
+if (( ! MACHAR_NO_PROFILE )); then
+    [[ -f "$HOME/.macharden/profile" ]] && load_skip_profile "$HOME/.macharden/profile"
+    [[ -f "$BASE_DIR/macharden.prf" ]] && load_skip_profile "$BASE_DIR/macharden.prf"
+fi
+if [[ -n "$MACHAR_PROFILE" ]]; then
+    if ! load_skip_profile "$MACHAR_PROFILE"; then
+        echo "Error: profile not readable: $MACHAR_PROFILE" >&2
+        exit 1
+    fi
+fi
+for _skip in "${MACHAR_SKIP_CLI[@]}"; do
+    add_skip_test "$_skip"
+done
 
 # Load all available audit modules dynamically
 for audit_file in "$LIB_DIR"/audit_*.sh; do

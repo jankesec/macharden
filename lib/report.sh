@@ -22,12 +22,64 @@ _get_rating_text() {
     fi
 }
 
+# Helper to determine letter grade from score
+_get_letter_grade() {
+    local score="${1:-0}"
+    local int_score=0
+    if [[ "$score" =~ ^[0-9]+ ]]; then
+        int_score=${score%%.*}
+    fi
+    if (( int_score >= 95 )); then
+        echo "A+"
+    elif (( int_score >= 90 )); then
+        echo "A"
+    elif (( int_score >= 80 )); then
+        echo "B+"
+    elif (( int_score >= 70 )); then
+        echo "B"
+    elif (( int_score >= 60 )); then
+        echo "C"
+    elif (( int_score >= 50 )); then
+        echo "D"
+    else
+        echo "F"
+    fi
+}
+
+# Helper to determine severity level tag from weight
+# CRITICAL: weight >= 9, HIGH: weight 7-8, MEDIUM: weight 5-6, LOW: weight <= 4
+_get_severity_tag() {
+    local weight="${1:-5}"
+    local int_w=5
+    if [[ "$weight" =~ ^[0-9]+ ]]; then
+        int_w=${weight%%.*}
+    fi
+    if (( int_w >= 9 )); then
+        echo "CRITICAL"
+    elif (( int_w >= 7 )); then
+        echo "HIGH"
+    elif (( int_w >= 5 )); then
+        echo "MEDIUM"
+    else
+        echo "LOW"
+    fi
+}
+
+
 # Terminal executive report
 report_terminal() {
     echo ""
     echo "${COLOR_BOLD}${COLOR_BCYAN}======================================================================${COLOR_RESET}"
     echo "                     ${COLOR_BOLD}EXECUTIVE AUDIT SUMMARY${COLOR_RESET}"
     echo "${COLOR_BOLD}${COLOR_BCYAN}======================================================================${COLOR_RESET}"
+    echo ""
+
+    local letter_grade
+    letter_grade=$(_get_letter_grade "$HARDENING_INDEX")
+    local rating_text
+    rating_text=$(_get_rating_text "$HARDENING_INDEX")
+
+    ui_grade_box "$HARDENING_INDEX" "$letter_grade" "$rating_text"
     echo ""
 
     ui_score_bar "$HARDENING_INDEX"
@@ -42,8 +94,63 @@ report_terminal() {
     printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %.1f / %.1f\n" "Score Points Earned:" "$EARNED_POINTS" "$TOTAL_POSSIBLE_POINTS"
     echo ""
 
-    # Check for FAIL and WARN items
     local n=${#RES_IDS[@]}
+    local i=0 j=0
+
+    # Category Posture Breakdown section
+    echo "${COLOR_BOLD}${COLOR_BCYAN}▶ Category Posture Breakdown:${COLOR_RESET}"
+    echo "${COLOR_DIM}----------------------------------------------------------------------${COLOR_RESET}"
+    local categories=("Hardening" "Network" "Secrets" "Persistence")
+    local cat_name
+    for cat_name in "${categories[@]}"; do
+        local cat_lower="${cat_name:l}"
+        local cat_pass=0
+        local cat_warn=0
+        local cat_fail=0
+        local cat_earned=0.0
+        local cat_total=0.0
+
+        for (( j = 1; j <= n; j++ )); do
+            local c="${RES_CATEGORIES[j]:l}"
+            if [[ "$c" == "$cat_lower" ]]; then
+                local st="${RES_STATUSES[j]}"
+                local w="${RES_WEIGHTS[j]:-5}"
+                [[ "$w" =~ ^[0-9]+(\.[0-9]+)?$ ]] || w=5.0
+
+                case "$st" in
+                    PASS)
+                        (( ++cat_pass ))
+                        cat_total=$(( cat_total + w ))
+                        cat_earned=$(( cat_earned + w ))
+                        ;;
+                    WARN)
+                        (( ++cat_warn ))
+                        cat_total=$(( cat_total + w ))
+                        cat_earned=$(( cat_earned + (w * 0.5) ))
+                        ;;
+                    FAIL)
+                        (( ++cat_fail ))
+                        cat_total=$(( cat_total + w ))
+                        ;;
+                    *)
+                        ;;
+                esac
+            fi
+        done
+
+        local cat_score="100.0"
+        if (( cat_total > 0.0 )); then
+            local raw_score=$(( (cat_earned / cat_total) * 100.0 ))
+            cat_score=$(printf "%.1f" "$raw_score")
+        elif (( cat_pass + cat_warn + cat_fail == 0 )); then
+            cat_score="0.0"
+        fi
+
+        ui_category_score_row "$cat_name" "$cat_score" "$cat_pass" "$cat_warn" "$cat_fail"
+    done
+    echo ""
+
+    # Check for FAIL and WARN items
     local has_recs=0
     for (( i = 1; i <= n; i++ )); do
         local st="${RES_STATUSES[i]}"
@@ -76,8 +183,17 @@ report_terminal() {
                         badge="${COLOR_BYELLOW}${COLOR_BOLD}[WARN]${COLOR_RESET}"
                     fi
 
-                    printf "  %b  ${COLOR_BOLD}%-10s${COLOR_RESET} %s ${COLOR_DIM}(Weight: %s, Category: %s)${COLOR_RESET}\n" \
-                        "$badge" "$id" "$title" "$weight" "$cat"
+                    local sev_tag=$(_get_severity_tag "$weight")
+                    local sev_badge=""
+                    case "$sev_tag" in
+                        CRITICAL) sev_badge="${COLOR_BRED}${COLOR_BOLD}[CRITICAL]${COLOR_RESET}" ;;
+                        HIGH)     sev_badge="${COLOR_RED}${COLOR_BOLD}[HIGH]${COLOR_RESET}" ;;
+                        MEDIUM)   sev_badge="${COLOR_BYELLOW}${COLOR_BOLD}[MEDIUM]${COLOR_RESET}" ;;
+                        LOW)      sev_badge="${COLOR_BCYAN}${COLOR_BOLD}[LOW]${COLOR_RESET}" ;;
+                    esac
+
+                    printf "  %b  %b  ${COLOR_BOLD}%-10s${COLOR_RESET} %s ${COLOR_DIM}(Severity: %s, Weight: %s, Category: %s)${COLOR_RESET}\n" \
+                        "$badge" "$sev_badge" "$id" "$title" "$sev_tag" "$weight" "$cat"
                     if [[ -n "$details" ]]; then
                         printf "        ${COLOR_DIM}Finding:${COLOR_RESET} %s\n" "$details"
                     fi
@@ -101,7 +217,7 @@ report_terminal() {
 # Generate GitHub-flavored Markdown report
 report_markdown() {
     local output_file="${1:-}"
-    local version="${MACHAR_VERSION:-1.1.0}"
+    local version="${MACHAR_VERSION:-1.2.0}"
     local os_product os_version os_build arch current_time current_user hostname kernel_rel rating
 
     os_product=$(sw_vers -productName 2>/dev/null || echo "macOS")
@@ -113,9 +229,206 @@ report_markdown() {
     current_user=$(id -un 2>/dev/null || whoami)
     hostname=$(hostname -s 2>/dev/null || hostname)
     rating=$(_get_rating_text "$HARDENING_INDEX")
+    local letter_grade
+    letter_grade=$(_get_letter_grade "$HARDENING_INDEX")
 
     local points_display
     points_display=$(printf "%.1f / %.1f" "$EARNED_POINTS" "$TOTAL_POSSIBLE_POINTS")
+
+    local n=${#RES_IDS[@]}
+    local i=0 j=0 b=0
+
+    # Build Category Posture Breakdown markdown table
+    local cat_table=""
+    cat_table+="| Category | Score | Progress | Status | Passed | Warnings | Deficiencies | Points Earned |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+"
+    local categories=("Hardening" "Network" "Secrets" "Persistence")
+    local cat_name
+    for cat_name in "${categories[@]}"; do
+        local cat_lower="${cat_name:l}"
+        local cat_pass=0
+        local cat_warn=0
+        local cat_fail=0
+        local cat_earned=0.0
+        local cat_total=0.0
+
+        for (( j = 1; j <= n; j++ )); do
+            local c="${RES_CATEGORIES[j]:l}"
+            if [[ "$c" == "$cat_lower" ]]; then
+                local st="${RES_STATUSES[j]}"
+                local w="${RES_WEIGHTS[j]:-5}"
+                [[ "$w" =~ ^[0-9]+(\.[0-9]+)?$ ]] || w=5.0
+
+                case "$st" in
+                    PASS)
+                        (( ++cat_pass ))
+                        cat_total=$(( cat_total + w ))
+                        cat_earned=$(( cat_earned + w ))
+                        ;;
+                    WARN)
+                        (( ++cat_warn ))
+                        cat_total=$(( cat_total + w ))
+                        cat_earned=$(( cat_earned + (w * 0.5) ))
+                        ;;
+                    FAIL)
+                        (( ++cat_fail ))
+                        cat_total=$(( cat_total + w ))
+                        ;;
+                    *)
+                        ;;
+                esac
+            fi
+        done
+
+        local cat_score_pct=100.0
+        if (( cat_total > 0.0 )); then
+            cat_score_pct=$(( (cat_earned / cat_total) * 100.0 ))
+        elif (( cat_pass + cat_warn + cat_fail == 0 )); then
+            cat_score_pct=0.0
+        fi
+        local cat_score_fmt=$(printf "%.1f" "$cat_score_pct")
+
+        local int_cscore=0
+        if [[ "$cat_score_fmt" =~ ^[0-9]+ ]]; then
+            int_cscore=${cat_score_fmt%%.*}
+        fi
+
+        local indicator="🟩"
+        local status_lbl="🟢 PASS"
+        local fill_sym="🟩"
+        if (( int_cscore >= 85 )); then
+            indicator="🟩"
+            status_lbl="🟢 PASS"
+            fill_sym="🟩"
+        elif (( int_cscore >= 70 )); then
+            indicator="🟨"
+            status_lbl="🟡 WARN"
+            fill_sym="🟨"
+        else
+            indicator="🟥"
+            status_lbl="🔴 DEFICIENT"
+            fill_sym="🟥"
+        fi
+
+        local fill_cnt=$(( (int_cscore * 10) / 100 ))
+        local empty_cnt=$(( 10 - fill_cnt ))
+        (( fill_cnt < 0 )) && fill_cnt=0
+        (( empty_cnt < 0 )) && empty_cnt=0
+
+        local bar=""
+        for (( b = 0; b < fill_cnt; b++ )); do bar+="$fill_sym"; done
+        for (( b = 0; b < empty_cnt; b++ )); do bar+="⬜"; done
+
+        local earned_fmt=$(printf "%.1f" "$cat_earned")
+        local total_fmt=$(printf "%.1f" "$cat_total")
+
+        cat_table+="| **${cat_name}** | **${cat_score_fmt}%** | ${indicator} ${bar} | ${status_lbl} | ${cat_pass} | ${cat_warn} | ${cat_fail} | ${earned_fmt} / ${total_fmt} |
+"
+    done
+
+    # Build Risk & Severity Distribution markdown table
+    local crit_total=0; local crit_pass=0; local crit_warn=0; local crit_fail=0; local crit_earned=0.0; local crit_pts=0.0
+    local high_total=0; local high_pass=0; local high_warn=0; local high_fail=0; local high_earned=0.0; local high_pts=0.0
+    local med_total=0;  local med_pass=0;  local med_warn=0;  local med_fail=0;  local med_earned=0.0;  local med_pts=0.0
+    local low_total=0;  local low_pass=0;  local low_warn=0;  local low_fail=0;  local low_earned=0.0;  local low_pts=0.0
+
+    for (( j = 1; j <= n; j++ )); do
+        local st="${RES_STATUSES[j]}"
+        local w="${RES_WEIGHTS[j]:-5}"
+        [[ "$w" =~ ^[0-9]+(\.[0-9]+)?$ ]] || w=5.0
+        local int_w=5
+        if [[ "$w" =~ ^[0-9]+ ]]; then
+            int_w=${w%%.*}
+        fi
+
+        local is_scored=1
+        if [[ "$st" == "INFO" || "$st" == "SUGG" ]]; then
+            is_scored=0
+        fi
+
+        if (( int_w >= 9 )); then
+            (( ++crit_total ))
+            if [[ "$st" == "PASS" ]]; then (( ++crit_pass )); crit_earned=$(( crit_earned + w )); fi
+            if [[ "$st" == "WARN" ]]; then (( ++crit_warn )); crit_earned=$(( crit_earned + (w * 0.5) )); fi
+            if [[ "$st" == "FAIL" ]]; then (( ++crit_fail )); fi
+            (( is_scored )) && crit_pts=$(( crit_pts + w ))
+        elif (( int_w >= 7 )); then
+            (( ++high_total ))
+            if [[ "$st" == "PASS" ]]; then (( ++high_pass )); high_earned=$(( high_earned + w )); fi
+            if [[ "$st" == "WARN" ]]; then (( ++high_warn )); high_earned=$(( high_earned + (w * 0.5) )); fi
+            if [[ "$st" == "FAIL" ]]; then (( ++high_fail )); fi
+            (( is_scored )) && high_pts=$(( high_pts + w ))
+        elif (( int_w >= 5 )); then
+            (( ++med_total ))
+            if [[ "$st" == "PASS" ]]; then (( ++med_pass )); med_earned=$(( med_earned + w )); fi
+            if [[ "$st" == "WARN" ]]; then (( ++med_warn )); med_earned=$(( med_earned + (w * 0.5) )); fi
+            if [[ "$st" == "FAIL" ]]; then (( ++med_fail )); fi
+            (( is_scored )) && med_pts=$(( med_pts + w ))
+        else
+            (( ++low_total ))
+            if [[ "$st" == "PASS" ]]; then (( ++low_pass )); low_earned=$(( low_earned + w )); fi
+            if [[ "$st" == "WARN" ]]; then (( ++low_warn )); low_earned=$(( low_earned + (w * 0.5) )); fi
+            if [[ "$st" == "FAIL" ]]; then (( ++low_fail )); fi
+            (( is_scored )) && low_pts=$(( low_pts + w ))
+        fi
+    done
+
+    local crit_rate="100.0%"
+    (( crit_pts > 0.0 )) && crit_rate=$(printf "%.1f%%" $(( (crit_earned / crit_pts) * 100.0 )))
+    local high_rate="100.0%"
+    (( high_pts > 0.0 )) && high_rate=$(printf "%.1f%%" $(( (high_earned / high_pts) * 100.0 )))
+    local med_rate="100.0%"
+    (( med_pts > 0.0 )) && med_rate=$(printf "%.1f%%" $(( (med_earned / med_pts) * 100.0 )))
+    local low_rate="100.0%"
+    (( low_pts > 0.0 )) && low_rate=$(printf "%.1f%%" $(( (low_earned / low_pts) * 100.0 )))
+
+    local sev_table=""
+    sev_table+="| Severity Level | Weight Range | Total Checks | Passed | Warnings | Failed | Compliance Rate |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| 🔴 **Critical** | Weight 9 – 10 | ${crit_total} | ${crit_pass} | ${crit_warn} | ${crit_fail} | ${crit_rate} |
+| 🟠 **High** | Weight 7 – 8 | ${high_total} | ${high_pass} | ${high_warn} | ${high_fail} | ${high_rate} |
+| 🟡 **Medium** | Weight 5 – 6 | ${med_total} | ${med_pass} | ${med_warn} | ${med_fail} | ${med_rate} |
+| 🔵 **Low** | Weight 1 – 4 | ${low_total} | ${low_pass} | ${low_warn} | ${low_fail} | ${low_rate} |
+"
+
+    # Ensure compliance metrics are loaded
+    if ! typeset -f calculate_compliance_metrics >/dev/null 2>&1; then
+        if [[ -f "${0:A:h}/compliance.sh" ]]; then
+            source "${0:A:h}/compliance.sh"
+        elif [[ -n "${LIB_DIR:-}" && -f "${LIB_DIR}/compliance.sh" ]]; then
+            source "${LIB_DIR}/compliance.sh"
+        elif [[ -f "./lib/compliance.sh" ]]; then
+            source "./lib/compliance.sh"
+        elif [[ -f "../lib/compliance.sh" ]]; then
+            source "../lib/compliance.sh"
+        fi
+    fi
+
+    if typeset -f calculate_compliance_metrics >/dev/null 2>&1; then
+        calculate_compliance_metrics
+    fi
+
+    local cis_rating="N/A"
+    local nist_rating="N/A"
+    local mitre_rating="N/A"
+    if typeset -f _compliance_rating_text >/dev/null 2>&1; then
+        cis_rating=$(_compliance_rating_text "${CIS_COMPLIANCE_PCT:-100.0}")
+        nist_rating=$(_compliance_rating_text "${NIST_COMPLIANCE_PCT:-100.0}")
+        mitre_rating=$(_compliance_rating_text "${MITRE_COVERAGE_PCT:-100.0}")
+    else
+        cis_rating=$(_get_rating_text "${CIS_COMPLIANCE_PCT:-100.0}")
+        nist_rating=$(_get_rating_text "${NIST_COMPLIANCE_PCT:-100.0}")
+        mitre_rating=$(_get_rating_text "${MITRE_COVERAGE_PCT:-100.0}")
+    fi
+
+    local reg_table=""
+    reg_table+="| Framework | Compliance Score | Status | Evaluated | Compliant / Defended | Warnings | Deficiencies |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **CIS Apple macOS Benchmark** | **${CIS_COMPLIANCE_PCT:-100.0}%** | ${cis_rating} | ${CIS_TOTAL_COUNT:-0} | ${CIS_PASS_COUNT:-0} | ${CIS_WARN_COUNT:-0} | ${CIS_FAIL_COUNT:-0} |
+| **NIST SP 800-53 Rev. 5** | **${NIST_COMPLIANCE_PCT:-100.0}%** | ${nist_rating} | ${NIST_TOTAL_COUNT:-0} | ${NIST_PASS_COUNT:-0} | ${NIST_WARN_COUNT:-0} | ${NIST_FAIL_COUNT:-0} |
+| **MITRE ATT&CK (macOS Defense)** | **${MITRE_COVERAGE_PCT:-100.0}%** | ${mitre_rating} | ${MITRE_TOTAL_COUNT:-0} | ${MITRE_DEFENDED_COUNT:-0} | - | ${MITRE_AT_RISK_COUNT:-0} |
+"
 
     local md_content=""
     md_content="# macOS Security Hardening Audit Report
@@ -139,11 +452,11 @@ report_markdown() {
 
 ## 2. Executive Summary
 
-### Hardening Index: **${HARDENING_INDEX}%** — *${rating}*
+### Hardening Index: **${HARDENING_INDEX}%** — *${rating}* (Grade: **${letter_grade}**)
 
 | Metric | Count / Value | Status |
 | :--- | :---: | :---: |
-| **Hardening Score** | **${HARDENING_INDEX}%** | **${rating}** |
+| **Hardening Score** | **${HARDENING_INDEX}%** | **${rating}** (Grade: **${letter_grade}**) |
 | **Total Checks Audited** | **${COUNT_TOTAL}** | - |
 | **Passed Checks** | **${COUNT_PASS}** | 🟢 PASS |
 | **Warnings** | **${COUNT_WARN}** | 🟡 WARN |
@@ -152,6 +465,21 @@ report_markdown() {
 | **Suggestions** | **${COUNT_SUGG}** | 🟣 SUGG |
 | **Earned Score Points** | **${points_display}** | - |
 
+---
+
+### Category Posture Breakdown
+
+${cat_table}
+---
+
+### Risk & Severity Distribution
+
+${sev_table}
+---
+
+### Regulatory Framework Coverage
+
+${reg_table}
 ---
 
 ## 3. Comprehensive Audit Results
@@ -249,7 +577,7 @@ ${rem}
 # Generate structured JSON document
 report_json() {
     local output_file="${1:-}"
-    local version="${MACHAR_VERSION:-1.1.0}"
+    local version="${MACHAR_VERSION:-1.2.0}"
     local os_product os_version os_build arch current_time current_user hostname kernel_rel rating
 
     os_product=$(sw_vers -productName 2>/dev/null || echo "macOS")

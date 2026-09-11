@@ -646,6 +646,51 @@ audit_malware_protection() {
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
 }
 
+# HARD-15: USB Restricted Mode
+# T2 / Apple Silicon accessory authorization after lock. Explicit disable is WARN.
+audit_usb_restricted_mode() {
+    local check_id="${1:-HARD-15}"
+    local category="${2:-hardening}"
+    local title="${3:-USB Restricted Mode}"
+    local weight="${4:-5}"
+
+    local res_status="INFO"
+    local details=""
+    local remediation=""
+    local val=""
+    local arch
+    arch=$(uname -m 2>/dev/null || echo "")
+
+    val=$(defaults read com.apple.security.restrict-usb restrict-usb 2>/dev/null || echo "")
+    if [[ -z "$val" ]]; then
+        val=$(defaults read /Library/Preferences/com.apple.security.restrict-usb restrict-usb 2>/dev/null || echo "")
+    fi
+    if [[ -z "$val" ]]; then
+        val=$(defaults -currentHost read com.apple.security.restrict-usb restrict-usb 2>/dev/null || echo "")
+    fi
+
+    if echo "$val" | grep -qiE '^(0|false)$'; then
+        res_status="WARN"
+        details="USB Restricted Mode is explicitly disabled (restrict-usb=${val}). Accessories can attach while the Mac is locked."
+        remediation="defaults delete com.apple.security.restrict-usb restrict-usb 2>/dev/null; or System Settings > Privacy & Security > Allow accessories to connect = Ask"
+    elif echo "$val" | grep -qiE '^(1|true)$'; then
+        res_status="PASS"
+        details="USB Restricted Mode is enabled (restrict-usb=${val})."
+        remediation=""
+    else
+        if [[ "$arch" == "arm64" ]]; then
+            res_status="PASS"
+            details="USB Restricted Mode preference is unset; Apple Silicon default is enabled (ask/authorize accessories after lock)."
+        else
+            res_status="INFO"
+            details="USB Restricted Mode preference is unset. Feature applies to T2/Apple Silicon; confirm System Settings > Privacy & Security > Allow accessories to connect is not Always."
+        fi
+        remediation=""
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
 # Aliases for ID-based execution
 audit_hard_01() { audit_sip "$@"; }
 audit_hard_02() { audit_filevault "$@"; }
@@ -661,6 +706,7 @@ audit_hard_11() { audit_bluetooth_sharing "$@"; }
 audit_hard_12() { audit_home_permissions "$@"; }
 audit_hard_13() { audit_network_time "$@"; }
 audit_hard_14() { audit_malware_protection "$@"; }
+audit_hard_15() { audit_usb_restricted_mode "$@"; }
 
 # Category Runner
 run_audit_hardening() {
@@ -678,6 +724,7 @@ run_audit_hardening() {
     audit_home_permissions
     audit_network_time
     audit_malware_protection
+    audit_usb_restricted_mode
 }
 
 # Auto-registration with engine.sh
@@ -697,6 +744,7 @@ register_hardening_checks() {
         register_check "HARD-12" "hardening" "Home Directory Permissions" 6 audit_home_permissions
         register_check "HARD-13" "hardening" "Network Time Synchronization" 5 audit_network_time
         register_check "HARD-14" "hardening" "Built-in Malware Protection" 6 audit_malware_protection
+        register_check "HARD-15" "hardening" "USB Restricted Mode" 5 audit_usb_restricted_mode
     fi
 }
 
