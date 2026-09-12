@@ -10,9 +10,11 @@
 report.json
 report.md
 report.txt
+report.sarif
 report_*.json
 report_*.md
 report_*.txt
+report_*.sarif
 fix_hardening.sh
 macharden_fix_*.sh
 
