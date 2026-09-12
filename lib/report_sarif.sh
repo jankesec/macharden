@@ -39,8 +39,16 @@ report_sarif() {
         comp_file="./data/compliance_mappings.json"
     elif [[ -f "../data/compliance_mappings.json" ]]; then
         comp_file="../data/compliance_mappings.json"
-    elif [[ -f "./data/compliance_mappings.json" ]]; then
-        comp_file="./data/compliance_mappings.json"
+    else
+        local script_dir
+        if [[ -n "${ZSH_VERSION:-}" ]]; then
+            script_dir="$(cd "$(dirname "${(%):-%x}")/.." 2>/dev/null && pwd)"
+        elif [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+            script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)"
+        fi
+        if [[ -n "$script_dir" && -f "$script_dir/data/compliance_mappings.json" ]]; then
+            comp_file="$script_dir/data/compliance_mappings.json"
+        fi
     fi
 
     # Determine all registered check IDs and rules

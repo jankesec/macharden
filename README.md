@@ -166,7 +166,7 @@ macharden --daemon-install weekly
 ──────────────────────────────────────────────────────────────────────
  Target Host:   macOS-Workstation (auditor)
  macOS Build:   macOS 15.3 (Build 24D60) [arm64]
- Audit Time:    2026-09-12 00:28:03 +03
+ Audit Time:    2026-09-12 12:00:00 UTC
 ──────────────────────────────────────────────────────────────────────
 
 ▶ Hardening Audit Checks
