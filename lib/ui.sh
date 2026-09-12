@@ -32,7 +32,7 @@ if ! typeset -f i18n_t >/dev/null 2>&1; then
     }
 fi
 
-# Initialize or reset ANSI color codes
+## Initialize or reset ANSI color codes
 ui_init_colors() {
     if [[ "${MACHAR_NO_COLOR:-0}" -eq 1 ]] || [[ -n "${NO_COLOR:-}" ]] || [[ ! -t 1 && -z "${MACHAR_FORCE_COLOR:-}" ]]; then
         COLOR_RESET=""
@@ -46,6 +46,7 @@ ui_init_colors() {
         COLOR_MAGENTA=""
         COLOR_CYAN=""
         COLOR_WHITE=""
+        COLOR_GRAY=""
         COLOR_BRED=""
         COLOR_BGREEN=""
         COLOR_BYELLOW=""
@@ -57,6 +58,8 @@ ui_init_colors() {
         BG_GREEN=""
         BG_YELLOW=""
         BG_BLUE=""
+        BG_DARK=""
+        COLOR_INV=""
     else
         COLOR_RESET="\033[0m"
         COLOR_BOLD="\033[1m"
@@ -69,6 +72,7 @@ ui_init_colors() {
         COLOR_MAGENTA="\033[35m"
         COLOR_CYAN="\033[36m"
         COLOR_WHITE="\033[37m"
+        COLOR_GRAY="\033[90m"
         COLOR_BRED="\033[91m"
         COLOR_BGREEN="\033[92m"
         COLOR_BYELLOW="\033[93m"
@@ -80,6 +84,8 @@ ui_init_colors() {
         BG_GREEN="\033[42m"
         BG_YELLOW="\033[43m"
         BG_BLUE="\033[44m"
+        BG_DARK="\033[48;5;236m"
+        COLOR_INV="\033[7m"
     fi
 }
 
@@ -111,12 +117,21 @@ ui_char() {
             bar_empty) echo "-" ;;
             bullet)    echo ">" ;;
             arrow)     echo "->" ;;
-            border_tl) echo "+" ;;
-            border_tr) echo "+" ;;
-            border_bl) echo "+" ;;
-            border_br) echo "+" ;;
+            border_tl) echo "┌" ;;
+            border_tr) echo "┐" ;;
+            border_bl) echo "└" ;;
+            border_br) echo "┘" ;;
+            border_round_tl) echo "+" ;;
+            border_round_tr) echo "+" ;;
+            border_round_bl) echo "+" ;;
+            border_round_br) echo "+" ;;
             border_h)  echo "-" ;;
             border_v)  echo "|" ;;
+            check)     echo "OK" ;;
+            cross)     echo "FAIL" ;;
+            warn)      echo "WARN" ;;
+            info)      echo "INFO" ;;
+            bulb)      echo "SUGG" ;;
             *) echo "$sym" ;;
         esac
     else
@@ -129,8 +144,17 @@ ui_char() {
             border_tr) echo "┐" ;;
             border_bl) echo "└" ;;
             border_br) echo "┘" ;;
+            border_round_tl) echo "╭" ;;
+            border_round_tr) echo "╮" ;;
+            border_round_bl) echo "╰" ;;
+            border_round_br) echo "╯" ;;
             border_h)  echo "─" ;;
             border_v)  echo "│" ;;
+            check)     echo "✔" ;;
+            cross)     echo "✖" ;;
+            warn)      echo "▲" ;;
+            info)      echo "ℹ" ;;
+            bulb)      echo "💡" ;;
             *) echo "$sym" ;;
         esac
     fi
@@ -149,101 +173,171 @@ ui_banner() {
     current_user="${MACHAR_USER:-$(id -un 2>/dev/null || whoami)}"
     hostname="${MACHAR_HOSTNAME:-$(hostname -s 2>/dev/null || hostname)}"
 
-    local app_desc="  macOS Security Hardening & Audit Scanner  v${version}"
+    local app_desc="macOS Security Posture Assessment & Hardening Scanner"
+    local app_sub="CIS Apple Benchmark • NIST SP 800-53 Rev 5 • MITRE ATT&CK"
     local lbl_host="Target Host:"
-    local lbl_build="macOS Build:"
-    local lbl_time="Audit Time:"
+    local lbl_build="OS Platform:"
+    local lbl_time="Audit Time :"
+    local lbl_user="Audit User :"
 
     if [[ "${CURRENT_LANG:-en}" == "tr" ]]; then
-        app_desc="  $(i18n_t "ui.app_desc" "macOS Güvenlik Sıkılaştırma ve Denetim Tarayıcısı")  v${version}"
+        app_desc="$(i18n_t "ui.app_desc" "macOS Güvenlik Sıkılaştırma ve Denetim Tarayıcısı")"
+        app_sub="$(i18n_t "ui.app_sub" "CIS Kriterleri • NIST SP 800-53 Rev 5 • MITRE ATT&CK")"
         lbl_host="$(i18n_t "ui.kpi.target_host" "Hedef Sistem:")"
-        lbl_build="$(i18n_t "ui.kpi.macos_build" "macOS Sürümü:")"
+        lbl_build="$(i18n_t "ui.kpi.macos_build" "İşletim Sis. :")"
         lbl_time="$(i18n_t "ui.kpi.audit_time" "Denetim Zamanı:")"
+        lbl_user="$(i18n_t "ui.kpi.audit_user" "Denetleyen   :")"
     fi
 
-    cat <<EOF
-${COLOR_BCYAN}                   _                     _            ${COLOR_RESET}
-${COLOR_BCYAN}  _ __ ___   __ _  ___| |__   __ _ _ __   __| | ___ _ __  ${COLOR_RESET}
-${COLOR_BCYAN} | '_ \` _ \ / _\` |/ __| '_ \ / _\` | '__| / _\` |/ _ \ '_ \ ${COLOR_RESET}
-${COLOR_BCYAN} | | | | | | (_| | (__| | | | (_| | |   | (_| |  __/ | | |${COLOR_RESET}
-${COLOR_BCYAN} |_| |_| |_|\__,_|\___|_| |_|\__,_|_|    \__,_|\___|_| |_|${COLOR_RESET}
-${COLOR_DIM}${app_desc}${COLOR_RESET}
-${COLOR_DIM}──────────────────────────────────────────────────────────────────────${COLOR_RESET}
- ${COLOR_BOLD}${lbl_host}${COLOR_RESET}   ${COLOR_WHITE}${hostname}${COLOR_RESET} (${COLOR_DIM}${current_user}${COLOR_RESET})
- ${COLOR_BOLD}${lbl_build}${COLOR_RESET}   ${COLOR_WHITE}${os_product} ${os_version} (Build ${os_build}) [${arch}]${COLOR_RESET}
- ${COLOR_BOLD}${lbl_time}${COLOR_RESET}    ${COLOR_WHITE}${current_time}${COLOR_RESET}
-${COLOR_DIM}──────────────────────────────────────────────────────────────────────${COLOR_RESET}
+    local term_width=$(ui_get_term_width)
+    if (( term_width < 76 )) || [[ "${MACHAR_ASCII:-0}" -eq 1 ]]; then
+        cat <<EOF
+${COLOR_BCYAN}======================================================================${COLOR_RESET}
+  ${COLOR_BOLD}macharden v${version}${COLOR_RESET} - ${app_desc}
+  ${COLOR_DIM}${app_sub}${COLOR_RESET}
+----------------------------------------------------------------------
+  ${lbl_host} ${hostname} (${current_user})
+  ${lbl_build} ${os_product} ${os_version} (Build ${os_build}) [${arch}]
+  ${lbl_time} ${current_time}
+======================================================================
 EOF
+        return 0
+    fi
+
+    local host_str="${hostname} (${current_user})"
+    local sys_str="${os_product} ${os_version} [${arch}]"
+    if (( ${#host_str} > 20 )); then host_str="${host_str:0:17}..."; fi
+    if (( ${#sys_str} > 20 )); then sys_str="${sys_str:0:17}..."; fi
+
+    local title="🛡️  MACHARDEN  •  macOS Security Hardening & Audit Scanner  v${version}"
+    local sub="CIS Benchmark L1/L2  •  NIST SP 800-53 Rev 5  •  MITRE ATT&CK"
+    if [[ "${CURRENT_LANG:-en}" == "tr" ]]; then
+        title="🛡️  MACHARDEN  •  macOS Güvenlik Sıkılaştırma Tarayıcısı  v${version}"
+        sub="CIS Kriterleri L1/L2  •  NIST SP 800-53 Rev 5  •  MITRE ATT&CK"
+    fi
+
+    echo "${COLOR_BCYAN}╭──────────────────────────────────────────────────────────────────────────╮${COLOR_RESET}"
+    printf "${COLOR_BCYAN}│${COLOR_RESET}  ${COLOR_BOLD}${COLOR_BCYAN}%-70s${COLOR_RESET}  ${COLOR_BCYAN}│${COLOR_RESET}\n" "$title"
+    printf "${COLOR_BCYAN}│${COLOR_RESET}  ${COLOR_DIM}%-70s${COLOR_RESET}  ${COLOR_BCYAN}│${COLOR_RESET}\n" "      $sub"
+    echo "${COLOR_BCYAN}├──────────────────────────────────────────────────────────────────────────┤${COLOR_RESET}"
+    printf "${COLOR_BCYAN}│${COLOR_RESET}  🎯 ${COLOR_BOLD}%-12s${COLOR_RESET} ${COLOR_WHITE}%-20s${COLOR_RESET}  👤 ${COLOR_BOLD}%-12s${COLOR_RESET} ${COLOR_WHITE}%-16s${COLOR_RESET}  ${COLOR_BCYAN}│${COLOR_RESET}\n" \
+        "$lbl_host" "$host_str" "$lbl_user" "$current_user"
+    printf "${COLOR_BCYAN}│${COLOR_RESET}  🍏 ${COLOR_BOLD}%-12s${COLOR_RESET} ${COLOR_WHITE}%-20s${COLOR_RESET}  🕒 ${COLOR_BOLD}%-12s${COLOR_RESET} ${COLOR_WHITE}%-16s${COLOR_RESET}  ${COLOR_BCYAN}│${COLOR_RESET}\n" \
+        "$lbl_build" "$sys_str" "$lbl_time" "${current_time:0:16}"
+    echo "${COLOR_BCYAN}╰──────────────────────────────────────────────────────────────────────────╯${COLOR_RESET}"
 }
 
-# Section header separator
+# Section header separator with category badges and modern divider lines
 ui_section() {
     local title="$1"
+    local icon=""
+    if [[ "${MACHAR_ASCII:-0}" -ne 1 ]]; then
+        case "${title:l}" in
+            *hardening*|*sistem*)     icon="🛡️  " ;;
+            *network*|*ağ*)           icon="🌐 " ;;
+            *secret*|*gizli*)         icon="🔐 " ;;
+            *persistence*|*kalıcılık*)icon="⚡ " ;;
+            *drift*|*diff*)           icon="🔄 " ;;
+            *compliance*)             icon="📜 " ;;
+            *)                        icon="▶ " ;;
+        esac
+    fi
+
     echo ""
-    echo "${COLOR_BOLD}${COLOR_BCYAN}$(ui_char bullet) ${title}${COLOR_RESET}"
-    echo "${COLOR_DIM}----------------------------------------------------------------------${COLOR_RESET}"
+    if [[ "${MACHAR_ASCII:-0}" -eq 1 ]]; then
+        echo "=== [ ${title} ] ====================================================="
+    else
+        echo "${COLOR_BOLD}${COLOR_BCYAN}─── ${icon}${title} ${COLOR_DIM}───────────────────────────────────────────────────${COLOR_RESET}"
+    fi
 }
 
-# Formatted check result row
+# Formatted check result row with status badge, check ID, title, severity tag, and details
+# Usage: ui_result <STATUS> <ID> <TITLE> [DETAILS] [WEIGHT] [REMEDIATION]
 ui_result() {
     local check_status="${1:u}"
     local id="$2"
     local title="$3"
     local details="${4:-}"
+    local weight="${5:-}"
+    local remediation="${6:-}"
 
     local badge=""
     if [[ "${CURRENT_LANG:-en}" == "tr" ]]; then
-        case "$check_status" in
-            PASS)
-                badge="${COLOR_BGREEN}${COLOR_BOLD}[$(i18n_t "ui.status.pass" "BAŞARILI")]${COLOR_RESET}"
-                ;;
-            WARN)
-                badge="${COLOR_BYELLOW}${COLOR_BOLD}[$(i18n_t "ui.status.warn" "UYARI")]${COLOR_RESET}"
-                ;;
-            FAIL)
-                badge="${COLOR_BRED}${COLOR_BOLD}[$(i18n_t "ui.status.fail" "BAŞARISIZ")]${COLOR_RESET}"
-                ;;
-            INFO)
-                badge="${COLOR_BCYAN}${COLOR_BOLD}[$(i18n_t "ui.status.info" "BİLGİ")]${COLOR_RESET}"
-                ;;
-            SUGG)
-                badge="${COLOR_BMAGENTA}${COLOR_BOLD}[$(i18n_t "ui.status.sugg" "ÖNERİ")]${COLOR_RESET}"
-                ;;
-            *)
-                badge="${COLOR_WHITE}[$check_status]${COLOR_RESET}"
-                ;;
-        esac
+        if [[ "${MACHAR_ASCII:-0}" -eq 1 ]]; then
+            case "$check_status" in
+                PASS) badge="${COLOR_BGREEN}${COLOR_BOLD}[BAŞARILI]${COLOR_RESET}" ;;
+                WARN) badge="${COLOR_BYELLOW}${COLOR_BOLD}[UYARI]${COLOR_RESET}" ;;
+                FAIL) badge="${COLOR_BRED}${COLOR_BOLD}[BAŞARISIZ]${COLOR_RESET}" ;;
+                INFO) badge="${COLOR_BCYAN}${COLOR_BOLD}[BİLGİ]${COLOR_RESET}" ;;
+                SUGG) badge="${COLOR_BMAGENTA}${COLOR_BOLD}[ÖNERİ]${COLOR_RESET}" ;;
+                *)    badge="${COLOR_WHITE}[$check_status]${COLOR_RESET}" ;;
+            esac
+        else
+            case "$check_status" in
+                PASS) badge="${COLOR_BGREEN}${COLOR_BOLD}[✔ BAŞARILI]${COLOR_RESET}" ;;
+                WARN) badge="${COLOR_BYELLOW}${COLOR_BOLD}[▲ UYARI]${COLOR_RESET}" ;;
+                FAIL) badge="${COLOR_BRED}${COLOR_BOLD}[✖ BAŞARISIZ]${COLOR_RESET}" ;;
+                INFO) badge="${COLOR_BCYAN}${COLOR_BOLD}[ℹ BİLGİ]${COLOR_RESET}" ;;
+                SUGG) badge="${COLOR_BMAGENTA}${COLOR_BOLD}[💡 ÖNERİ]${COLOR_RESET}" ;;
+                *)    badge="${COLOR_WHITE}[$check_status]${COLOR_RESET}" ;;
+            esac
+        fi
         title=$(i18n_get_check_title "$id" "$title")
         details=$(i18n_get_check_details "$id" "$check_status" "$details")
     else
-        case "$check_status" in
-            PASS)
-                badge="${COLOR_BGREEN}${COLOR_BOLD}[PASS]${COLOR_RESET}"
-                ;;
-            WARN)
-                badge="${COLOR_BYELLOW}${COLOR_BOLD}[WARN]${COLOR_RESET}"
-                ;;
-            FAIL)
-                badge="${COLOR_BRED}${COLOR_BOLD}[FAIL]${COLOR_RESET}"
-                ;;
-            INFO)
-                badge="${COLOR_BCYAN}${COLOR_BOLD}[INFO]${COLOR_RESET}"
-                ;;
-            SUGG)
-                badge="${COLOR_BMAGENTA}${COLOR_BOLD}[SUGG]${COLOR_RESET}"
-                ;;
-            *)
-                badge="${COLOR_WHITE}[$check_status]${COLOR_RESET}"
-                ;;
-        esac
+        if [[ "${MACHAR_ASCII:-0}" -eq 1 ]]; then
+            case "$check_status" in
+                PASS) badge="${COLOR_BGREEN}${COLOR_BOLD}[PASS]${COLOR_RESET}" ;;
+                WARN) badge="${COLOR_BYELLOW}${COLOR_BOLD}[WARN]${COLOR_RESET}" ;;
+                FAIL) badge="${COLOR_BRED}${COLOR_BOLD}[FAIL]${COLOR_RESET}" ;;
+                INFO) badge="${COLOR_BCYAN}${COLOR_BOLD}[INFO]${COLOR_RESET}" ;;
+                SUGG) badge="${COLOR_BMAGENTA}${COLOR_BOLD}[SUGG]${COLOR_RESET}" ;;
+                *)    badge="${COLOR_WHITE}[$check_status]${COLOR_RESET}" ;;
+            esac
+        else
+            case "$check_status" in
+                PASS) badge="${COLOR_BGREEN}${COLOR_BOLD}[✔ PASS]${COLOR_RESET}" ;;
+                WARN) badge="${COLOR_BYELLOW}${COLOR_BOLD}[▲ WARN]${COLOR_RESET}" ;;
+                FAIL) badge="${COLOR_BRED}${COLOR_BOLD}[✖ FAIL]${COLOR_RESET}" ;;
+                INFO) badge="${COLOR_BCYAN}${COLOR_BOLD}[ℹ INFO]${COLOR_RESET}" ;;
+                SUGG) badge="${COLOR_BMAGENTA}${COLOR_BOLD}[💡 SUGG]${COLOR_RESET}" ;;
+                *)    badge="${COLOR_WHITE}[$check_status]${COLOR_RESET}" ;;
+            esac
+        fi
     fi
 
-    printf "  %b  ${COLOR_BOLD}%-12s${COLOR_RESET} %s\n" "$badge" "$id" "$title"
+    local sev_badge=""
+    if [[ -n "$weight" ]]; then
+        local int_w=5
+        [[ "$weight" =~ ^[0-9]+ ]] && int_w=${weight%%.*}
+        if (( int_w >= 9 )); then
+            sev_badge="${COLOR_BRED}${COLOR_BOLD}[CRITICAL]${COLOR_RESET}"
+        elif (( int_w >= 7 )); then
+            sev_badge="${COLOR_RED}${COLOR_BOLD}[HIGH]${COLOR_RESET}"
+        elif (( int_w >= 5 )); then
+            sev_badge="${COLOR_BYELLOW}[MEDIUM]${COLOR_RESET}"
+        else
+            sev_badge="${COLOR_DIM}[LOW]${COLOR_RESET}"
+        fi
+    fi
+
+    if [[ -n "$sev_badge" && ("$check_status" == "FAIL" || "$check_status" == "WARN") ]]; then
+        printf "  %b  ${COLOR_BOLD}${COLOR_BCYAN}%-10s${COLOR_RESET} %-48s %b\n" "$badge" "$id" "$title" "$sev_badge"
+    else
+        printf "  %b  ${COLOR_BOLD}${COLOR_BCYAN}%-10s${COLOR_RESET} %s\n" "$badge" "$id" "$title"
+    fi
+
     if [[ -n "$details" ]]; then
         local arrow_sym=$(ui_char arrow)
         echo "$details" | while IFS= read -r line; do
             [[ -n "$line" ]] && printf "        ${COLOR_DIM}%s %s${COLOR_RESET}\n" "$arrow_sym" "$line"
         done
+    fi
+
+    if [[ -n "$remediation" && ("$check_status" == "FAIL" || "$check_status" == "WARN") ]]; then
+        local fix_lbl="Quick Fix:"
+        [[ "${CURRENT_LANG:-en}" == "tr" ]] && fix_lbl="$(i18n_t "ui.remediation.fix_label" "Düzeltme:")"
+        printf "        ${COLOR_BCYAN}⚡ %s${COLOR_RESET}  ${COLOR_WHITE}%s${COLOR_RESET}\n" "$fix_lbl" "$remediation"
     fi
 }
 

@@ -103,14 +103,19 @@ report_terminal() {
     local is_tr=0
     [[ "${CURRENT_LANG:-en}" == "tr" ]] && is_tr=1
 
+    local header_title="EXECUTIVE AUDIT SUMMARY"
+    (( is_tr )) && header_title="$(i18n_t "ui.executive_summary_title" "YÖNETİCİ DENETİM ÖZETİ")"
+
     echo ""
-    echo "${COLOR_BOLD}${COLOR_BCYAN}======================================================================${COLOR_RESET}"
-    if (( is_tr )); then
-        echo "                     ${COLOR_BOLD}$(i18n_t "ui.executive_summary_title" "YÖNETİCİ DENETİM ÖZETİ")${COLOR_RESET}"
+    if [[ "${MACHAR_ASCII:-0}" -eq 1 ]]; then
+        echo "${COLOR_BOLD}${COLOR_BCYAN}======================================================================${COLOR_RESET}"
+        echo "                     ${COLOR_BOLD}${header_title}${COLOR_RESET}"
+        echo "${COLOR_BOLD}${COLOR_BCYAN}======================================================================${COLOR_RESET}"
     else
-        echo "                     ${COLOR_BOLD}EXECUTIVE AUDIT SUMMARY${COLOR_RESET}"
+        echo "${COLOR_BCYAN}╭──────────────────────────────────────────────────────────────────────────╮${COLOR_RESET}"
+        printf "${COLOR_BCYAN}│${COLOR_RESET}  ${COLOR_BOLD}%-70s${COLOR_RESET}  ${COLOR_BCYAN}│${COLOR_RESET}\n" "           🛡️   ${header_title}"
+        echo "${COLOR_BCYAN}╰──────────────────────────────────────────────────────────────────────────╯${COLOR_RESET}"
     fi
-    echo "${COLOR_BOLD}${COLOR_BCYAN}======================================================================${COLOR_RESET}"
     echo ""
 
     local letter_grade
@@ -126,19 +131,19 @@ report_terminal() {
 
     if (( is_tr )); then
         printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.total_checks" "Denetlenen Toplam Kontrol:")" "${COLOR_BOLD}${COUNT_TOTAL}${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.passed_checks" "Başarılı Kontroller:")" "${COLOR_BGREEN}${COUNT_PASS}${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.warnings" "Uyarılar:")" "${COLOR_BYELLOW}${COUNT_WARN}${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.failed_checks" "Başarısız Kontroller:")" "${COLOR_BRED}${COUNT_FAIL}${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.informational" "Bilgilendirme:")" "${COLOR_BCYAN}${COUNT_INFO}${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.suggestions" "Öneriler:")" "${COLOR_BMAGENTA}${COUNT_SUGG}${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.passed_checks" "Başarılı Kontroller:")" "${COLOR_BGREEN}${COLOR_BOLD}[✔ ${COUNT_PASS}]${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.warnings" "Uyarılar:")" "${COLOR_BYELLOW}${COLOR_BOLD}[▲ ${COUNT_WARN}]${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.failed_checks" "Başarısız Kontroller:")" "${COLOR_BRED}${COLOR_BOLD}[✖ ${COUNT_FAIL}]${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.informational" "Bilgilendirme:")" "${COLOR_BCYAN}${COLOR_BOLD}[ℹ ${COUNT_INFO}]${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.suggestions" "Öneriler:")" "${COLOR_BMAGENTA}${COLOR_BOLD}[💡 ${COUNT_SUGG}]${COLOR_RESET}"
         printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %.1f / %.1f\n" "$(i18n_t "ui.kpi.points_earned" "Kazanılan Skor Puanı:")" "$EARNED_POINTS" "$TOTAL_POSSIBLE_POINTS"
     else
         printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Total Checks Audited:" "${COLOR_BOLD}${COUNT_TOTAL}${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Passed Checks:" "${COLOR_BGREEN}${COUNT_PASS}${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Warnings:" "${COLOR_BYELLOW}${COUNT_WARN}${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Failed Checks:" "${COLOR_BRED}${COUNT_FAIL}${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Informational:" "${COLOR_BCYAN}${COUNT_INFO}${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Suggestions:" "${COLOR_BMAGENTA}${COUNT_SUGG}${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Passed Checks:" "${COLOR_BGREEN}${COLOR_BOLD}[✔ ${COUNT_PASS}]${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Warnings:" "${COLOR_BYELLOW}${COLOR_BOLD}[▲ ${COUNT_WARN}]${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Failed Checks:" "${COLOR_BRED}${COLOR_BOLD}[✖ ${COUNT_FAIL}]${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Informational:" "${COLOR_BCYAN}${COLOR_BOLD}[ℹ ${COUNT_INFO}]${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Suggestions:" "${COLOR_BMAGENTA}${COLOR_BOLD}[💡 ${COUNT_SUGG}]${COLOR_RESET}"
         printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %.1f / %.1f\n" "Score Points Earned:" "$EARNED_POINTS" "$TOTAL_POSSIBLE_POINTS"
     fi
     echo ""
@@ -297,24 +302,40 @@ report_terminal() {
                         esac
                     fi
 
-                    if (( is_tr )); then
-                        printf "  %b  %b  ${COLOR_BOLD}%-10s${COLOR_RESET} %s ${COLOR_DIM}(Önem: %s, Ağırlık: %s, Kategori: %s)${COLOR_RESET}\n" \
-                            "$badge" "$sev_badge" "$id" "$title" "$display_sev" "$weight" "$cat"
-                        if [[ -n "$details" ]]; then
-                            printf "        ${COLOR_DIM}%s${COLOR_RESET} %s\n" "$(i18n_t "ui.remediation.finding_label" "Bulgu:")" "$details"
-                        fi
-                        if [[ -n "$rem" ]]; then
-                            printf "        ${COLOR_BCYAN}%s${COLOR_RESET}     ${COLOR_WHITE}%s${COLOR_RESET}\n" "$(i18n_t "ui.remediation.fix_label" "Düzeltme:")" "$rem"
+                    local box_color="${COLOR_BRED}"
+                    local sym="✖"
+                    if [[ "$st" == "WARN" ]]; then
+                        box_color="${COLOR_BYELLOW}"
+                        sym="▲"
+                    fi
+
+                    if [[ "${MACHAR_ASCII:-0}" -eq 1 ]]; then
+                        if (( is_tr )); then
+                            printf "  %b  %b  ${COLOR_BOLD}%-10s${COLOR_RESET} %s ${COLOR_DIM}(Önem: %s, Ağırlık: %s, Kategori: %s)${COLOR_RESET}\n" \
+                                "$badge" "$sev_badge" "$id" "$title" "$display_sev" "$weight" "$cat"
+                            [[ -n "$details" ]] && printf "        ${COLOR_DIM}%s${COLOR_RESET} %s\n" "$(i18n_t "ui.remediation.finding_label" "Bulgu:")" "$details"
+                            [[ -n "$rem" ]] && printf "        ${COLOR_BCYAN}%s${COLOR_RESET}     ${COLOR_WHITE}%s${COLOR_RESET}\n" "$(i18n_t "ui.remediation.fix_label" "Düzeltme:")" "$rem"
+                        else
+                            printf "  %b  %b  ${COLOR_BOLD}%-10s${COLOR_RESET} %s ${COLOR_DIM}(Severity: %s, Weight: %s, Category: %s)${COLOR_RESET}\n" \
+                                "$badge" "$sev_badge" "$id" "$title" "$sev_tag" "$weight" "$cat"
+                            [[ -n "$details" ]] && printf "        ${COLOR_DIM}Finding:${COLOR_RESET} %s\n" "$details"
+                            [[ -n "$rem" ]] && printf "        ${COLOR_BCYAN}Fix:${COLOR_RESET}     ${COLOR_WHITE}%s${COLOR_RESET}\n" "$rem"
                         fi
                     else
-                        printf "  %b  %b  ${COLOR_BOLD}%-10s${COLOR_RESET} %s ${COLOR_DIM}(Severity: %s, Weight: %s, Category: %s)${COLOR_RESET}\n" \
-                            "$badge" "$sev_badge" "$id" "$title" "$sev_tag" "$weight" "$cat"
-                        if [[ -n "$details" ]]; then
-                            printf "        ${COLOR_DIM}Finding:${COLOR_RESET} %s\n" "$details"
+                        printf "  %b╭─ %s %b %b ${COLOR_BOLD}${COLOR_BCYAN}%-9s${COLOR_RESET} ${COLOR_BOLD}%s${COLOR_RESET}\n" \
+                            "$box_color" "$sym" "$badge" "$sev_badge" "$id" "$title"
+                        if (( is_tr )); then
+                            printf "  %b│${COLOR_RESET}  ${COLOR_DIM}Önem:${COLOR_RESET} %s  ${COLOR_DIM}•${COLOR_RESET}  ${COLOR_DIM}Ağırlık:${COLOR_RESET} %s/10  ${COLOR_DIM}•${COLOR_RESET}  ${COLOR_DIM}Kategori:${COLOR_RESET} %s\n" \
+                                "$box_color" "$display_sev" "$weight" "$cat"
+                            [[ -n "$details" ]] && printf "  %b│${COLOR_RESET}  ${COLOR_DIM}Bulgu:${COLOR_RESET} %s\n" "$box_color" "$details"
+                            [[ -n "$rem" ]] && printf "  %b│${COLOR_RESET}  ${COLOR_BCYAN}⚡ Düzeltme:${COLOR_RESET} ${COLOR_WHITE}%s${COLOR_RESET}\n" "$box_color" "$rem"
+                        else
+                            printf "  %b│${COLOR_RESET}  ${COLOR_DIM}Severity:${COLOR_RESET} %s  ${COLOR_DIM}•${COLOR_RESET}  ${COLOR_DIM}Weight:${COLOR_RESET} %s/10  ${COLOR_DIM}•${COLOR_RESET}  ${COLOR_DIM}Category:${COLOR_RESET} %s\n" \
+                                "$box_color" "$sev_tag" "$weight" "$cat"
+                            [[ -n "$details" ]] && printf "  %b│${COLOR_RESET}  ${COLOR_DIM}Finding:${COLOR_RESET} %s\n" "$box_color" "$details"
+                            [[ -n "$rem" ]] && printf "  %b│${COLOR_RESET}  ${COLOR_BCYAN}⚡ Fix:${COLOR_RESET} ${COLOR_WHITE}%s${COLOR_RESET}\n" "$box_color" "$rem"
                         fi
-                        if [[ -n "$rem" ]]; then
-                            printf "        ${COLOR_BCYAN}Fix:${COLOR_RESET}     ${COLOR_WHITE}%s${COLOR_RESET}\n" "$rem"
-                        fi
+                        printf "  %b╰──────────────────────────────────────────────────────────────────────${COLOR_RESET}\n" "$box_color"
                     fi
                     echo ""
                 fi

@@ -18,10 +18,16 @@ USER_ZSH_COMP_DIR ?= $(USER_PREFIX)/share/zsh/site-functions
 BASH_COMP_DIR ?= $(PREFIX)/share/bash-completion/completions
 USER_BASH_COMP_DIR ?= $(USER_PREFIX)/share/bash-completion/completions
 
-.PHONY: all test lint scan install install-bin install-completions install-man uninstall clean help
+.PHONY: all test lint scan demo install install-bin install-completions install-man uninstall clean help
 
 # Default target
 all: test
+
+# Generate animated demo recording (combines enriched terminal CLI and HTML5 dashboard)
+demo:
+	@chmod +x scripts/generate_demo_gif.py
+	@python3 scripts/generate_demo_gif.py
+
 
 # Run full test runner (syntax verification and unit test suite)
 test:

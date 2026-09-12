@@ -18,12 +18,12 @@
 
 ---
 
-## 🎬 Live Terminal Demo
+## 🎬 Live Terminal & Interactive Dashboard Demo
 
 <p align="center">
-  <img src="assets/demo.gif" alt="macharden live terminal execution demo" width="95%">
+  <img src="assets/demo.gif" alt="macharden live terminal execution and interactive dashboard demo" width="95%">
 </p>
-<p align="center"><em>Real-time audit execution of macharden on macOS: evaluating system controls, calculating the Hardening Index, displaying category posture breakdowns, and exporting multi-format security reports.</em></p>
+<p align="center"><em>Real-time security audit execution of macharden on macOS: evaluating system controls with modern box-drawing CLI aesthetics, calculating the weighted Hardening Index, displaying category posture breakdowns, and seamlessly generating the interactive Liquid Glass HTML5 security dashboard.</em></p>
 
 ---
 

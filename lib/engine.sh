@@ -189,7 +189,7 @@ record_result() {
 
     # Live UI output when running in terminal format unless quiet mode is active
     if [[ "${MACHAR_FORMAT:-term}" == "term" && "${MACHAR_QUIET:-0}" -eq 0 ]]; then
-        ui_result "$normalized_status" "$id" "$title" "$details"
+        ui_result "$normalized_status" "$id" "$title" "$details" "$weight" "$remediation"
     fi
 }
 
