@@ -15,6 +15,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 export MACHAR_NO_COLOR=1
 export NO_COLOR=1
 export MACHAR_QUIET=1
+export MACHAR_ALLOW_NON_DARWIN="${MACHAR_ALLOW_NON_DARWIN:-1}"
 
 # Source core libraries
 source "${PROJECT_ROOT}/lib/ui.sh"

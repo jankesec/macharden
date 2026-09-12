@@ -16,6 +16,9 @@ jobs:
       matrix:
         os: [ macos-latest, ubuntu-latest ]
 
+    env:
+      MACHAR_ALLOW_NON_DARWIN: 1
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4

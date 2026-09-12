@@ -10,6 +10,9 @@ set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+# Allow running tests on non-Darwin platforms (e.g. Linux CI test runners)
+export MACHAR_ALLOW_NON_DARWIN="${MACHAR_ALLOW_NON_DARWIN:-1}"
+
 # Styling
 C_RESET=$'\033[0m'
 C_BOLD=$'\033[1m'

@@ -267,7 +267,7 @@ BASE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 LIB_DIR="$BASE_DIR/lib"
 
 # Ensure operating system is macOS (Darwin) for audit execution
-if [[ "$(uname -s)" != "Darwin" ]]; then
+if [[ "$(uname -s)" != "Darwin" && "${MACHAR_ALLOW_NON_DARWIN:-0}" -ne 1 ]]; then
     echo "Error: macharden audit scans are designed exclusively for macOS (Darwin). Current OS: $(uname -s)" >&2
     exit 1
 fi
