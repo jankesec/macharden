@@ -29,7 +29,12 @@ generate_fix_script() {
     for (( i = 1; i <= n; i++ )); do
         local st="${RES_STATUSES[i]}"
         local rem="${RES_REMEDIATIONS[i]}"
-        if [[ ( "$st" == "FAIL" || "$st" == "WARN" ) && -n "$rem" ]]; then
+        local rem_clean="$rem"
+        if [[ "$rem_clean" == \[EXEC\]* ]]; then
+            rem_clean="${rem_clean#\[EXEC\] }"
+        fi
+        rem_clean="$(echo "$rem_clean" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+        if [[ ( "$st" == "FAIL" || "$st" == "WARN" ) && -n "$rem_clean" ]]; then
             fixable_indices+=("$i")
         fi
     done
@@ -174,7 +179,25 @@ EOF
                 if [[ "$rem" == \[EXEC\]* ]]; then
                     rem="${rem#\[EXEC\] }"
                 fi
-                cat <<EOF >> "$output_file"
+                rem="$(echo "$rem" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+
+                if [[ -z "$rem" ]]; then
+                    cat <<EOF >> "$output_file"
+# ------------------------------------------------------------------------------
+# [Step ${step_num}/${total_fixes}] ID: ${id} | Category: ${cat}
+# Title  : ${title}
+# Status : ${st} (Weight: ${weight})
+# Finding: ${details}
+# ------------------------------------------------------------------------------
+# MANUAL ACTION REQUIRED:
+# Inspect and configure settings manually.
+echo "\${C_BOLD}[${step_num}/${total_fixes}]\${C_RESET} \${C_CYAN}${id}\${C_RESET}: ${title}"
+echo "      \${C_YELLOW}[INFO]\${C_RESET} Manual inspection required (no automated fix command available)."
+echo ""
+
+EOF
+                else
+                    cat <<EOF >> "$output_file"
 # ------------------------------------------------------------------------------
 # [Step ${step_num}/${total_fixes}] ID: ${id} | Category: ${cat}
 # Title  : ${title}
@@ -195,6 +218,7 @@ fi
 echo ""
 
 EOF
+                fi
             fi
             (( ++step_num ))
         done

@@ -81,19 +81,18 @@ jobs:
           echo "Scan completed with exit $SCAN_EC (0=clean, 1=findings)"
 
           # Markdown report generation (exit 0=clean, 1=findings)
-          ./bin/macharden -c hardening -f markdown -o audit_hardening.md
+          ./bin/macharden -c hardening -f markdown -o audit_hardening.md || true
           test -f audit_hardening.md || { echo "audit_hardening.md not created"; exit 1; }
           head -n 20 audit_hardening.md
 
           # JSON report generation (exit 0=clean, 1=findings)
-          ./bin/macharden -c network -f json -o audit_network.json
+          ./bin/macharden -c network -f json -o audit_network.json || true
           test -f audit_network.json || { echo "audit_network.json not created"; exit 1; }
           python3 -m json.tool audit_network.json > /dev/null || { echo "audit_network.json invalid"; exit 1; }
 
           # Remediation script generation (exit 0=clean, 1=findings)
-          ./bin/macharden --generate-fix test_remediation.sh
+          ./bin/macharden --generate-fix test_remediation.sh || true
           test -x test_remediation.sh || { echo "test_remediation.sh not executable"; exit 1; }
           bash -n test_remediation.sh || { echo "test_remediation.sh syntax error"; exit 1; }
-          set -e
-          zsh -n test_remediation.sh
+          zsh -n test_remediation.sh || { echo "test_remediation.sh zsh syntax error"; exit 1; }
           echo "Dry-run scan and remediation verification passed!"

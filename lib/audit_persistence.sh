@@ -109,7 +109,11 @@ audit_launch_agents() {
     if [[ -n "$suspicious_list" ]]; then
         res_status="WARN"
         details="Suspicious LaunchAgents detected: ${suspicious_list}"
-        remediation="[EXEC] ${fix_cmds}"
+        if [[ -n "$fix_cmds" ]]; then
+            remediation="[EXEC] ${fix_cmds}"
+        else
+            remediation="[GUIDE] Inspect and manually remove suspicious LaunchAgents from ~/Library/LaunchAgents or /Library/LaunchAgents"
+        fi
     elif [[ -n "$custom_list" ]]; then
         res_status="INFO"
         details="Reviewed ${total_count} LaunchAgents. Custom user agents noted: ${custom_list}"
@@ -172,7 +176,11 @@ audit_launch_daemons() {
     if [[ -n "$suspicious_list" ]]; then
         res_status="WARN"
         details="Suspicious or broken LaunchDaemons found: ${suspicious_list}"
-        remediation="[EXEC] ${fix_cmds}"
+        if [[ -n "$fix_cmds" ]]; then
+            remediation="[EXEC] ${fix_cmds}"
+        else
+            remediation="[GUIDE] Review and verify unsigned or non-standard daemons in /Library/LaunchDaemons"
+        fi
     else
         res_status="PASS"
         details="Inspected ${total_count} LaunchDaemons in /Library/LaunchDaemons; all reference valid system/application targets."
