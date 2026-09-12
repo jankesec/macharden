@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Linux Dependencies
         if: runner.os == 'Linux'
@@ -33,28 +33,24 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           if ! command -v shellcheck &>/dev/null; then
-            brew install shellcheck || true
+            brew install shellcheck
           fi
 
-      - name: ShellCheck Linting
+      - name: ShellCheck Bash Integration
         run: |
-          echo "Running ShellCheck on shell scripts..."
-          if command -v shellcheck &>/dev/null; then
-            # Run shellcheck with severity filter
-            shellcheck --severity=error bin/macharden lib/*.sh tests/*.sh || true
-          else
-            echo "ShellCheck not available, skipping."
-          fi
+          echo "Running ShellCheck on the Bash completion integration..."
+          shellcheck --severity=error completions/macharden.bash
 
-      - name: Shell Syntax Validation (zsh -n & bash -n)
+      - name: Shell Syntax Validation
         run: |
-          echo "Checking syntax across all shell scripts..."
+          echo "Checking native Zsh sources..."
           for file in bin/macharden lib/*.sh tests/*.sh; do
             echo -n "Checking $file ... "
             zsh -n "$file"
-            bash -n "$file"
             echo "OK"
           done
+          zsh -n scripts/demo_fixture.sh
+          bash -n completions/macharden.bash
 
       - name: Execute Test Runner
         run: |

@@ -36,17 +36,16 @@ test:
 
 # Run shell linters (ShellCheck and syntax check)
 lint:
-	@echo "Running ShellCheck linting..."
+	@echo "Running ShellCheck on Bash integration..."
 	@if command -v shellcheck >/dev/null 2>&1; then \
-		shellcheck --severity=error bin/macharden lib/*.sh tests/*.sh; \
+		shellcheck --severity=error completions/macharden.bash || exit 1; \
 		echo "ShellCheck completed successfully."; \
 	else \
 		echo "Notice: shellcheck not installed. Run 'brew install shellcheck' for static analysis."; \
 	fi
-	@echo "Checking syntax with zsh -n and bash -n..."
+	@echo "Checking native Zsh syntax..."
 	@for f in bin/macharden lib/*.sh tests/*.sh; do \
 		zsh -n "$$f" || exit 1; \
-		bash -n "$$f" || exit 1; \
 	done
 	@echo "Checking completion script syntax..."
 	@zsh -n completions/macharden.zsh
