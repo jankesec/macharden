@@ -149,6 +149,14 @@ Keychain timeout changes are guidance-only because they can cause recurring pass
 
 ---
 
+## 📚 Documentation
+
+- **[User Guide](docs/USER-GUIDE.md)** — installation, first audit, profiles, reports, remediation review, drift detection, scheduled scans, privacy, and troubleshooting.
+- **[Architecture](docs/ARCHITECTURE.md)** — runtime flow, scoring model, trust boundaries, remediation contract, and upstream reference provenance.
+- **[Manual Page](docs/macharden.1)** — complete command and option reference for `man macharden`.
+
+---
+
 ## 📈 Baseline Drift & CI/CD Security Gates
 
 Prevent security regressions across developer laptops and macOS CI runners with historical baseline tracking:
@@ -396,8 +404,9 @@ macharden/
 │   ├── macharden.zsh              # Native Zsh completion definition
 │   └── macharden.bash             # Native Bash completion definition
 ├── docs/
-│   ├── macharden.1                # Standard UNIX manual page (groff man format)
-│   └── reference-design.md        # NIST mSCP, Lynis, and hardening design notes
+│   ├── ARCHITECTURE.md            # Runtime, scoring, safety & provenance design
+│   ├── USER-GUIDE.md              # Installation and operational usage guide
+│   └── macharden.1                # Standard UNIX manual page (groff man format)
 ├── scripts/
 │   ├── demo_fixture.sh            # Deterministic synthetic demo data
 │   └── generate_demo_gif.py       # High-fidelity GIF rendering pipeline
