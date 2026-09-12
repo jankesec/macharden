@@ -149,11 +149,18 @@ try:
         print(nist_ctrls)
     elif fmt == "mitre":
         print(mitre_techs)
+    elif fmt in ["ref", "refs", "references"]:
+        refs = m.get("references", [])
+        if refs:
+            print(" | ".join([f"{r.get('name', 'Ref')} ({r.get('url', '')})" for r in refs]))
+        else:
+            print("N/A")
     elif fmt == "json":
         out = {
             "cis": cis_id,
             "nist": m.get("nist", {}).get("controls", [nist_ctrls]),
-            "mitre": [t["id"] for t in m.get("mitre", {}).get("techniques", [])]
+            "mitre": [t["id"] for t in m.get("mitre", {}).get("techniques", [])],
+            "references": m.get("references", [])
         }
         print(json.dumps(out))
     else:
@@ -163,6 +170,71 @@ except Exception:
 ' "$check_id" "$format" "$data_file"
     else
         echo "[CIS: N/A] [NIST: N/A] [MITRE: N/A]"
+    fi
+}
+
+# Return authoritative references for a given check ID
+# Usage: get_compliance_references <check_id> [format: markdown|json|text]
+get_compliance_references() {
+    local check_id="${1:-}"
+    local format="${2:-markdown}"
+    format="${format:l}"
+
+    if [[ -z "$check_id" ]]; then
+        echo ""
+        return 1
+    fi
+
+    local data_file="$COMPLIANCE_DATA_FILE"
+    if [[ ! -f "$data_file" ]]; then
+        if [[ -f "./data/compliance_mappings.json" ]]; then
+            data_file="./data/compliance_mappings.json"
+        elif [[ -f "../data/compliance_mappings.json" ]]; then
+            data_file="../data/compliance_mappings.json"
+        fi
+    fi
+
+    if [[ ! -f "$data_file" ]]; then
+        echo ""
+        return 1
+    fi
+
+    if command -v python3 >/dev/null 2>&1; then
+        python3 -c '
+import json, sys
+
+check_id = sys.argv[1].upper()
+fmt = sys.argv[2].lower()
+data_file = sys.argv[3]
+
+try:
+    with open(data_file) as f:
+        data = json.load(f)
+    mappings = data.get("mappings", {})
+    m = mappings.get(check_id)
+    if not m:
+        for k, v in mappings.items():
+            if k.replace("-", "_").upper() == check_id.replace("-", "_"):
+                m = v
+                break
+    if not m:
+        sys.exit(0)
+
+    refs = m.get("references", [])
+    if not refs:
+        sys.exit(0)
+
+    if fmt == "json":
+        print(json.dumps(refs))
+    elif fmt == "text":
+        for r in refs:
+            print(f"  • {r.get("name", "Ref")}: {r.get("url", "")}")
+    else: # markdown
+        for r in refs:
+            print(f"  - [{r.get("name", "Reference")}]({r.get("url", "#")})")
+except Exception:
+    pass
+' "$check_id" "$format" "$data_file"
     fi
 }
 

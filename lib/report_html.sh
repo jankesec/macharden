@@ -2187,6 +2187,108 @@ kbd.nav-kbd {
   gap: 8px;
 }
 
+
+/* Reference Links Box */
+.ref-box {
+  margin-top: 10px;
+  background: var(--bg-code);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 7px;
+  padding: 10px 14px;
+}
+
+.ref-box-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ref-links-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.ref-item-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px;
+  border-radius: 5px;
+  background: #141418;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #d4d4d8;
+  text-decoration: none;
+  font-size: 0.74rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.ref-item-link:hover {
+  background: #202026;
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+:root[data-theme="light"] .ref-item-link {
+  background: #f3f4f6;
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #27272a;
+}
+
+:root[data-theme="light"] .ref-item-link:hover {
+  background: #e4e4e7;
+  color: #000000;
+}
+
+.ref-item-tag {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
+}
+
+.tag-standard, .tag-apple {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.tag-mitre {
+  background: rgba(249, 115, 22, 0.1);
+  color: #fb923c;
+  border: 1px solid rgba(249, 115, 22, 0.25);
+}
+
+.tag-cis {
+  background: rgba(56, 189, 248, 0.1);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.tag-nist {
+  background: rgba(168, 85, 247, 0.1);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.25);
+}
+
+.ref-ext-arrow {
+  width: 12px;
+  height: 12px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
 /* Print Styles */
 @media print {
   body { background: #ffffff !important; color: #000000 !important; }
@@ -2639,6 +2741,33 @@ for c in checks:
           </button>
         </div>
         <div class=\"remed-code\">$ {rem_esc}</div>
+      </div>""")
+
+    # Authoritative Security References
+    check_entry = compliance_map.get(cid, {})
+    check_refs = check_entry.get("references", [])
+    if check_refs:
+        doc.append("""
+      <div class=\"ref-box\">
+        <div class=\"ref-box-label\">
+          <svg style=\"width:13px;height:13px;color:#a1a1aa\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14\"/></svg>
+          Authoritative Security References & Documentation
+        </div>
+        <div class=\"ref-links-grid\">""")
+        for ref in check_refs:
+            ref_url = html.escape(ref.get("url", "#"))
+            ref_name = html.escape(ref.get("name", "Reference"))
+            ref_type = ref.get("type", "ref").lower()
+            tag_label = "APPLE" if ref_type in ["standard", "apple"] else ref_type.upper()
+            tag_class = f"tag-{ref_type}"
+            doc.append(f"""
+          <a href=\"{ref_url}\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"ref-item-link\" title=\"Open external reference in new tab\">
+            <span class=\"ref-item-tag {tag_class}\">{tag_label}</span>
+            <span class=\"ref-item-name\">{ref_name}</span>
+            <svg class=\"ref-ext-arrow\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14\"/></svg>
+          </a>""")
+        doc.append("""
+        </div>
       </div>""")
 
     doc.append("""

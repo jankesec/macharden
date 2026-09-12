@@ -537,6 +537,11 @@ ${reg_table}
             local icon="🔴"
             [[ "$st" == "WARN" ]] && icon="🟡"
 
+            local ref_md=""
+            if typeset -f get_compliance_references >/dev/null 2>&1; then
+                ref_md=$(get_compliance_references "$id" "markdown" 2>/dev/null || true)
+            fi
+
             md_content+="### ${icon} [\`${id}\`] ${title}
 
 - **Category:** \`${cat}\`
@@ -547,7 +552,13 @@ ${reg_table}
 \`\`\`bash
 ${rem}
 \`\`\`
-
+"
+            if [[ -n "$ref_md" ]]; then
+                md_content+="- **Authoritative References:**
+${ref_md}
+"
+            fi
+            md_content+="
 "
         fi
     done
@@ -595,7 +606,7 @@ report_json() {
         local n=${#RES_IDS[@]}
         local json_doc
         json_doc=$(python3 -c "
-import sys, json
+import sys, json, os
 
 n = int(sys.argv[1])
 idx = 2
@@ -608,20 +619,34 @@ weights = sys.argv[idx : idx + n]; idx += n
 details = sys.argv[idx : idx + n]; idx += n
 remediations = sys.argv[idx : idx + n]; idx += n
 
+comp_map = {}
+for p in ['data/compliance_mappings.json', '../data/compliance_mappings.json', '<project_root>/data/compliance_mappings.json']:
+    if os.path.isfile(p):
+        try:
+            with open(p, 'r', encoding='utf-8') as f:
+                comp_map = json.load(f).get('mappings', {})
+                if comp_map:
+                    break
+        except Exception:
+            pass
+
 checks = []
 for i in range(n):
     try:
         w = float(weights[i]) if '.' in weights[i] else int(weights[i])
     except ValueError:
         w = 5
+    cid = ids[i]
+    refs = comp_map.get(cid, {}).get('references', [])
     checks.append({
-        'id': ids[i],
+        'id': cid,
         'category': cats[i],
         'title': titles[i],
         'status': statuses[i],
         'weight': w,
         'details': details[i],
-        'remediation': remediations[i]
+        'remediation': remediations[i],
+        'references': refs
     })
 
 data = {
@@ -729,7 +754,10 @@ print(json.dumps(data, indent=2))
             json_doc+="      \"status\": \"${RES_STATUSES[i]}\",\n"
             json_doc+="      \"weight\": ${RES_WEIGHTS[i]:-5},\n"
             json_doc+="      \"details\": \"${d}\",\n"
-            json_doc+="      \"remediation\": \"${r}\"\n"
+            json_doc+="      "remediation": "",
+"
+            json_doc+="      "references": []
+"
             if (( i < n )); then
                 json_doc+="    },\n"
             else

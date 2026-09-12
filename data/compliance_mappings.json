@@ -36,13 +36,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["SI-7", "CM-6", "AC-3"],
+        "controls": [
+          "SI-7",
+          "CM-6",
+          "AC-3"
+        ],
         "primary": "SI-7",
         "family": "System and Information Integrity",
         "title": "Software, Firmware, and Information Integrity"
       },
       "mitre": {
-        "tactics": ["Defense Evasion", "Privilege Escalation"],
+        "tactics": [
+          "Defense Evasion",
+          "Privilege Escalation"
+        ],
         "primary_technique": "T1562.001",
         "techniques": [
           {
@@ -54,7 +61,29 @@
             "name": "Abuse Elevation Control Mechanism"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: About System Integrity Protection",
+          "url": "https://support.apple.com/en-us/102149"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1562.001",
+          "url": "https://attack.mitre.org/techniques/T1562/001/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a75.1.2",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (SI-7)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "HARD-02": {
       "title": "FileVault Full Disk Encryption",
@@ -66,13 +95,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["SC-28", "SC-13", "MP-4"],
+        "controls": [
+          "SC-28",
+          "SC-13",
+          "MP-4"
+        ],
         "primary": "SC-28",
         "family": "System and Communications Protection",
         "title": "Protection of Information at Rest"
       },
       "mitre": {
-        "tactics": ["Collection", "Initial Access"],
+        "tactics": [
+          "Collection",
+          "Initial Access"
+        ],
         "primary_technique": "T1005",
         "techniques": [
           {
@@ -84,7 +120,29 @@
             "name": "Hardware Additions / Physical Access"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: Encrypt Mac data with FileVault",
+          "url": "https://support.apple.com/en-us/102377"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1005",
+          "url": "https://attack.mitre.org/techniques/T1005/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a72.6.1",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (SC-28)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "HARD-03": {
       "title": "Gatekeeper App Assessment",
@@ -96,13 +154,21 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["CM-10", "CM-11", "SI-4", "SC-18"],
+        "controls": [
+          "CM-10",
+          "CM-11",
+          "SI-4",
+          "SC-18"
+        ],
         "primary": "CM-10",
         "family": "Configuration Management",
         "title": "Software Usage Restrictions"
       },
       "mitre": {
-        "tactics": ["Defense Evasion", "Execution"],
+        "tactics": [
+          "Defense Evasion",
+          "Execution"
+        ],
         "primary_technique": "T1553.001",
         "techniques": [
           {
@@ -114,7 +180,29 @@
             "name": "User Execution: Malicious File"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: Safely open apps on your Mac (Gatekeeper)",
+          "url": "https://support.apple.com/en-us/102445"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1553.001",
+          "url": "https://attack.mitre.org/techniques/T1553/001/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a75.2.1",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (CM-10)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "HARD-04": {
       "title": "Screen Lock Password Requirement",
@@ -126,13 +214,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["AC-11", "AC-11(1)", "IA-2"],
+        "controls": [
+          "AC-11",
+          "AC-11(1)",
+          "IA-2"
+        ],
         "primary": "AC-11",
         "family": "Access Control",
         "title": "Device Lock"
       },
       "mitre": {
-        "tactics": ["Initial Access", "Defense Evasion"],
+        "tactics": [
+          "Initial Access",
+          "Defense Evasion"
+        ],
         "primary_technique": "T1401",
         "techniques": [
           {
@@ -144,7 +239,29 @@
             "name": "Valid Accounts"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: Require a password after waking your Mac",
+          "url": "https://support.apple.com/guide/mac-help/require-a-password-after-waking-your-mac-mchlp2270/mac"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1401",
+          "url": "https://attack.mitre.org/techniques/T1401/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a72.3.1",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AC-11)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "HARD-05": {
       "title": "Guest Account Status",
@@ -156,13 +273,22 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["AC-2", "AC-3", "AC-14", "IA-2"],
+        "controls": [
+          "AC-2",
+          "AC-3",
+          "AC-14",
+          "IA-2"
+        ],
         "primary": "AC-2",
         "family": "Access Control",
         "title": "Account Management"
       },
       "mitre": {
-        "tactics": ["Initial Access", "Persistence", "Privilege Escalation"],
+        "tactics": [
+          "Initial Access",
+          "Persistence",
+          "Privilege Escalation"
+        ],
         "primary_technique": "T1078.001",
         "techniques": [
           {
@@ -174,7 +300,29 @@
             "name": "Valid Accounts: Local Accounts"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: Set up other users on your Mac (Guest Account)",
+          "url": "https://support.apple.com/guide/mac-help/set-up-other-users-on-your-mac-mtusr001/mac"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1078.001",
+          "url": "https://attack.mitre.org/techniques/T1078/001/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a76.1.1",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AC-2)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "HARD-06": {
       "title": "Automatic Software Updates",
@@ -186,13 +334,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["SI-2", "CM-3", "SI-5"],
+        "controls": [
+          "SI-2",
+          "CM-3",
+          "SI-5"
+        ],
         "primary": "SI-2",
         "family": "System and Information Integrity",
         "title": "Flaw Remediation"
       },
       "mitre": {
-        "tactics": ["Initial Access", "Privilege Escalation"],
+        "tactics": [
+          "Initial Access",
+          "Privilege Escalation"
+        ],
         "primary_technique": "T1190",
         "techniques": [
           {
@@ -204,7 +359,29 @@
             "name": "Exploitation for Privilege Escalation"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: Keep your Mac up to date",
+          "url": "https://support.apple.com/en-us/108382"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1190",
+          "url": "https://attack.mitre.org/techniques/T1190/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a71.1",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (SI-2)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "HARD-07": {
       "title": "Unnecessary Sharing Services",
@@ -216,13 +393,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["CM-7", "AC-17", "SC-7"],
+        "controls": [
+          "CM-7",
+          "AC-17",
+          "SC-7"
+        ],
         "primary": "CM-7",
         "family": "Configuration Management",
         "title": "Least Functionality"
       },
       "mitre": {
-        "tactics": ["Lateral Movement", "Initial Access"],
+        "tactics": [
+          "Lateral Movement",
+          "Initial Access"
+        ],
         "primary_technique": "T1021.002",
         "techniques": [
           {
@@ -242,7 +426,29 @@
             "name": "Exploitation of Remote Services"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: Share your Mac files with others",
+          "url": "https://support.apple.com/guide/mac-help/share-your-mac-files-with-others-mchlp1657/mac"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1021.002",
+          "url": "https://attack.mitre.org/techniques/T1021/002/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a72.3.3.3",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (CM-7)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "NET-01": {
       "title": "Application Firewall Status",
@@ -254,13 +460,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["SC-7", "SC-7(5)", "AC-4"],
+        "controls": [
+          "SC-7",
+          "SC-7(5)",
+          "AC-4"
+        ],
         "primary": "SC-7",
         "family": "System and Communications Protection",
         "title": "Boundary Protection"
       },
       "mitre": {
-        "tactics": ["Defense Evasion", "Discovery"],
+        "tactics": [
+          "Defense Evasion",
+          "Discovery"
+        ],
         "primary_technique": "T1562.004",
         "techniques": [
           {
@@ -272,7 +485,29 @@
             "name": "System Network Connections Discovery"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: Change Firewall settings on Mac",
+          "url": "https://support.apple.com/guide/mac-help/change-firewall-settings-on-mac-mh34041/mac"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1562.004",
+          "url": "https://attack.mitre.org/techniques/T1562/004/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a73.1",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (SC-7)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "NET-02": {
       "title": "Firewall Stealth Mode",
@@ -284,13 +519,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["SC-7(8)", "CM-6", "SC-5"],
+        "controls": [
+          "SC-7(8)",
+          "CM-6",
+          "SC-5"
+        ],
         "primary": "SC-7",
         "family": "System and Communications Protection",
         "title": "Boundary Protection"
       },
       "mitre": {
-        "tactics": ["Reconnaissance", "Discovery"],
+        "tactics": [
+          "Reconnaissance",
+          "Discovery"
+        ],
         "primary_technique": "T1595.001",
         "techniques": [
           {
@@ -302,7 +544,29 @@
             "name": "Network Service Discovery"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: Prevent unwanted connections with Firewall stealth mode",
+          "url": "https://support.apple.com/guide/mac-help/prevent-unwanted-connections-with-firewall-mh11783/mac"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1595.001",
+          "url": "https://attack.mitre.org/techniques/T1595/001/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a73.2",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (SC-7)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "NET-03": {
       "title": "Firewall Permissive Exceptions",
@@ -314,13 +578,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["CM-7", "AC-4", "SC-7"],
+        "controls": [
+          "CM-7",
+          "AC-4",
+          "SC-7"
+        ],
         "primary": "CM-7",
         "family": "Configuration Management",
         "title": "Least Functionality"
       },
       "mitre": {
-        "tactics": ["Execution", "Command and Control"],
+        "tactics": [
+          "Execution",
+          "Command and Control"
+        ],
         "primary_technique": "T1059.004",
         "techniques": [
           {
@@ -336,7 +607,29 @@
             "name": "Non-Standard Port"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "CIS Benchmark: Inbound Firewall Exceptions Control",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1059.004",
+          "url": "https://attack.mitre.org/techniques/T1059/004/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a73.3",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (CM-7)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "NET-04": {
       "title": "BPF Packet Capture Permissions",
@@ -348,13 +641,21 @@
         "profile": "Level 2"
       },
       "nist": {
-        "controls": ["AC-3", "AC-6", "SC-8", "AU-9"],
+        "controls": [
+          "AC-3",
+          "AC-6",
+          "SC-8",
+          "AU-9"
+        ],
         "primary": "AC-6",
         "family": "Access Control",
         "title": "Least Privilege"
       },
       "mitre": {
-        "tactics": ["Credential Access", "Discovery"],
+        "tactics": [
+          "Credential Access",
+          "Discovery"
+        ],
         "primary_technique": "T1040",
         "techniques": [
           {
@@ -366,7 +667,29 @@
             "name": "Abuse Elevation Control Mechanism"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "BSD Packet Filter: pf.conf configuration guide",
+          "url": "https://man.freebsd.org/cgi/man.cgi?query=pf.conf"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1040",
+          "url": "https://attack.mitre.org/techniques/T1040/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a74.1",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AC-6)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "NET-05": {
       "title": "/etc/hosts Loopback Integrity",
@@ -378,13 +701,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["SC-20", "SC-21", "SI-7"],
+        "controls": [
+          "SC-20",
+          "SC-21",
+          "SI-7"
+        ],
         "primary": "SC-20",
         "family": "System and Communications Protection",
         "title": "Secure Name / Address Resolution Service"
       },
       "mitre": {
-        "tactics": ["Impact", "Command and Control"],
+        "tactics": [
+          "Impact",
+          "Command and Control"
+        ],
         "primary_technique": "T1565.001",
         "techniques": [
           {
@@ -396,7 +726,29 @@
             "name": "Application Layer Protocol: DNS / Name Resolution Spoofing"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "MITRE ATT&CK: Network Sniffing via BPF devices (T1040)",
+          "url": "https://attack.mitre.org/techniques/T1040/"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1565.001",
+          "url": "https://attack.mitre.org/techniques/T1565/001/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a74.4",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (SC-20)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "NET-06": {
       "title": "Wildcard Exposed TCP Listeners",
@@ -408,13 +760,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["CM-7", "SC-7", "AC-4"],
+        "controls": [
+          "CM-7",
+          "SC-7",
+          "AC-4"
+        ],
         "primary": "CM-7",
         "family": "Configuration Management",
         "title": "Least Functionality"
       },
       "mitre": {
-        "tactics": ["Discovery", "Initial Access"],
+        "tactics": [
+          "Discovery",
+          "Initial Access"
+        ],
         "primary_technique": "T1046",
         "techniques": [
           {
@@ -426,7 +785,29 @@
             "name": "Exploit Public-Facing Application"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "MITRE ATT&CK: Hosts File Data Manipulation (T1565.001)",
+          "url": "https://attack.mitre.org/techniques/T1565/001/"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1046",
+          "url": "https://attack.mitre.org/techniques/T1046/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a73.4",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (CM-7)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "SEC-01": {
       "title": "Plaintext API Keys in Shell Profiles",
@@ -438,13 +819,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["IA-5", "IA-5(1)", "AC-6", "SC-28"],
+        "controls": [
+          "IA-5",
+          "IA-5(1)",
+          "AC-6",
+          "SC-28"
+        ],
         "primary": "IA-5",
         "family": "Identification and Authentication",
         "title": "Authenticator Management"
       },
       "mitre": {
-        "tactics": ["Credential Access"],
+        "tactics": [
+          "Credential Access"
+        ],
         "primary_technique": "T1552.001",
         "techniques": [
           {
@@ -456,7 +844,29 @@
             "name": "Unsecured Credentials: Bash History / Shell Config"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "MITRE ATT&CK: Unsecured Credentials in Shell Files (T1552.001)",
+          "url": "https://attack.mitre.org/techniques/T1552/001/"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1552.001",
+          "url": "https://attack.mitre.org/techniques/T1552/001/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a75.1.4",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (IA-5)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "SEC-02": {
       "title": "Exposed .env Configuration Files",
@@ -468,13 +878,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["AC-3", "IA-5", "SC-28"],
+        "controls": [
+          "AC-3",
+          "IA-5",
+          "SC-28"
+        ],
         "primary": "AC-3",
         "family": "Access Control",
         "title": "Access Enforcement"
       },
       "mitre": {
-        "tactics": ["Credential Access", "Discovery"],
+        "tactics": [
+          "Credential Access",
+          "Discovery"
+        ],
         "primary_technique": "T1552.001",
         "techniques": [
           {
@@ -486,7 +903,29 @@
             "name": "File and Directory Discovery"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "OWASP: Secrets Management & Environment Security Guide",
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1552.001",
+          "url": "https://attack.mitre.org/techniques/T1552/001/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a75.1.5",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AC-3)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "SEC-03": {
       "title": "Keychain Auto-Lock Timeout",
@@ -498,13 +937,19 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["AC-11", "AC-12", "IA-5"],
+        "controls": [
+          "AC-11",
+          "AC-12",
+          "IA-5"
+        ],
         "primary": "AC-11",
         "family": "Access Control",
         "title": "Device Lock"
       },
       "mitre": {
-        "tactics": ["Credential Access"],
+        "tactics": [
+          "Credential Access"
+        ],
         "primary_technique": "T1555.001",
         "techniques": [
           {
@@ -516,7 +961,29 @@
             "name": "Credentials from Password Stores"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "OpenSSH: SSH Key Permissions & Configuration Specifications",
+          "url": "https://www.openssh.com/manual.html"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1555.001",
+          "url": "https://attack.mitre.org/techniques/T1555/001/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a75.7",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AC-11)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "SEC-04": {
       "title": "Kernel Core Dumps",
@@ -528,13 +995,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["SC-28", "SI-11", "AC-3"],
+        "controls": [
+          "SC-28",
+          "SI-11",
+          "AC-3"
+        ],
         "primary": "SC-28",
         "family": "System and Communications Protection",
         "title": "Protection of Information at Rest"
       },
       "mitre": {
-        "tactics": ["Collection", "Credential Access"],
+        "tactics": [
+          "Collection",
+          "Credential Access"
+        ],
         "primary_technique": "T1005",
         "techniques": [
           {
@@ -550,7 +1024,29 @@
             "name": "Unsecured Credentials"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: Keychain Access User Guide & Auto-Lock Security",
+          "url": "https://support.apple.com/guide/keychain-access/welcome/mac"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1005",
+          "url": "https://attack.mitre.org/techniques/T1005/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a75.16",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (SC-28)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "SEC-05": {
       "title": "SSH Keys and Config Permissions",
@@ -562,13 +1058,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["AC-3", "AC-6", "IA-5"],
+        "controls": [
+          "AC-3",
+          "AC-6",
+          "IA-5"
+        ],
         "primary": "AC-3",
         "family": "Access Control",
         "title": "Access Enforcement"
       },
       "mitre": {
-        "tactics": ["Credential Access", "Defense Evasion"],
+        "tactics": [
+          "Credential Access",
+          "Defense Evasion"
+        ],
         "primary_technique": "T1552.004",
         "techniques": [
           {
@@ -580,7 +1083,29 @@
             "name": "Valid Accounts"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple Technical Note TN2124: Mac OS X Debugging & Core Dumps",
+          "url": "https://developer.apple.com/library/archive/technotes/tn2124/_index.html"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1552.004",
+          "url": "https://attack.mitre.org/techniques/T1552/004/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a75.1.6",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AC-3)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "PERS-01": {
       "title": "LaunchAgents Persistence Review",
@@ -592,13 +1117,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["CM-6", "CM-11", "SI-4"],
+        "controls": [
+          "CM-6",
+          "CM-11",
+          "SI-4"
+        ],
         "primary": "CM-11",
         "family": "Configuration Management",
         "title": "User-Installed Software"
       },
       "mitre": {
-        "tactics": ["Persistence", "Privilege Escalation"],
+        "tactics": [
+          "Persistence",
+          "Privilege Escalation"
+        ],
         "primary_technique": "T1543.001",
         "techniques": [
           {
@@ -610,7 +1142,29 @@
             "name": "Boot or Logon Autostart Execution: Plist Modification"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple Developer: Creating LaunchDaemons and LaunchAgents",
+          "url": "https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1543.001",
+          "url": "https://attack.mitre.org/techniques/T1543/001/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a72.9",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (CM-11)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "PERS-02": {
       "title": "System LaunchDaemons Review",
@@ -622,13 +1176,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["CM-6", "CM-7", "SI-4"],
+        "controls": [
+          "CM-6",
+          "CM-7",
+          "SI-4"
+        ],
         "primary": "CM-7",
         "family": "Configuration Management",
         "title": "Least Functionality"
       },
       "mitre": {
-        "tactics": ["Persistence", "Privilege Escalation"],
+        "tactics": [
+          "Persistence",
+          "Privilege Escalation"
+        ],
         "primary_technique": "T1543.004",
         "techniques": [
           {
@@ -636,7 +1197,29 @@
             "name": "Create or Modify System Process: Launch Daemon"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "MITRE ATT&CK: System Process Launch Daemon (T1543.004)",
+          "url": "https://attack.mitre.org/techniques/T1543/004/"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1543.004",
+          "url": "https://attack.mitre.org/techniques/T1543/004/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a72.11",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (CM-7)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "PERS-03": {
       "title": "Scheduled Cron Jobs",
@@ -648,13 +1231,21 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["CM-6", "CM-7", "SI-4"],
+        "controls": [
+          "CM-6",
+          "CM-7",
+          "SI-4"
+        ],
         "primary": "CM-6",
         "family": "Configuration Management",
         "title": "Configuration Settings"
       },
       "mitre": {
-        "tactics": ["Execution", "Persistence", "Privilege Escalation"],
+        "tactics": [
+          "Execution",
+          "Persistence",
+          "Privilege Escalation"
+        ],
         "primary_technique": "T1053.003",
         "techniques": [
           {
@@ -662,7 +1253,29 @@
             "name": "Scheduled Task/Job: Cron"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "MITRE ATT&CK: Scheduled Task / Cron Jobs Persistence (T1053.003)",
+          "url": "https://attack.mitre.org/techniques/T1053/003/"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1053.003",
+          "url": "https://attack.mitre.org/techniques/T1053/003/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a72.8",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (CM-6)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "PERS-04": {
       "title": "User Login Items",
@@ -674,13 +1287,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["CM-6", "CM-11", "AC-3"],
+        "controls": [
+          "CM-6",
+          "CM-11",
+          "AC-3"
+        ],
         "primary": "CM-11",
         "family": "Configuration Management",
         "title": "User-Installed Software"
       },
       "mitre": {
-        "tactics": ["Persistence", "Privilege Escalation"],
+        "tactics": [
+          "Persistence",
+          "Privilege Escalation"
+        ],
         "primary_technique": "T1547.015",
         "techniques": [
           {
@@ -688,7 +1308,29 @@
             "name": "Boot or Logon Autostart Execution: Login Items"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: Open items automatically when you log in on Mac",
+          "url": "https://support.apple.com/guide/mac-help/open-items-automatically-when-you-log-in-mchlp1518/mac"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1547.015",
+          "url": "https://attack.mitre.org/techniques/T1547/015/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a72.7",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (CM-11)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "PERS-05": {
       "title": "SSH Authorized Public Keys",
@@ -700,13 +1342,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["AC-3", "AC-17", "IA-5"],
+        "controls": [
+          "AC-3",
+          "AC-17",
+          "IA-5"
+        ],
         "primary": "AC-17",
         "family": "Access Control",
         "title": "Remote Access"
       },
       "mitre": {
-        "tactics": ["Persistence", "Privilege Escalation"],
+        "tactics": [
+          "Persistence",
+          "Privilege Escalation"
+        ],
         "primary_technique": "T1098.004",
         "techniques": [
           {
@@ -714,7 +1363,29 @@
             "name": "Account Manipulation: SSH Authorized Keys"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "SSH Academy: OpenSSH authorized_keys Security & Hardening",
+          "url": "https://www.ssh.com/academy/ssh/authorized_keys-openssh"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1098.004",
+          "url": "https://attack.mitre.org/techniques/T1098/004/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a75.1.7",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AC-17)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "PERS-06": {
       "title": "Sudoers Configuration & NOPASSWD Rules",
@@ -726,13 +1397,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["AC-6", "AC-6(1)", "IA-2"],
+        "controls": [
+          "AC-6",
+          "AC-6(1)",
+          "IA-2"
+        ],
         "primary": "AC-6",
         "family": "Access Control",
         "title": "Least Privilege"
       },
       "mitre": {
-        "tactics": ["Privilege Escalation", "Defense Evasion"],
+        "tactics": [
+          "Privilege Escalation",
+          "Defense Evasion"
+        ],
         "primary_technique": "T1548.003",
         "techniques": [
           {
@@ -740,7 +1418,29 @@
             "name": "Abuse Elevation Control Mechanism: Sudo and Sudo Caching"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "MITRE ATT&CK: Sudo and Sudo Caching Abuse (T1548.003)",
+          "url": "https://attack.mitre.org/techniques/T1548/003/"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1548.003",
+          "url": "https://attack.mitre.org/techniques/T1548/003/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a75.3",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AC-6)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "HARD-08": {
       "title": "Firmware Password / Recovery Lock",
@@ -752,13 +1452,20 @@
         "profile": "Level 2"
       },
       "nist": {
-        "controls": ["AC-3", "SI-7", "SC-51"],
+        "controls": [
+          "AC-3",
+          "SI-7",
+          "SC-51"
+        ],
         "primary": "SI-7",
         "family": "System and Information Integrity",
         "title": "Software, Firmware, and Information Integrity"
       },
       "mitre": {
-        "tactics": ["Defense Evasion", "Persistence"],
+        "tactics": [
+          "Defense Evasion",
+          "Persistence"
+        ],
         "primary_technique": "T1495",
         "techniques": [
           {
@@ -770,7 +1477,29 @@
             "name": "Pre-OS Boot: System Firmware"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: About Startup Security Utility & Secure Boot",
+          "url": "https://support.apple.com/en-us/102521"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1495",
+          "url": "https://attack.mitre.org/techniques/T1495/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a75.8",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (SI-7)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "HARD-09": {
       "title": "Secure Boot / Authenticated Root",
@@ -782,13 +1511,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["SI-7", "SI-7(9)", "CM-6"],
+        "controls": [
+          "SI-7",
+          "SI-7(9)",
+          "CM-6"
+        ],
         "primary": "SI-7",
         "family": "System and Information Integrity",
         "title": "Software, Firmware, and Information Integrity"
       },
       "mitre": {
-        "tactics": ["Defense Evasion", "Persistence"],
+        "tactics": [
+          "Defense Evasion",
+          "Persistence"
+        ],
         "primary_technique": "T1542.001",
         "techniques": [
           {
@@ -800,7 +1536,29 @@
             "name": "Impair Defenses: Disable or Modify Tools"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: Allow Remote Apple Events on Mac",
+          "url": "https://support.apple.com/guide/mac-help/allow-remote-apple-events-mchlp1207/mac"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1542.001",
+          "url": "https://attack.mitre.org/techniques/T1542/001/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a75.1.1",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (SI-7)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "HARD-10": {
       "title": "Automatic Login Disabled",
@@ -812,13 +1570,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["AC-7", "IA-2", "AC-11"],
+        "controls": [
+          "AC-7",
+          "IA-2",
+          "AC-11"
+        ],
         "primary": "IA-2",
         "family": "Identification and Authentication",
         "title": "Identification and Authentication (Organizational Users)"
       },
       "mitre": {
-        "tactics": ["Initial Access", "Privilege Escalation"],
+        "tactics": [
+          "Initial Access",
+          "Privilege Escalation"
+        ],
         "primary_technique": "T1078",
         "techniques": [
           {
@@ -826,7 +1591,29 @@
             "name": "Valid Accounts"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: Share the internet connection on Mac",
+          "url": "https://support.apple.com/guide/mac-help/share-the-internet-connection-on-mac-mchlp1540/mac"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1078",
+          "url": "https://attack.mitre.org/techniques/T1078/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a75.5",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (IA-2)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "HARD-11": {
       "title": "Bluetooth Sharing",
@@ -838,13 +1625,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["AC-18", "SC-8", "CM-7"],
+        "controls": [
+          "AC-18",
+          "SC-8",
+          "CM-7"
+        ],
         "primary": "AC-18",
         "family": "Access Control",
         "title": "Wireless Access"
       },
       "mitre": {
-        "tactics": ["Lateral Movement", "Collection"],
+        "tactics": [
+          "Lateral Movement",
+          "Collection"
+        ],
         "primary_technique": "T1011",
         "techniques": [
           {
@@ -856,7 +1650,29 @@
             "name": "Network Sniffing"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: Share files using Bluetooth on Mac",
+          "url": "https://support.apple.com/guide/mac-help/share-files-using-bluetooth-on-mac-mchlp2768/mac"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1011",
+          "url": "https://attack.mitre.org/techniques/T1011/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a72.4.11",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AC-18)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "NET-07": {
       "title": "AirDrop",
@@ -868,13 +1684,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["AC-4", "AC-18", "SC-7"],
+        "controls": [
+          "AC-4",
+          "AC-18",
+          "SC-7"
+        ],
         "primary": "SC-7",
         "family": "System and Communications Protection",
         "title": "Boundary Protection"
       },
       "mitre": {
-        "tactics": ["Lateral Movement", "Exfiltration"],
+        "tactics": [
+          "Lateral Movement",
+          "Exfiltration"
+        ],
         "primary_technique": "T1048",
         "techniques": [
           {
@@ -882,7 +1705,29 @@
             "name": "Exfiltration Over Alternative Protocol"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "NIST SP 800-53: Boundary Protection & Port Hardening (SC-7)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1048",
+          "url": "https://attack.mitre.org/techniques/T1048/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a72.4.12",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (SC-7)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "NET-08": {
       "title": "Internet Sharing",
@@ -894,13 +1739,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["SC-7", "AC-4", "CM-7"],
+        "controls": [
+          "SC-7",
+          "AC-4",
+          "CM-7"
+        ],
         "primary": "SC-7",
         "family": "System and Communications Protection",
         "title": "Boundary Protection"
       },
       "mitre": {
-        "tactics": ["Lateral Movement", "Command and Control"],
+        "tactics": [
+          "Lateral Movement",
+          "Command and Control"
+        ],
         "primary_technique": "T1572",
         "techniques": [
           {
@@ -908,7 +1760,29 @@
             "name": "Protocol Tunneling"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: How to use AirDrop on your Mac",
+          "url": "https://support.apple.com/en-us/102631"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1572",
+          "url": "https://attack.mitre.org/techniques/T1572/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a72.4.8",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (SC-7)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "NET-09": {
       "title": "Firewall Logging",
@@ -920,13 +1794,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["AU-3", "AU-12", "SI-4"],
+        "controls": [
+          "AU-3",
+          "AU-12",
+          "SI-4"
+        ],
         "primary": "AU-12",
         "family": "Audit and Accountability",
         "title": "Audit Record Generation"
       },
       "mitre": {
-        "tactics": ["Defense Evasion", "Discovery"],
+        "tactics": [
+          "Defense Evasion",
+          "Discovery"
+        ],
         "primary_technique": "T1562.004",
         "techniques": [
           {
@@ -934,7 +1815,29 @@
             "name": "Impair Defenses: Disable or Modify System Firewall"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: Apple Remote Desktop & VNC Management",
+          "url": "https://support.apple.com/guide/remote-desktop/welcome/mac"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1562.004",
+          "url": "https://attack.mitre.org/techniques/T1562/004/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a73.6",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AU-12)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "SEC-06": {
       "title": "Unencrypted SSH Private Keys",
@@ -946,13 +1849,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["IA-5", "IA-5(1)", "SC-12"],
+        "controls": [
+          "IA-5",
+          "IA-5(1)",
+          "SC-12"
+        ],
         "primary": "IA-5",
         "family": "Identification and Authentication",
         "title": "Authenticator Management"
       },
       "mitre": {
-        "tactics": ["Credential Access", "Lateral Movement"],
+        "tactics": [
+          "Credential Access",
+          "Lateral Movement"
+        ],
         "primary_technique": "T1552.004",
         "techniques": [
           {
@@ -960,7 +1870,29 @@
             "name": "Unsecured Credentials: Private Keys"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "AWS Best Practices: Managing AWS Access Keys & Secrets",
+          "url": "https://docs.aws.amazon.com/general/latest/gr/aws-access-keys-best-practices.html"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1552.004",
+          "url": "https://attack.mitre.org/techniques/T1552/004/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a75.2.3",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (IA-5)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "SEC-07": {
       "title": "Secrets in Shell History",
@@ -972,13 +1904,19 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["SI-4", "AC-6", "IA-5"],
+        "controls": [
+          "SI-4",
+          "AC-6",
+          "IA-5"
+        ],
         "primary": "SI-4",
         "family": "System and Information Integrity",
         "title": "System Monitoring"
       },
       "mitre": {
-        "tactics": ["Credential Access"],
+        "tactics": [
+          "Credential Access"
+        ],
         "primary_technique": "T1552.001",
         "techniques": [
           {
@@ -986,7 +1924,29 @@
             "name": "Unsecured Credentials: Credentials In Files"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Git SCM: git-credential-store Security Hardening",
+          "url": "https://git-scm.com/docs/git-credential-store"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1552.001",
+          "url": "https://attack.mitre.org/techniques/T1552/001/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a76.2",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (SI-4)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "PERS-07": {
       "title": "Privileged Helper Tools",
@@ -998,13 +1958,20 @@
         "profile": "Level 2"
       },
       "nist": {
-        "controls": ["CM-5", "CM-7", "SI-7"],
+        "controls": [
+          "CM-5",
+          "CM-7",
+          "SI-7"
+        ],
         "primary": "CM-7",
         "family": "Configuration Management",
         "title": "Least Functionality"
       },
       "mitre": {
-        "tactics": ["Persistence", "Privilege Escalation"],
+        "tactics": [
+          "Persistence",
+          "Privilege Escalation"
+        ],
         "primary_technique": "T1543.001",
         "techniques": [
           {
@@ -1016,7 +1983,29 @@
             "name": "Create or Modify System Process: Launch Daemon"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "MITRE ATT&CK: Periodic Automation Scripts (T1053)",
+          "url": "https://attack.mitre.org/techniques/T1053/"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1543.001",
+          "url": "https://attack.mitre.org/techniques/T1543/001/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a75.11",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (CM-7)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "HARD-12": {
       "title": "Home Directory Permissions",
@@ -1028,13 +2017,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["AC-3", "AC-6", "SC-28"],
+        "controls": [
+          "AC-3",
+          "AC-6",
+          "SC-28"
+        ],
         "primary": "AC-6",
         "family": "Access Control",
         "title": "Least Privilege"
       },
       "mitre": {
-        "tactics": ["Collection", "Credential Access"],
+        "tactics": [
+          "Collection",
+          "Credential Access"
+        ],
         "primary_technique": "T1083",
         "techniques": [
           {
@@ -1042,7 +2038,29 @@
             "name": "File and Directory Discovery"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: Keep your Time Machine backup files secure",
+          "url": "https://support.apple.com/guide/mac-help/keep-your-backup-files-secure-mh11425/mac"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1083",
+          "url": "https://attack.mitre.org/techniques/T1083/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a76.2",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AC-6)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "HARD-13": {
       "title": "Network Time Synchronization",
@@ -1054,13 +2072,18 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["AU-8", "SC-45"],
+        "controls": [
+          "AU-8",
+          "SC-45"
+        ],
         "primary": "AU-8",
         "family": "Audit and Accountability",
         "title": "Time Stamps"
       },
       "mitre": {
-        "tactics": ["Defense Evasion"],
+        "tactics": [
+          "Defense Evasion"
+        ],
         "primary_technique": "T1070.006",
         "techniques": [
           {
@@ -1068,7 +2091,29 @@
             "name": "Indicator Removal: Timestomp"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: Use the sudo command in Terminal",
+          "url": "https://support.apple.com/guide/terminal/use-the-sudo-command-apdf5d064e4-7546-44c1-8ce2-66d491df2e84/mac"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1070.006",
+          "url": "https://attack.mitre.org/techniques/T1070/006/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a72.2.1",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AU-8)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "HARD-14": {
       "title": "Built-in Malware Protection",
@@ -1080,13 +2125,19 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["SI-3", "SI-4"],
+        "controls": [
+          "SI-3",
+          "SI-4"
+        ],
         "primary": "SI-3",
         "family": "System and Information Integrity",
         "title": "Malicious Code Protection"
       },
       "mitre": {
-        "tactics": ["Execution", "Defense Evasion"],
+        "tactics": [
+          "Execution",
+          "Defense Evasion"
+        ],
         "primary_technique": "T1204.002",
         "techniques": [
           {
@@ -1094,7 +2145,29 @@
             "name": "User Execution: Malicious File"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple Developer: macOS Security & Quarantine Attributes",
+          "url": "https://developer.apple.com/documentation/security"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1204.002",
+          "url": "https://attack.mitre.org/techniques/T1204/002/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a72.6.3",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (SI-3)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "NET-10": {
       "title": "IP Forwarding",
@@ -1106,13 +2179,19 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["SC-7", "CM-7"],
+        "controls": [
+          "SC-7",
+          "CM-7"
+        ],
         "primary": "SC-7",
         "family": "System and Communications Protection",
         "title": "Boundary Protection"
       },
       "mitre": {
-        "tactics": ["Lateral Movement", "Command and Control"],
+        "tactics": [
+          "Lateral Movement",
+          "Command and Control"
+        ],
         "primary_technique": "T1572",
         "techniques": [
           {
@@ -1120,7 +2199,29 @@
             "name": "Protocol Tunneling"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple: Allow a remote computer to access your Mac (Remote Login)",
+          "url": "https://support.apple.com/guide/mac-help/allow-a-remote-computer-to-access-your-mac-mchlp1066/mac"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1572",
+          "url": "https://attack.mitre.org/techniques/T1572/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a73.1",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (SC-7)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "NET-11": {
       "title": "Promiscuous Interfaces",
@@ -1132,13 +2233,19 @@
         "profile": "Level 2"
       },
       "nist": {
-        "controls": ["SC-7", "SI-4"],
+        "controls": [
+          "SC-7",
+          "SI-4"
+        ],
         "primary": "SI-4",
         "family": "System and Information Integrity",
         "title": "System Monitoring"
       },
       "mitre": {
-        "tactics": ["Discovery", "Collection"],
+        "tactics": [
+          "Discovery",
+          "Collection"
+        ],
         "primary_technique": "T1040",
         "techniques": [
           {
@@ -1146,7 +2253,29 @@
             "name": "Network Sniffing"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "CIS Benchmark: Built-in HTTP/Apache Server Restrictions",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1040",
+          "url": "https://attack.mitre.org/techniques/T1040/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a73.4",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (SI-4)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "SEC-08": {
       "title": "SSH Daemon Hardening",
@@ -1158,13 +2287,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["AC-17", "IA-2", "CM-6"],
+        "controls": [
+          "AC-17",
+          "IA-2",
+          "CM-6"
+        ],
         "primary": "AC-17",
         "family": "Access Control",
         "title": "Remote Access"
       },
       "mitre": {
-        "tactics": ["Initial Access", "Lateral Movement"],
+        "tactics": [
+          "Initial Access",
+          "Lateral Movement"
+        ],
         "primary_technique": "T1021.004",
         "techniques": [
           {
@@ -1172,7 +2308,29 @@
             "name": "Remote Services: SSH"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "MITRE ATT&CK: Bash/Shell History Command Inspection (T1552.003)",
+          "url": "https://attack.mitre.org/techniques/T1552/003/"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1021.004",
+          "url": "https://attack.mitre.org/techniques/T1021/004/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a75.2",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AC-17)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "SEC-09": {
       "title": "Suspicious Shell History Files",
@@ -1184,13 +2342,19 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["AU-12", "SI-4", "AU-10"],
+        "controls": [
+          "AU-12",
+          "SI-4",
+          "AU-10"
+        ],
         "primary": "AU-12",
         "family": "Audit and Accountability",
         "title": "Audit Record Generation"
       },
       "mitre": {
-        "tactics": ["Defense Evasion"],
+        "tactics": [
+          "Defense Evasion"
+        ],
         "primary_technique": "T1070.003",
         "techniques": [
           {
@@ -1198,7 +2362,29 @@
             "name": "Indicator Removal: Clear Command History"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "MITRE ATT&CK: Unix Domain Socket & File Permissions (T1055)",
+          "url": "https://attack.mitre.org/techniques/T1055/"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1070.003",
+          "url": "https://attack.mitre.org/techniques/T1070/003/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a76.2",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AU-12)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "PERS-08": {
       "title": "Printer Sharing",
@@ -1210,13 +2396,19 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["CM-7", "AC-3"],
+        "controls": [
+          "CM-7",
+          "AC-3"
+        ],
         "primary": "CM-7",
         "family": "Configuration Management",
         "title": "Least Functionality"
       },
       "mitre": {
-        "tactics": ["Lateral Movement", "Collection"],
+        "tactics": [
+          "Lateral Movement",
+          "Collection"
+        ],
         "primary_technique": "T1046",
         "techniques": [
           {
@@ -1224,7 +2416,29 @@
             "name": "Network Service Discovery"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "MITRE ATT&CK: Event Monitor Daemon (emond) Persistence (T1546.014)",
+          "url": "https://attack.mitre.org/techniques/T1546/014/"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1046",
+          "url": "https://attack.mitre.org/techniques/T1046/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a72.4.6",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (CM-7)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "HARD-15": {
       "title": "USB Restricted Mode",
@@ -1236,13 +2450,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["SC-41", "MP-7", "AC-20"],
+        "controls": [
+          "SC-41",
+          "MP-7",
+          "AC-20"
+        ],
         "primary": "SC-41",
         "family": "System and Communications Protection",
         "title": "Port and I/O Device Access"
       },
       "mitre": {
-        "tactics": ["Initial Access", "Lateral Movement"],
+        "tactics": [
+          "Initial Access",
+          "Lateral Movement"
+        ],
         "primary_technique": "T1200",
         "techniques": [
           {
@@ -1250,7 +2471,29 @@
             "name": "Hardware Additions"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple Developer: Hardened Runtime & Library Validation",
+          "url": "https://developer.apple.com/documentation/security/hardened_runtime"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1200",
+          "url": "https://attack.mitre.org/techniques/T1200/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a72.10.1",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (SC-41)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     },
     "PERS-09": {
       "title": "Sudo Timestamp Timeout",
@@ -1262,13 +2505,20 @@
         "profile": "Level 1"
       },
       "nist": {
-        "controls": ["AC-11", "AC-12", "IA-11"],
+        "controls": [
+          "AC-11",
+          "AC-12",
+          "IA-11"
+        ],
         "primary": "AC-11",
         "family": "Access Control",
         "title": "Device Lock"
       },
       "mitre": {
-        "tactics": ["Privilege Escalation", "Defense Evasion"],
+        "tactics": [
+          "Privilege Escalation",
+          "Defense Evasion"
+        ],
         "primary_technique": "T1548.003",
         "techniques": [
           {
@@ -1276,7 +2526,29 @@
             "name": "Abuse Elevation Control Mechanism: Sudo and Sudo Caching"
           }
         ]
-      }
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "MITRE ATT&CK: Shell Initialization Scripts Tampering (T1546.004)",
+          "url": "https://attack.mitre.org/techniques/T1546/004/"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1548.003",
+          "url": "https://attack.mitre.org/techniques/T1548/003/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a75.3",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AC-11)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     }
   }
 }
