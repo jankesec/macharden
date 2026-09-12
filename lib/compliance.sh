@@ -11,7 +11,23 @@ if [ -z "${ZSH_VERSION:-}" ] && [ -z "${BASH_VERSION:-}" ]; then
 fi
 
 # Fallback UI color variables if ui.sh was not pre-sourced
-if [[ -z "${COLOR_BOLD:-}" ]]; then
+if [[ "${MACHAR_NO_COLOR:-0}" -eq 1 ]] || [[ -n "${NO_COLOR:-}" ]]; then
+    COLOR_RESET=""
+    COLOR_BOLD=""
+    COLOR_DIM=""
+    COLOR_RED=""
+    COLOR_GREEN=""
+    COLOR_YELLOW=""
+    COLOR_BLUE=""
+    COLOR_MAGENTA=""
+    COLOR_CYAN=""
+    COLOR_WHITE=""
+    COLOR_BRED=""
+    COLOR_BGREEN=""
+    COLOR_BYELLOW=""
+    COLOR_BCYAN=""
+    COLOR_BMAGENTA=""
+elif [[ -z "${COLOR_BOLD:-}" ]]; then
     COLOR_RESET=$'\033[0m'
     COLOR_BOLD=$'\033[1m'
     COLOR_DIM=$'\033[2m'

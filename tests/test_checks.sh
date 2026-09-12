@@ -339,7 +339,7 @@ assert_match "1 WARN" "$ROW_OUT" "ui_category_score_row outputs warn count"
 assert_match "1 FAIL" "$ROW_OUT" "ui_category_score_row outputs fail count"
 
 BOX_OUT=$(ui_grade_box 80.0 "B+" "GOOD / ACCEPTABLE" 2>&1)
-assert_match "GRADE: B\+ \(80.0%\)" "$BOX_OUT" "ui_grade_box outputs letter grade and percentage"
+assert_match "GRADE: B\\+ \\(80.0%\\)" "$BOX_OUT" "ui_grade_box outputs letter grade and percentage"
 assert_match "GOOD / ACCEPTABLE" "$BOX_OUT" "ui_grade_box outputs rating text"
 assert_match "┌" "$BOX_OUT" "ui_grade_box renders top border"
 assert_match "└" "$BOX_OUT" "ui_grade_box renders bottom border"
