@@ -526,7 +526,7 @@ CHIP_CONTENT=$(cat "$CHIP_HTML")
 assert_match "CIS 5.1.2" "$CHIP_CONTENT" "HTML renders CIS chip from compliance mappings"
 assert_match "SI-7" "$CHIP_CONTENT" "HTML renders NIST chip from compliance mappings"
 assert_match "T1562.001" "$CHIP_CONTENT" "HTML renders MITRE chip from compliance mappings"
-assert_match "v1.3.0" "$CHIP_CONTENT" "HTML navbar shows scanner version 1.3.0"
+assert_match "v1.4.0" "$CHIP_CONTENT" "HTML navbar shows scanner version 1.4.0"
 assert_match 'id="langToggleBtn"' "$CHIP_CONTENT" "HTML contains language toggle button"
 assert_match 'id="langLabel"' "$CHIP_CONTENT" "HTML contains language label badge"
 assert_match 'toggleLanguage' "$CHIP_CONTENT" "HTML contains toggleLanguage function"
@@ -953,7 +953,7 @@ else
 fi
 
 VERSION_OUT=$("${PROJECT_ROOT}/bin/macharden" --version 2>&1)
-assert_match "1.3.0" "$VERSION_OUT" "macharden --version reports 1.3.0"
+assert_match "1.4.0" "$VERSION_OUT" "macharden --version reports 1.4.0"
 
 INVALID_CAT_OUT=$("${PROJECT_ROOT}/bin/macharden" -c bogus 2>&1) || true
 INVALID_CAT_EC=0
@@ -1181,15 +1181,16 @@ assert sarif['version'] == '2.1.0'
 assert 'runs' in sarif and len(sarif['runs']) > 0
 run = sarif['runs'][0]
 assert run['tool']['driver']['name'] == 'macharden'
+assert run['tool']['driver']['version'] == '1.4.0'
 assert len(run['tool']['driver']['rules']) > 0
 assert len(run['results']) == 2
 rule_ids = [r['ruleId'] for r in run['results']]
 assert 'SEC-01' in rule_ids
 assert 'NET-03' in rule_ids
 " 2>/dev/null; then
-    log_test "PASS" "Generated SARIF document is 100% valid OASIS SARIF v2.1.0"
+    log_test "PASS" "Generated SARIF document is valid SARIF v2.1.0 with scanner version 1.4.0"
 else
-    log_test "FAIL" "Generated SARIF document is 100% valid OASIS SARIF v2.1.0"
+    log_test "FAIL" "Generated SARIF document is valid SARIF v2.1.0 with scanner version 1.4.0"
 fi
 
 CLI_SARIF_OUT="${TEST_TMP_DIR}/cli_test.sarif"

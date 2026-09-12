@@ -154,6 +154,7 @@ Keychain timeout changes are guidance-only because they can cause recurring pass
 - **[User Guide](docs/USER-GUIDE.md)** — installation, first audit, profiles, reports, remediation review, drift detection, scheduled scans, privacy, and troubleshooting.
 - **[Architecture](docs/ARCHITECTURE.md)** — runtime flow, scoring model, trust boundaries, remediation contract, and upstream reference provenance.
 - **[Manual Page](docs/macharden.1)** — complete command and option reference for `man macharden`.
+- **[Changelog](CHANGELOG.md)** — release history and notable security, privacy, and usability changes.
 
 ---
 
@@ -256,14 +257,14 @@ macharden -f json -o report.json
 ## 💻 CLI Command Reference
 
 ```text
-macharden - macOS Security Hardening & Audit Scanner (v1.3.0)
+macharden - macOS Security Hardening & Audit Scanner (v1.4.0)
 
 Usage:
   macharden [options]
 
 Core Options:
   -h, --help                 Display usage information and exit
-  -v, --version              Print version information (v1.3.0)
+  -v, --version              Print version information (v1.4.0)
   -c, --category <name>      Run category: hardening, network, secrets, persistence, all
   -f, --format <format>      Output format: term, markdown, json, html, sarif (default: term)
   -o, --output <file>        Save audit report to file (auto-detects format from extension)

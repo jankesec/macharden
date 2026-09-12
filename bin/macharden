@@ -10,7 +10,7 @@ if [ -z "$ZSH_VERSION" ]; then
 fi
 
 # Configuration Defaults
-MACHAR_VERSION="1.3.0"
+MACHAR_VERSION="1.4.0"
 MACHAR_CATEGORY="all"
 MACHAR_FORMAT="term"
 MACHAR_OUTPUT=""

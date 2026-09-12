@@ -103,7 +103,7 @@ EOF
     # Append metadata to script
     cat <<EOF >> "$output_file"
 # Scan Metadata
-# Scanner Version : macharden v${MACHAR_VERSION:-1.3.0}
+# Scanner Version : macharden v${MACHAR_VERSION:-1.4.0}
 # Generated On    : ${current_time}
 # Hostname        : ${hostname}
 # User            : ${current_user:-$user}

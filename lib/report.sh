@@ -369,7 +369,7 @@ report_terminal() {
 # Generate GitHub-flavored Markdown report
 report_markdown() {
     local output_file="${1:-}"
-    local version="${MACHAR_VERSION:-1.3.0}"
+    local version="${MACHAR_VERSION:-1.4.0}"
     local os_product os_version os_build arch current_time current_user hostname kernel_rel rating
 
     os_product="${MACHAR_OS_PRODUCT:-$(sw_vers -productName 2>/dev/null || echo "macOS")}"
@@ -917,7 +917,7 @@ ${ref_md}
 # Generate structured JSON document
 report_json() {
     local output_file="${1:-}"
-    local version="${MACHAR_VERSION:-1.3.0}"
+    local version="${MACHAR_VERSION:-1.4.0}"
     local os_product os_version os_build arch current_time current_user hostname kernel_rel rating
 
     os_product="${MACHAR_OS_PRODUCT:-$(sw_vers -productName 2>/dev/null || echo "macOS")}"

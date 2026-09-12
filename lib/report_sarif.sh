@@ -4,7 +4,7 @@
 # OASIS SARIF v2.1.0 Report Generator (Static Analysis Results Interchange Format)
 # Standard: OASIS Standard SARIF v2.1.0
 # Schema: https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json
-# Driver: macharden v1.3.0
+# Driver: macharden v1.4.0
 # ==============================================================================
 
 # Ensure execution under zsh or bash
@@ -25,7 +25,7 @@ fi
 report_sarif() {
     local output_file="${1:-}"
     local driver_name="macharden"
-    local driver_version="1.3.0"
+    local driver_version="${MACHAR_VERSION:-1.4.0}"
     local current_time
     current_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
