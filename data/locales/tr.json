@@ -459,6 +459,38 @@
       "details_warn": "/etc/periodic dizinlerinde standart dışı özel çalıştırılabilir betik tespit edildi (MITRE T1053.003 kalıcılık riski).",
       "details_fail": "Periyodik bakım dizinlerinde yetkisiz ve standart dışı çalıştırılabilir betikler bulunuyor; kalıcı arka kapı riski!",
       "remediation_desc": "/etc/periodic/daily, weekly ve monthly altındaki yetkisiz betikleri inceleyin ve güvenilmeyenleri kaldırın."
+    },
+    "HARD-18": {
+      "title": "OpenBSM Güvenlik Denetim Servisi Durumu",
+      "desc": "OpenBSM denetim servisinin (com.apple.auditd) etkinliğini ve AUC_AUDITING durumunu denetler.",
+      "details_pass": "OpenBSM güvenlik denetim servisi (auditd) etkin ve güvenlik olaylarını kaydediyor (AUC_AUDITING).",
+      "details_warn": "OpenBSM güvenlik denetim servisi (auditd) aktif değil veya denetim kapalı (NIST AU-12 / CIS 3.1).",
+      "details_fail": "Sistem güvenlik denetim servisi devre dışı; kritik güvenlik ve kimlik doğrulama olayları günlüğe kaydedilmiyor.",
+      "remediation_desc": "Güvenlik denetim servisini etkinleştirin: sudo launchctl enable system/com.apple.auditd && sudo launchctl bootstrap system /System/Library/LaunchDaemons/com.apple.auditd.plist && sudo audit -i"
+    },
+    "HARD-19": {
+      "title": "Denetim Yapılandırma Dosyası İzinleri",
+      "desc": "/etc/security/audit_control dosyasının sahipliğini (root:wheel) ve izinlerini (0400 veya 0440) denetler.",
+      "details_pass": "Denetim yapılandırma dosyası (/etc/security/audit_control) sahipliği (root:wheel) ve izinleri güvenli şekilde sıkılaştırılmış.",
+      "details_warn": "OpenBSM denetim yapılandırma dosyası (/etc/security/audit_control) bulunamadı.",
+      "details_fail": "Denetim yapılandırma dosyasının sahipliği root değil veya dosya izinleri güvensiz (herkese açık ya da grupça yazılabilir; CIS 3.2 / 3.3).",
+      "remediation_desc": "Denetim yapılandırma dosyasını root:wheel sahipliğine ve 0440 izinlerine ayarlayın: sudo chown root:wheel /etc/security/audit_control && sudo chmod 0440 /etc/security/audit_control"
+    },
+    "HARD-20": {
+      "title": "Denetim Log Dosyaları ve Dizin ACL İmmutability",
+      "desc": "/var/audit dizini ve log dosyalarında Erişim Kontrol Listesi (ACL) bulunmadığını denetler.",
+      "details_pass": "Denetim log dizini (/var/audit) ve log dosyaları hiçbir Erişim Kontrol Listesi (ACL) içermiyor (doğrulanmış bütünlük).",
+      "details_warn": "Denetim log dizininde veya log dosyalarında ACL girdisi tespit edildi.",
+      "details_fail": "Denetim log dizininde veya log dosyalarında ACL (Access Control List) girdileri mevcut; yetkisiz erişim veya log tahrifatı riski (NIST AU-9 / CIS 3.5)!",
+      "remediation_desc": "Denetim loglarından tüm ACL girdilerini kaldırın: sudo chmod -RN /var/audit"
+    },
+    "HARD-21": {
+      "title": "Denetim Olay Bayrakları ve Saklama Politikası",
+      "desc": "OpenBSM denetim bayraklarının kimlik doğrulama ('lo') ve yönetim ('aa') olaylarını kapsadığını ve log saklama süresini denetler.",
+      "details_pass": "Denetim bayrakları kimlik doğrulama ve yönetim olaylarını eksiksiz kaydediyor (flags: lo, aa).",
+      "details_warn": "Denetim olay bayrakları önerilen kimlik doğrulama ('lo') veya yönetim ('aa') sınıflarını içermiyor ya da dosya yapılandırılmamış (CIS 3.4).",
+      "details_fail": "Denetim olay bayrakları tanımlanmamış; kimlik doğrulama ve yetki kullanımı kayıt altına alınmıyor.",
+      "remediation_desc": "Denetim yapılandırma dosyasına gerekli bayrakları ekleyin: sudo sed -i '' 's/^flags:.*/flags:lo,aa,ad,fd,fm,-all/' /etc/security/audit_control && sudo audit -s"
     }
   }
 }

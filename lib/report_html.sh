@@ -494,6 +494,63 @@ CHECK_I18N = {
       "WARN": "AirDrop 'Herkes' modunda açık! Çevredeki aygıtlar sistemi doğrudan keşfedebilir."
     }
   },
+  "HARD-18": {
+    "title": {
+      "en": "OpenBSM Security Auditing Daemon Status",
+      "tr": "OpenBSM Güvenlik Denetim Servisi Durumu"
+    },
+    "desc": {
+      "en": "Verifies that the OpenBSM security auditing daemon (auditd) is active and running in AUC_AUDITING mode to capture system events.",
+      "tr": "Sistem olaylarını yakalamak için OpenBSM güvenlik denetim servisinin (auditd) aktif ve AUC_AUDITING modunda çalıştığını doğrular."
+    },
+    "finding": {
+      "PASS": "OpenBSM güvenlik denetim servisi etkin ve olayları kaydediyor.",
+      "WARN": "OpenBSM güvenlik denetim servisi aktif değil veya denetim kapalı."
+    }
+  },
+  "HARD-19": {
+    "title": {
+      "en": "Audit Control Configuration Ownership & Permissions",
+      "tr": "Denetim Yapılandırma Dosyası İzinleri"
+    },
+    "desc": {
+      "en": "Ensures /etc/security/audit_control is owned by root:wheel and permissions are restricted to 0400 or 0440 to protect audit policies.",
+      "tr": "Denetim politikalarını korumak için /etc/security/audit_control dosyasının root:wheel sahipliğinde ve 0400/0440 izinlerinde olduğunu doğrular."
+    },
+    "finding": {
+      "PASS": "Denetim yapılandırma dosyası sahipliği ve izinleri güvenli şekilde sıkılaştırılmış.",
+      "FAIL": "Denetim yapılandırma dosyası sahipliği root değil veya dosya izinleri güvensiz.",
+      "WARN": "Denetim yapılandırma dosyası bulunamadı."
+    }
+  },
+  "HARD-20": {
+    "title": {
+      "en": "Audit Log Files & Directory ACL Immutability",
+      "tr": "Denetim Log Dosyaları ve Dizin ACL Bütünlüğü"
+    },
+    "desc": {
+      "en": "Verifies that /var/audit directory and audit trail log files contain zero Access Control Lists (ACLs) to prevent unauthorized tampering.",
+      "tr": "Yetkisiz erişim ve tahrifatı önlemek için /var/audit dizini ve log dosyalarının hiçbir ACL (Erişim Kontrol Listesi) içermediğini doğrular."
+    },
+    "finding": {
+      "PASS": "Denetim log dizini ve log dosyaları hiçbir ACL içermiyor (doğrulanmış bütünlük).",
+      "FAIL": "Denetim log dizininde veya dosyalarında ACL girdileri tespit edildi!"
+    }
+  },
+  "HARD-21": {
+    "title": {
+      "en": "Audit Trail Event Flags & Retention Policy",
+      "tr": "Denetim Olay Bayrakları ve Saklama Politikası"
+    },
+    "desc": {
+      "en": "Ensures OpenBSM audit flags capture authentication ('lo') and administrative ('aa') classes and enforce log expiration retention.",
+      "tr": "OpenBSM denetim bayraklarının kimlik doğrulama ('lo') ve yönetim ('aa') sınıflarını kaydettiğini ve saklama süresini doğrular."
+    },
+    "finding": {
+      "PASS": "Denetim bayrakları kimlik doğrulama ve yönetim olaylarını eksiksiz kaydediyor.",
+      "WARN": "Denetim olay bayrakları önerilen 'lo' ve 'aa' sınıflarını içermiyor ya da dosya yapılandırılmamış."
+    }
+  },
   "NET-01": {
     "title": {
       "en": "Application Firewall Status",

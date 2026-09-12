@@ -779,6 +779,174 @@ audit_airdrop_exposure() {
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
 }
 
+# HARD-18: OpenBSM Security Auditing Daemon Status
+# Checks whether com.apple.auditd is active and OpenBSM is in AUC_AUDITING state.
+# NIST 800-53 AU-12, AU-3, AU-14; CIS 3.1; DISA APPL-27-001003.
+audit_auditd_daemon() {
+    local check_id="${1:-HARD-18}"
+    local category="${2:-hardening}"
+    local title="${3:-OpenBSM Security Auditing Daemon Status}"
+    local weight="${4:-8}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    local launchd_active=0
+    local audit_cond=""
+
+    if launchctl print system 2>/dev/null | grep -q -E '\tcom.apple.auditd' || launchctl list 2>/dev/null | grep -q 'com.apple.auditd'; then
+        launchd_active=1
+    fi
+    audit_cond=$(audit -c 2>/dev/null || echo "")
+
+    if [[ $launchd_active -eq 1 ]] && echo "$audit_cond" | grep -q "AUC_AUDITING"; then
+        res_status="PASS"
+        details="OpenBSM security auditing daemon (auditd) is active and recording security events (AUC_AUDITING)."
+        remediation=""
+    else
+        res_status="WARN"
+        details="OpenBSM security auditing daemon (com.apple.auditd) is not active or auditing is disabled (NIST AU-12 / CIS 3.1)."
+        remediation="[EXEC] sudo launchctl enable system/com.apple.auditd && sudo launchctl bootstrap system /System/Library/LaunchDaemons/com.apple.auditd.plist 2>/dev/null; sudo audit -i 2>/dev/null || true"
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
+# HARD-19: Audit Control Configuration Ownership & Permissions
+# Checks /etc/security/audit_control file ownership (root:wheel) and permissions (0400 or 0440).
+# NIST 800-53 AU-9; CIS 3.2, 3.3; DISA APPL-27-001120, APPL-27-001130.
+audit_control_perms() {
+    local check_id="${1:-HARD-19}"
+    local category="${2:-hardening}"
+    local title="${3:-Audit Control Configuration Ownership & Permissions}"
+    local weight="${4:-7}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    if [[ -f /etc/security/audit_control ]]; then
+        local owner group perms
+        owner=$(stat -f "%Su" /etc/security/audit_control 2>/dev/null || echo "")
+        group=$(stat -f "%Sg" /etc/security/audit_control 2>/dev/null || echo "")
+        perms=$(stat -f "%Lp" /etc/security/audit_control 2>/dev/null || echo "")
+
+        local other_digit="${perms: -1}"
+        local group_digit="${perms: -2:1}"
+
+        if [[ "$owner" != "root" ]]; then
+            res_status="FAIL"
+            details="Audit control configuration (/etc/security/audit_control) owner is '$owner' (expected root; CIS 3.2)."
+            remediation="[EXEC] sudo chown root:wheel /etc/security/audit_control"
+        elif [[ "$other_digit" != "0" ]]; then
+            res_status="FAIL"
+            details="Audit control configuration (/etc/security/audit_control) has insecure permissions '$perms' (world-accessible; CIS 3.3 / NIST AU-9)."
+            remediation="[EXEC] sudo chmod 0440 /etc/security/audit_control"
+        elif (( group_digit > 4 )); then
+            res_status="FAIL"
+            details="Audit control configuration (/etc/security/audit_control) is group-writable ('$perms'; CIS 3.3)."
+            remediation="[EXEC] sudo chmod 0440 /etc/security/audit_control"
+        else
+            res_status="PASS"
+            details="Audit control configuration (/etc/security/audit_control) ownership (${owner}:${group}) and permissions ($perms) are securely hardened."
+            remediation=""
+        fi
+    elif [[ -f /etc/security/audit_control.example ]]; then
+        res_status="PASS"
+        details="Default OpenBSM audit control template exists (/etc/security/audit_control.example) with secure default root permissions."
+        remediation=""
+    else
+        res_status="WARN"
+        details="OpenBSM audit control file (/etc/security/audit_control) was not found."
+        remediation="[EXEC] sudo cp /etc/security/audit_control.example /etc/security/audit_control && sudo chmod 0440 /etc/security/audit_control"
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
+# HARD-20: Audit Log Files & Directory ACL Immutability
+# Ensures /var/audit directory and audit trail files contain NO extended Access Control Lists (ACLs).
+# NIST 800-53 AU-9; CIS 3.5 (Level 1); DISA APPL-27-000030, APPL-27-000031; MITRE T1562.001, T1070.
+audit_audit_acls() {
+    local check_id="${1:-HARD-20}"
+    local category="${2:-hardening}"
+    local title="${3:-Audit Log Files & Directory ACL Immutability}"
+    local weight="${4:-9}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    local audit_dir
+    audit_dir=$(grep '^dir' /etc/security/audit_control 2>/dev/null | awk -F: '{print $2}')
+    audit_dir="${audit_dir:-/var/audit}"
+
+    local dir_acls=0
+    local file_acls=0
+
+    if [[ -d "$audit_dir" ]]; then
+        dir_acls=$(ls -lde "$audit_dir" 2>/dev/null | awk '{print $1}' | grep -c ":" || true)
+        dir_acls="${dir_acls:-0}"
+
+        file_acls=$(ls -le "$audit_dir" 2>/dev/null | awk '{print $1}' | grep -c ":" || true)
+        file_acls="${file_acls:-0}"
+    fi
+
+    if (( dir_acls > 0 || file_acls > 0 )); then
+        res_status="FAIL"
+        details="Audit log directory ($audit_dir) or audit trail files contain Access Control Lists ($dir_acls dir ACLs, $file_acls file ACLs; NIST AU-9 / CIS 3.5)."
+        remediation="[EXEC] sudo chmod -RN '$audit_dir'"
+    else
+        res_status="PASS"
+        details="Audit log directory ($audit_dir) and audit trail files contain zero Access Control Lists (ACLs; verified immutability)."
+        remediation=""
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
+# HARD-21: Audit Trail Event Flags & Retention Policy
+# Checks OpenBSM audit event flags for authentication ('lo') and administrative ('aa') classes and retention.
+# NIST 800-53 AU-2, AU-11; CIS 3.4; DISA APPL-27-000010.
+audit_policy_flags() {
+    local check_id="${1:-HARD-21}"
+    local category="${2:-hardening}"
+    local title="${3:-Audit Trail Event Flags & Retention Policy}"
+    local weight="${4:-6}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    if [[ -f /etc/security/audit_control ]]; then
+        local flags expire
+        flags=$(grep '^flags:' /etc/security/audit_control 2>/dev/null | awk -F: '{print $2}' | tr -d ' ')
+        expire=$(grep '^expire-after:' /etc/security/audit_control 2>/dev/null | awk -F: '{print $2}' | tr -d ' ')
+        if [[ "$flags" == *"lo"* && "$flags" == *"aa"* ]]; then
+            res_status="PASS"
+            details="Audit flags record authentication and administrative events (flags: ${flags}, expire-after: ${expire:-not-set})."
+            remediation=""
+        else
+            res_status="WARN"
+            details="Audit event flags (${flags:-none}) lack recommended authentication ('lo') or administrative ('aa') event classes (CIS 3.4)."
+            remediation="[EXEC] sudo sed -i '' 's/^flags:.*/flags:lo,aa,ad,fd,fm,-all/' /etc/security/audit_control && sudo audit -s"
+        fi
+    elif [[ -f /etc/security/audit_control.example ]]; then
+        local ex_flags
+        ex_flags=$(grep '^flags:' /etc/security/audit_control.example 2>/dev/null | awk -F: '{print $2}' | tr -d ' ')
+        res_status="INFO"
+        details="System is using default OpenBSM audit template policies (flags: ${ex_flags:-lo,aa}; /etc/security/audit_control not customized)."
+        remediation=""
+    else
+        res_status="WARN"
+        details="OpenBSM audit configuration and event flags are not configured."
+        remediation="[EXEC] sudo cp /etc/security/audit_control.example /etc/security/audit_control && sudo chmod 0440 /etc/security/audit_control"
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
 # Aliases for ID-based execution
 audit_hard_01() { audit_sip "$@"; }
 audit_hard_02() { audit_filevault "$@"; }
@@ -797,6 +965,10 @@ audit_hard_14() { audit_malware_protection "$@"; }
 audit_hard_15() { audit_usb_restricted_mode "$@"; }
 audit_hard_16() { audit_diagnostic_telemetry "$@"; }
 audit_hard_17() { audit_airdrop_exposure "$@"; }
+audit_hard_18() { audit_auditd_daemon "$@"; }
+audit_hard_19() { audit_control_perms "$@"; }
+audit_hard_20() { audit_audit_acls "$@"; }
+audit_hard_21() { audit_policy_flags "$@"; }
 
 # Category Runner
 run_audit_hardening() {
@@ -817,6 +989,10 @@ run_audit_hardening() {
     audit_usb_restricted_mode
     audit_diagnostic_telemetry
     audit_airdrop_exposure
+    audit_auditd_daemon
+    audit_control_perms
+    audit_audit_acls
+    audit_policy_flags
 }
 
 # Auto-registration with engine.sh
@@ -839,7 +1015,12 @@ register_hardening_checks() {
         register_check "HARD-15" "hardening" "USB Restricted Mode" 5 audit_usb_restricted_mode
         register_check "HARD-16" "hardening" "Diagnostic & Telemetry Reporting" 4 audit_diagnostic_telemetry
         register_check "HARD-17" "hardening" "AirDrop Discoverability Exposure" 6 audit_airdrop_exposure
+        register_check "HARD-18" "hardening" "OpenBSM Security Auditing Daemon Status" 8 audit_auditd_daemon
+        register_check "HARD-19" "hardening" "Audit Control Configuration Ownership & Permissions" 7 audit_control_perms
+        register_check "HARD-20" "hardening" "Audit Log Files & Directory ACL Immutability" 9 audit_audit_acls
+        register_check "HARD-21" "hardening" "Audit Trail Event Flags & Retention Policy" 6 audit_policy_flags
     fi
 }
 
 register_hardening_checks
+

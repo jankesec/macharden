@@ -2900,6 +2900,218 @@
           "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
         }
       ]
+    },
+    "HARD-18": {
+      "title": "OpenBSM Security Auditing Daemon Status",
+      "category": "hardening",
+      "cis": {
+        "id": "3.1",
+        "section": "3. System Auditing and Logging",
+        "title": "Ensure security auditing daemon (auditd) is enabled",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": [
+          "AU-3",
+          "AU-8",
+          "AU-12",
+          "AU-14"
+        ],
+        "primary": "AU-12",
+        "family": "Audit and Accountability",
+        "title": "Audit Generation and Accountability"
+      },
+      "mitre": {
+        "tactics": [
+          "Defense Evasion"
+        ],
+        "primary_technique": "T1562.001",
+        "techniques": [
+          {
+            "id": "T1562.001",
+            "name": "Impair Defenses: Disable or Modify Tools"
+          }
+        ]
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "NIST macOS Security Compliance Project: audit_auditd_enabled",
+          "url": "https://github.com/usnistgov/macos_security"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark §3.1",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AU-12)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1562.001",
+          "url": "https://attack.mitre.org/techniques/T1562/001/"
+        }
+      ]
+    },
+    "HARD-19": {
+      "title": "Audit Control Configuration Ownership & Permissions",
+      "category": "hardening",
+      "cis": {
+        "id": "3.2",
+        "section": "3. System Auditing and Logging",
+        "title": "Ensure /etc/security/audit_control ownership is root:wheel and permissions are 0400/0440",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": [
+          "AU-9",
+          "AU-12",
+          "AC-3"
+        ],
+        "primary": "AU-9",
+        "family": "Audit and Accountability",
+        "title": "Protection of Audit Information"
+      },
+      "mitre": {
+        "tactics": [
+          "Defense Evasion",
+          "Privilege Escalation"
+        ],
+        "primary_technique": "T1565.001",
+        "techniques": [
+          {
+            "id": "T1565.001",
+            "name": "Data Manipulation: Stored Data Manipulation"
+          }
+        ]
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "NIST macOS Security Compliance Project: audit_control_mode_configure",
+          "url": "https://github.com/usnistgov/macos_security"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark §3.2 & §3.3",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AU-9)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
+    },
+    "HARD-20": {
+      "title": "Audit Log Files & Directory ACL Immutability",
+      "category": "hardening",
+      "cis": {
+        "id": "3.5",
+        "section": "3. System Auditing and Logging",
+        "title": "Ensure audit log files and folder do not contain Access Control Lists (ACLs)",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": [
+          "AU-9",
+          "AC-3",
+          "SI-7"
+        ],
+        "primary": "AU-9",
+        "family": "Audit and Accountability",
+        "title": "Protection of Audit Information"
+      },
+      "mitre": {
+        "tactics": [
+          "Defense Evasion"
+        ],
+        "primary_technique": "T1070",
+        "techniques": [
+          {
+            "id": "T1070",
+            "name": "Indicator Removal on Host"
+          },
+          {
+            "id": "T1562.001",
+            "name": "Impair Defenses: Disable or Modify Tools"
+          }
+        ]
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "NIST macOS Security Compliance Project: audit_acls_files_configure",
+          "url": "https://github.com/usnistgov/macos_security"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark §3.5",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AU-9)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1070",
+          "url": "https://attack.mitre.org/techniques/T1070/"
+        }
+      ]
+    },
+    "HARD-21": {
+      "title": "Audit Trail Event Flags & Retention Policy",
+      "category": "hardening",
+      "cis": {
+        "id": "3.4",
+        "section": "3. System Auditing and Logging",
+        "title": "Ensure audit control flags record authentication and administrative events with retention",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": [
+          "AU-2",
+          "AU-11",
+          "AU-12"
+        ],
+        "primary": "AU-11",
+        "family": "Audit and Accountability",
+        "title": "Audit Record Retention"
+      },
+      "mitre": {
+        "tactics": [
+          "Defense Evasion"
+        ],
+        "primary_technique": "T1562.001",
+        "techniques": [
+          {
+            "id": "T1562.001",
+            "name": "Impair Defenses: Disable or Modify Tools"
+          }
+        ]
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "NIST macOS Security Compliance Project: audit_flags_lo_configure",
+          "url": "https://github.com/usnistgov/macos_security"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark §3.4",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AU-11)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     }
   }
 }

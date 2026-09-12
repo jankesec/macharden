@@ -874,9 +874,9 @@ source "${PROJECT_ROOT}/lib/audit_network.sh"
 source "${PROJECT_ROOT}/lib/audit_secrets.sh"
 source "${PROJECT_ROOT}/lib/audit_persistence.sh"
 
-assert_eq "50" "${#REG_IDS[@]}" "v1.2 registers 50 audit checks"
+assert_eq "54" "${#REG_IDS[@]}" "v1.3 registers 54 audit checks"
 
-for expected_id in HARD-08 HARD-09 HARD-10 HARD-11 HARD-12 HARD-13 HARD-14 HARD-15 HARD-16 HARD-17 NET-07 NET-08 NET-09 NET-10 NET-11 NET-12 SEC-06 SEC-07 SEC-08 SEC-09 SEC-10 SEC-11 PERS-07 PERS-08 PERS-09 PERS-10; do
+for expected_id in HARD-08 HARD-09 HARD-10 HARD-11 HARD-12 HARD-13 HARD-14 HARD-15 HARD-16 HARD-17 HARD-18 HARD-19 HARD-20 HARD-21 NET-07 NET-08 NET-09 NET-10 NET-11 NET-12 SEC-06 SEC-07 SEC-08 SEC-09 SEC-10 SEC-11 PERS-07 PERS-08 PERS-09 PERS-10; do
     found_id=0
     for (( i = 1; i <= ${#REG_IDS[@]}; i++ )); do
         if [[ "${REG_IDS[i]}" == "$expected_id" ]]; then
@@ -916,10 +916,14 @@ if typeset -f audit_firmware_password >/dev/null 2>&1 \
     && typeset -f audit_diagnostic_telemetry >/dev/null 2>&1 \
     && typeset -f audit_airdrop_exposure >/dev/null 2>&1 \
     && typeset -f audit_wifi_autojoin_open >/dev/null 2>&1 \
-    && typeset -f audit_periodic_scripts >/dev/null 2>&1; then
-    log_test "PASS" "All v1.2 audit functions are defined"
+    && typeset -f audit_periodic_scripts >/dev/null 2>&1 \
+    && typeset -f audit_auditd_daemon >/dev/null 2>&1 \
+    && typeset -f audit_control_perms >/dev/null 2>&1 \
+    && typeset -f audit_audit_acls >/dev/null 2>&1 \
+    && typeset -f audit_policy_flags >/dev/null 2>&1; then
+    log_test "PASS" "All v1.3 audit functions are defined"
 else
-    log_test "FAIL" "All v1.2 audit functions are defined"
+    log_test "FAIL" "All v1.3 audit functions are defined"
 fi
 
 VERSION_OUT=$("${PROJECT_ROOT}/bin/macharden" --version 2>&1)
@@ -1110,52 +1114,56 @@ fi
 
 
 # ==============================================================================
-# Suite 13: Expanded 50 Audit Rules Verification
+# Suite 13: Expanded 54 Audit Rules Verification
 # ==============================================================================
-echo "\n\033[1m[Suite 13] Expanded 50 Audit Rules Verification\033[0m"
+echo "\n\033[1m[Suite 13] Expanded 54 Audit Rules Verification\033[0m"
 
-# Verify all 6 new check functions exist
+# Verify all new check functions exist
 if typeset -f audit_insecure_path_dirs >/dev/null 2>&1 \
     && typeset -f audit_cloud_credentials >/dev/null 2>&1 \
     && typeset -f audit_diagnostic_telemetry >/dev/null 2>&1 \
     && typeset -f audit_airdrop_exposure >/dev/null 2>&1 \
     && typeset -f audit_wifi_autojoin_open >/dev/null 2>&1 \
-    && typeset -f audit_periodic_scripts >/dev/null 2>&1; then
-    log_test "PASS" "All 6 new audit check functions are defined"
+    && typeset -f audit_periodic_scripts >/dev/null 2>&1 \
+    && typeset -f audit_auditd_daemon >/dev/null 2>&1 \
+    && typeset -f audit_control_perms >/dev/null 2>&1 \
+    && typeset -f audit_audit_acls >/dev/null 2>&1 \
+    && typeset -f audit_policy_flags >/dev/null 2>&1; then
+    log_test "PASS" "All 10 new audit check functions are defined"
 else
-    log_test "FAIL" "All 6 new audit check functions are defined"
+    log_test "FAIL" "All 10 new audit check functions are defined"
 fi
 
-# Verify compliance mappings for all 50 checks
+# Verify compliance mappings for all 54 checks
 if python3 -c "
 import json
 with open('${PROJECT_ROOT}/data/compliance_mappings.json') as f:
     d = json.load(f)
 mappings = d.get('mappings', {})
-assert len(mappings) == 50, f'Expected 50 mappings, got {len(mappings)}'
-for cid in ['SEC-10', 'SEC-11', 'HARD-16', 'HARD-17', 'NET-12', 'PERS-10']:
+assert len(mappings) == 54, f'Expected 54 mappings, got {len(mappings)}'
+for cid in ['SEC-10', 'SEC-11', 'HARD-16', 'HARD-17', 'HARD-18', 'HARD-19', 'HARD-20', 'HARD-21', 'NET-12', 'PERS-10']:
     assert cid in mappings, f'{cid} missing from mappings'
     assert 'references' in mappings[cid], f'references missing in {cid}'
 " 2>/dev/null; then
-    log_test "PASS" "All 50 checks have compliance mappings and authoritative references"
+    log_test "PASS" "All 54 checks have compliance mappings and authoritative references"
 else
-    log_test "FAIL" "All 50 checks have compliance mappings and authoritative references"
+    log_test "FAIL" "All 54 checks have compliance mappings and authoritative references"
 fi
 
-# Verify Turkish translations for all 50 checks
+# Verify Turkish translations for all 54 checks
 if python3 -c "
 import json
 with open('${PROJECT_ROOT}/data/locales/tr.json') as f:
     d = json.load(f)
 checks = d.get('checks', {})
-assert len(checks) == 50, f'Expected 50 translated checks, got {len(checks)}'
-for cid in ['SEC-10', 'SEC-11', 'HARD-16', 'HARD-17', 'NET-12', 'PERS-10']:
+assert len(checks) == 54, f'Expected 54 translated checks, got {len(checks)}'
+for cid in ['SEC-10', 'SEC-11', 'HARD-16', 'HARD-17', 'HARD-18', 'HARD-19', 'HARD-20', 'HARD-21', 'NET-12', 'PERS-10']:
     assert cid in checks, f'{cid} missing from tr.json'
     assert 'title' in checks[cid], f'title missing in tr.json for {cid}'
 " 2>/dev/null; then
-    log_test "PASS" "All 50 checks have complete Turkish localization"
+    log_test "PASS" "All 54 checks have complete Turkish localization"
 else
-    log_test "FAIL" "All 50 checks have complete Turkish localization"
+    log_test "FAIL" "All 54 checks have complete Turkish localization"
 fi
 
 # ==============================================================================
@@ -1270,6 +1278,10 @@ check_weight "SEC-04"  "5"
 check_weight "PERS-03" "6"
 check_weight "PERS-04" "5"
 check_weight "PERS-05" "7"
+check_weight "HARD-18" "8"
+check_weight "HARD-19" "7"
+check_weight "HARD-20" "9"
+check_weight "HARD-21" "6"
 
 # ==============================================================================
 # Final Test Summary

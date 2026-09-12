@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>Enterprise-Grade macOS Security Hardening, Baseline Drift & Audit Engine</strong><br>
-  <em>Zero dependencies • Pure native Zsh/Bash • 50 CIS/NIST security controls • OASIS SARIF v2.1.0 • Liquid Glass HTML5</em>
+  <em>Zero dependencies • Pure native Zsh/Bash • 54 CIS/NIST security controls • OASIS SARIF v2.1.0 • Liquid Glass HTML5</em>
 </p>
 
 <p align="center">
@@ -11,7 +11,7 @@
   <a href="#-license"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
   <a href="https://apple.com/macos"><img src="https://img.shields.io/badge/Platform-macOS%2012%2B%20%7C%20Apple%20Silicon%20%26%20Intel-black.svg?logo=apple&logoColor=white" alt="Platform: macOS"></a>
   <a href="#"><img src="https://img.shields.io/badge/Shell-Zsh%20%2F%20Bash-orange.svg" alt="Shell: Zsh / Bash"></a>
-  <a href="#-audit-categories--50-security-rules"><img src="https://img.shields.io/badge/Audits-50%20Security%20Rules-purple.svg" alt="Audit Checks"></a>
+  <a href="#-audit-categories--54-security-rules"><img src="https://img.shields.io/badge/Audits-54%20Security%20Rules-purple.svg" alt="Audit Checks"></a>
   <a href="#-regulatory-compliance-mappings"><img src="https://img.shields.io/badge/Compliance-CIS%20%7C%20NIST%20%7C%20MITRE-darkgreen.svg" alt="Compliance"></a>
   <a href="#"><img src="https://img.shields.io/badge/Dependencies-Zero%20(Pure%20Native)-success.svg" alt="Dependencies"></a>
 </p>
@@ -36,6 +36,7 @@ Unlike generic Unix scanners that treat macOS as a generic BSD derivative, **mac
 - **FileVault 2 XTS-AES disk encryption** (`fdesetup`)
 - **Gatekeeper code signing and notarization** assessments (`spctl`)
 - **Application Firewall** configuration, stealth mode & interpreter exceptions (`socketfilterfw`)
+- **OpenBSM Auditing & ACL immutability**: Audit daemon status (`com.apple.auditd`), `/etc/security/audit_control` permissions, and `/var/audit` directory & trail ACL stripping (CIS 3.1–3.5 / NIST AU-9 / NIST mSCP)
 - **Keychain inactivity lock timeouts** & core dump restrictions
 - **BPF raw packet capture permissions** (`/dev/bpf*` and `access_bpf` group)
 - **LaunchAgents & LaunchDaemons** binary integrity & signature verification
@@ -49,7 +50,7 @@ Unlike generic Unix scanners that treat macOS as a generic BSD derivative, **mac
 | Capability | Description |
 |:---|:---|
 | ⚡ **Zero Dependencies** | Written in pure, native **Zsh/Bash**. Requires no Homebrew, Python libraries, Ruby, Gems, or Node.js runtimes. |
-| 🎯 **50 Audited Controls** | Comprehensive security coverage across 4 domains: System Hardening, Network, Secrets, and Persistence. |
+| 🎯 **54 Audited Controls** | Comprehensive security coverage across 4 domains: System Hardening (21), Network (12), Secrets (11), and Persistence (10). |
 | 📊 **Hardening Index (0–100%)** | Objective, mathematically weighted scoring formula with letter grades (`A+` to `F`) and category-level posture bars. |
 | 📉 **Baseline Drift & Diff Engine** | Historical security tracking (`--diff <baseline.json>`). Detects regressions and security posture decay between scans. |
 | 🚪 **CI/CD Quality Gate** | Seamless DevSecOps integration via `--fail-on-regression` (**exit code 2**) and `--min-score <N>` (**exit code 1**). |
@@ -85,6 +86,7 @@ macharden -f html -o report.html && open report.html
 
 ---
 
+
 ## 🚀 Quick Start
 
 ### 1. One-Liner Quick Scan (Direct Execution)
@@ -102,7 +104,7 @@ curl -fsSL https://raw.githubusercontent.com/jankesec/macharden/main/bin/machard
 git clone https://github.com/jankesec/macharden.git
 cd macharden
 
-# Execute full 50-control security audit
+# Execute full 54-control security audit
 ./bin/macharden
 ```
 
@@ -259,11 +261,11 @@ Filtering & Continuous Monitoring:
 
 ---
 
-## 🔍 Audit Categories & 50 Security Rules
+## 🔍 Audit Categories & 54 Security Rules
 
-`macharden` evaluates **50 security controls** mapped to authoritative benchmarks:
+`macharden` evaluates **54 security controls** mapped to authoritative benchmarks:
 
-### 1. 🛡️ System Hardening (`hardening` - 17 Controls)
+### 1. 🛡️ System Hardening (`hardening` - 21 Controls)
 | Check ID | Control Title | CIS Benchmark | NIST 800-53 | MITRE ATT&CK | Weight |
 |:---|:---|:---:|:---:|:---:|:---:|
 | `HARD-01` | System Integrity Protection (SIP) | CIS 5.1.2 | SI-7 | T1562.001 | 10 |
@@ -283,6 +285,10 @@ Filtering & Continuous Monitoring:
 | `HARD-15` | USB Restricted Mode | CIS 2.4.4 | MP-7 | T1091 | 5 |
 | `HARD-16` | Apple Diagnostic & Telemetry Sharing | CIS 2.6.1 | AU-12 | T1020 | 4 |
 | `HARD-17` | AirDrop Discoverability Exposure | CIS 2.1.1 | AC-18 | T1011 | 6 |
+| `HARD-18` | OpenBSM Security Auditing Daemon Status | CIS 3.1 | AU-12 | T1562.001 | 8 |
+| `HARD-19` | Audit Control Configuration Ownership & Permissions | CIS 3.2 | AU-9 | T1565.001 | 7 |
+| `HARD-20` | Audit Log Files & Directory ACL Immutability | CIS 3.5 | AU-9 | T1070 | 9 |
+| `HARD-21` | Audit Trail Event Flags & Retention Policy | CIS 3.4 | AU-11 | T1562.001 | 6 |
 
 ### 2. 🌐 Network & Perimeter Security (`network` - 12 Controls)
 | Check ID | Control Title | CIS Benchmark | NIST 800-53 | MITRE ATT&CK | Weight |
@@ -353,7 +359,7 @@ macharden/
 │   ├── report_sarif.sh            # OASIS SARIF v2.1.0 generator (GitHub Code Scanning)
 │   └── ui.sh                      # ANSI terminal engine, progress bars & score boxes
 ├── data/
-│   ├── compliance_mappings.json   # 50 controls mapped to CIS, NIST, MITRE & docs
+│   ├── compliance_mappings.json   # 54 controls mapped to CIS, NIST, MITRE & docs
 │   └── locales/
 │       └── tr.json                # Authentic Turkish cybersecurity terminology
 ├── assets/
