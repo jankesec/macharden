@@ -1,0 +1,416 @@
+{
+  "ui": {
+    "app_name": "macharden",
+    "app_desc": "macOS Güvenlik Sıkılaştırma ve Denetim Tarayıcısı",
+    "executive_summary_title": "YÖNETİCİ DENETİM ÖZETİ",
+    "executive_summary": "Yönetici Özeti",
+    "hardening_index": "Sıkılaştırma İndeksi",
+    "hardening_score": "Sıkılaştırma Skoru",
+    "grade": "DERECE",
+    "grade_box_label": "DERECE",
+    "score_points_earned": "Kazanılan Skor Puanı",
+    "earned_score_points": "Kazanılan Skor Puanı",
+    "total_checks_audited": "Denetlenen Toplam Kontrol",
+    "passed_checks": "Başarılı Kontroller",
+    "warnings": "Uyarılar",
+    "failed_checks": "Başarısız Kontroller",
+    "informational": "Bilgilendirme",
+    "suggestions": "Öneriler",
+    "ratings": {
+      "excellent": "MÜKEMMEL / SIKILAŞTIRILMIŞ",
+      "good": "İYİ / KABUL EDİLEBİLİR",
+      "fair": "ORTA / DİKKAT GEREKTİRİR",
+      "critical": "KRİTİK / ZAFİYETLİ"
+    },
+    "categories": {
+      "hardening": "Sistem Sıkılaştırma",
+      "network": "Ağ Güvenliği",
+      "secrets": "Gizli Bilgi ve Anahtar Güvenliği",
+      "persistence": "Kalıcılık Denetimleri"
+    },
+    "kpi": {
+      "total_checks": "Denetlenen Toplam Kontrol:",
+      "passed_checks": "Başarılı Kontroller:",
+      "warnings": "Uyarılar:",
+      "failed_checks": "Başarısız Kontroller:",
+      "informational": "Bilgilendirme:",
+      "suggestions": "Öneriler:",
+      "points_earned": "Kazanılan Skor Puanı:",
+      "target_host": "Hedef Sistem:",
+      "macos_build": "macOS Sürümü:",
+      "audit_time": "Denetim Zamanı:"
+    },
+    "sections": {
+      "category_posture_breakdown": "Kategori Bazlı Güvenlik Durumu:",
+      "high_priority_remediation": "Yüksek Öncelikli İyileştirme Eylemleri:",
+      "remediation_options": "İyileştirme Seçenekleri:",
+      "remediation_playbook": "İyileştirme Kılavuzu",
+      "system_metadata": "Sistem Meta Verileri",
+      "risk_severity_distribution": "Risk ve Önem Derecesi Dağılımı",
+      "regulatory_framework_coverage": "Mevzuat ve Uyumluluk Çerçevesi Kapsamı",
+      "comprehensive_audit_results": "Kapsamlı Denetim Sonuçları"
+    },
+    "status": {
+      "pass": "BAŞARILI",
+      "warn": "UYARI",
+      "fail": "BAŞARISIZ",
+      "info": "BİLGİ",
+      "sugg": "ÖNERİ",
+      "critical": "KRİTİK",
+      "high": "YÜKSEK",
+      "medium": "ORTA",
+      "low": "DÜŞÜK",
+      "deficient": "YETERSİZ"
+    },
+    "table_headers": {
+      "status": "Durum",
+      "id": "Kimlik",
+      "category": "Kategori",
+      "title": "Kontrol Başlığı",
+      "weight": "Ağırlık",
+      "details": "Ayrıntılar",
+      "score": "Skor",
+      "progress": "İlerleme",
+      "passed": "Başarılı",
+      "warnings": "Uyarılar",
+      "deficiencies": "Eksiklikler",
+      "points_earned": "Kazanılan Puan",
+      "severity_level": "Önem Derecesi",
+      "weight_range": "Ağırlık Aralığı",
+      "total_checks": "Toplam Kontrol",
+      "failed": "Başarısız",
+      "compliance_rate": "Uyumluluk Oranı",
+      "framework": "Çerçeve",
+      "compliance_score": "Uyumluluk Skoru",
+      "evaluated": "Değerlendirilen",
+      "compliant_defended": "Uyumlu / Savunulan",
+      "attribute": "Öznitelik",
+      "system_info": "Sistem Bilgisi",
+      "metric": "Metrik",
+      "count_value": "Sayı / Değer"
+    },
+    "remediation": {
+      "finding_label": "Bulgu:",
+      "fix_label": "Düzeltme:",
+      "severity_label": "Önem:",
+      "weight_label": "Ağırlık:",
+      "category_label": "Kategori:",
+      "clean_posture": "Güvenlik duruşu mükemmel. Başarısız kontrol veya uyarı tespit edilmedi.",
+      "opt_fix": "Kullanılabilir düzeltmeleri etkileşimli olarak uygulamak için --fix ile çalıştırın.",
+      "opt_gen_fix": "Çalıştırılabilir bir kabuk betiği oluşturmak için --generate-fix [dosya] ile çalıştırın.",
+      "no_critical_remediation": "Kritik iyileştirme komutu gerekmiyor. Denetlenen tüm güvenlik kontrolleri gereksinimleri karşılıyor.",
+      "command_heading": "İyileştirme Komutu:",
+      "references_heading": "Yetkili Referanslar:"
+    }
+  },
+  "checks": {
+    "HARD-01": {
+      "title": "Sistem Bütünlüğü Koruması (SIP)",
+      "details_pass": "Sistem Bütünlüğü Koruması (SIP) etkin ve çekirdek/dosya sistemi kısıtlamalarını uyguluyor.",
+      "details_warn": "Beklenmeyen SIP durumu tespit edildi; manuel doğrulama yapılması önerilir.",
+      "details_fail": "Sistem Bütünlüğü Koruması (SIP) devre dışı! Sistem ikili dosyaları, SIP NVRAM değişkenleri ve çekirdek uzantıları değiştirilebilir.",
+      "remediation_desc": "Kurtarma Modunda yeniden başlatın (Cmd+R veya Güç düğmesini basılı tutun) ve terminalde \"csrutil enable\" komutunu çalıştırın."
+    },
+    "HARD-02": {
+      "title": "FileVault Tam Disk Şifreleme",
+      "details_pass": "FileVault etkin. Başlangıç ve APFS veri birimleri beklemedeyken XTS-AES-128 ile şifreleniyor.",
+      "details_warn": "FileVault durum denetimi beklenmeyen bir sonuç döndürdü.",
+      "details_fail": "FileVault devre dışı! Yerel depolama şifrelenmemiş; Mac fiziksel olarak kaybolur veya çalınırsa verilere doğrudan erişilebilir.",
+      "remediation_desc": "Disk şifrelemesini etkinleştirin: sudo fdesetup enable"
+    },
+    "HARD-03": {
+      "title": "Gatekeeper Uygulama Değerlendirmesi",
+      "details_pass": "Gatekeeper değerlendirmesi etkin. macOS, çalıştırmadan önce uygulama imzalarını ve noter onayını doğrular.",
+      "details_warn": "Gatekeeper kısmen etkin veya standart dışı yapılandırılmış.",
+      "details_fail": "Gatekeeper değerlendirmesi devre dışı! Güvenilmeyen ve imzasız üçüncü taraf uygulamalar doğrulama olmadan çalıştırılabilir.",
+      "remediation_desc": "Gatekeeper değerlendirmesini etkinleştirin: sudo spctl --global-enable veya sudo spctl --master-enable"
+    },
+    "HARD-04": {
+      "title": "Ekran Kilidi Parola Gereksinimi",
+      "details_pass": "Anında ekran kilidi parolası gereksinimi etkin.",
+      "details_warn": "Ekran kilidi parola gerektiriyor ancak tolerans gecikme süresi CIS önerisini (> 5 sn) aşıyor.",
+      "details_fail": "Ekran koruyucu parola gereksinimi devre dışı. Sistem boştayken kimlik doğrulaması olmadan erişilebilir.",
+      "remediation_desc": "Ekran koruyucu parolasını anında zorunlu kılın: defaults write com.apple.screensaver askForPassword -int 1 && defaults write com.apple.screensaver askForPasswordDelay -int 0"
+    },
+    "HARD-05": {
+      "title": "Konuk Kullanıcı Hesabı Durumu",
+      "details_pass": "Konuk kullanıcı hesabı devre dışı bırakılmış.",
+      "details_warn": "Konuk hesabı paylaşım veya oturum izinleri standart dışı yapılandırılmış.",
+      "details_fail": "Giriş penceresinde konuk kullanıcı hesabı etkin; kimlik doğrulaması olmaksızın fiziksel oturum açılmasına izin veriyor.",
+      "remediation_desc": "Giriş penceresinde konuk hesabını devre dışı bırakın: sudo defaults write /Library/Preferences/com.apple.loginwindow GuestEnabled -bool false"
+    },
+    "HARD-06": {
+      "title": "Otomatik Yazılım Güncellemeleri",
+      "details_pass": "Otomatik yazılım güncelleme denetimi ve arka planda otomatik yükleme etkin.",
+      "details_warn": "Yazılım ve güvenlik güncellemelerinin otomatik denetlenmesi devre dışı bırakılmış.",
+      "details_fail": "Yazılım güncellemeleri ve kritik güvenlik yamaları otomatik denetlenmiyor ve yüklenmiyor.",
+      "remediation_desc": "Otomatik güncelleme denetimini etkinleştirin: sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled -bool true && sudo softwareupdate --schedule on"
+    },
+    "HARD-07": {
+      "title": "Gereksiz Paylaşım Hizmetleri",
+      "details_pass": "Hiçbir gereksiz uzak paylaşım hizmeti (SMB, NFS, TFTP, SSH, Ekran Paylaşımı, Uzaktan Apple Olayları) etkin değil.",
+      "details_warn": "Etkin uzak paylaşım hizmetleri tespit edildi; ağ üzerinden saldırı yüzeyini genişletiyor.",
+      "details_fail": "Eski veya güvensiz uzak paylaşım protokolleri (TFTP veya NFS) aktif olarak çalışıyor.",
+      "remediation_desc": "Gereksiz paylaşım hizmetlerini devre dışı bırakın (örneğin: sudo launchctl disable system/com.apple.smbd veya sudo systemsetup -setremotelogin off)."
+    },
+    "HARD-08": {
+      "title": "Bellenim Parolası / Kurtarma Kilidi",
+      "details_pass": "Bellenim parolası etkin. Başlangıç diskinde ve NVRAM önyükleme argümanlarında yetkisiz değişiklikler engelleniyor.",
+      "details_warn": "Bellenim parolası yapılandırması doğrulanamadı veya kısmi koruma devrede.",
+      "details_fail": "Bellenim parolası etkin değil. Fiziksel erişime sahip bir saldırgan harici medyadan önyükleme yapabilir veya NVRAM'i sıfırlayabilir.",
+      "remediation_desc": "Kurtarma Modunda yeniden başlatın ve Başlangıç Güvenliği İzlencesi (Intel) veya MDM Kurtarma Kilidi üzerinden parola belirleyin."
+    },
+    "HARD-09": {
+      "title": "Güvenli Önyükleme / Kimliği Doğrulanmış Kök (Authenticated Root)",
+      "details_pass": "Kimliği Doğrulanmış Kök (Authenticated Root) etkin ve Güvenli Önyükleme Tam Güvenlik (Full Security) seviyesinde.",
+      "details_warn": "Kimliği Doğrulanmış Kök devre dışı veya Güvenli Önyükleme seviyesi Tam Güvenlik yerine Düşürülmüş/İzin Verici modda.",
+      "details_fail": "Güvenli önyükleme mekanizmaları devre dışı bırakılmış; sistem birimi mühür bütünlüğü manipülasyona açık.",
+      "remediation_desc": "Kurtarma Modu → Başlangıç Güvenliği İzlencesi → Tam Güvenlik seçeneğini belirleyin ve csrutil authenticated-root enable komutunu uygulayın."
+    },
+    "HARD-10": {
+      "title": "Otomatik Girişin Devre Dışı Bırakılması",
+      "details_pass": "Otomatik oturum açma devre dışı (autoLoginUser tanımsız veya boş).",
+      "details_warn": "Otomatik oturum açma yapılandırması kullanıcı profilinde tutarsız görünüyor.",
+      "details_fail": "Bir kullanıcı hesabı için otomatik oturum açma etkin! Başlangıçta parola sorulmadan masaüstüne doğrudan erişilebilir.",
+      "remediation_desc": "Otomatik oturum açmayı devre dışı bırakın: sudo defaults delete /Library/Preferences/com.apple.loginwindow autoLoginUser"
+    },
+    "HARD-11": {
+      "title": "Bluetooth Paylaşımı",
+      "details_pass": "Bluetooth Paylaşımı devre dışı (PrefKeyServicesEnabled kapalı veya tanımsız).",
+      "details_warn": "Bluetooth Paylaşımı etkin. Yakındaki cihazlar Bluetooth üzerinden dosya aktarabilir veya servisleri tarayabilir.",
+      "details_fail": "Bluetooth Paylaşımı kontrolsüz dosya transferine izin verecek şekilde yapılandırılmış.",
+      "remediation_desc": "Bluetooth Paylaşımını devre dışı bırakın: sudo defaults write /Library/Preferences/com.apple.Bluetooth PrefKeyServicesEnabled -bool false"
+    },
+    "HARD-12": {
+      "title": "Kullanıcı Ev Dizini İzinleri",
+      "details_pass": "Ev dizini erişim izinleri güvenli (700 veya 750; diğer kullanıcı erişimleri kısıtlı).",
+      "details_warn": "Ev dizini izinleri çok geniş (herkese açık okunabilir/yazılabilir veya grup yazabilir); kullanıcı verilerini ifşa ediyor.",
+      "details_fail": "Ev dizini izinleri kritik seviyede güvensiz; tüm yerel kullanıcılar tarafından yazılabilir durumda.",
+      "remediation_desc": "Ev dizini izinlerini yalnızca kullanıcıya özel olacak şekilde sıkılaştırın: chmod 700 \"$HOME\""
+    },
+    "HARD-13": {
+      "title": "Ağ Zaman Senkronizasyonu (NTP)",
+      "details_pass": "Ağ zaman senkronizasyonu etkin (NTP servisi devrede).",
+      "details_warn": "Ağ zaman senkronizasyonu devre dışı. Hatalı saatler TLS doğrulamalarını, günlük analizlerini ve Kerberos protokolünü zayıflatır.",
+      "details_fail": "Sistem saati senkronize edilmiyor ve yerel zaman kayması güvenlik kontrollerini geçersiz kılabilir.",
+      "remediation_desc": "Ağ zaman senkronizasyonunu etkinleştirin: sudo systemsetup -setusingnetworktime on"
+    },
+    "HARD-14": {
+      "title": "Yerleşik Zararlı Yazılım Koruması (XProtect)",
+      "details_pass": "XProtect paketi sistemde mevcut ve güncel zararlı yazılım imzalarını doğruluyor.",
+      "details_warn": "XProtect paketi beklenen sistem yollarında bulunamadı veya hasar görmüş.",
+      "details_fail": "Yerleşik macOS zararlı yazılım koruması (XProtect) eksik veya tamamen devre dışı bırakılmış.",
+      "remediation_desc": "macOS Yazılım Güncelleme üzerinden XProtect paketini doğrulayın ve güncelleyin."
+    },
+    "HARD-15": {
+      "title": "USB Kısıtlı Modu (Aksesuar Güvenliği)",
+      "details_pass": "USB Kısıtlı Modu etkin; kilitliyken yeni aksesuarların bağlanması kullanıcı onayı gerektirir.",
+      "details_warn": "USB Kısıtlı Modu açıkça devre dışı bırakılmış. Cihaz kilitliyken yetkisiz aksesuarlar bağlanabilir.",
+      "details_fail": "USB kısıtlamaları kapatılmış; kilit ekranında doğrudan donanımsal DMA saldırı riski bulunmaktadır.",
+      "remediation_desc": "Sistem Ayarları > Gizlilik ve Güvenlik > Aksesuarların bağlanmasına izin ver seçeneğini 'Yeni Aksesuarlar İçin Sor' olarak ayarlayın."
+    },
+    "NET-01": {
+      "title": "Uygulama Güvenlik Duvarı Durumu (ALF)",
+      "details_pass": "macOS Uygulama Güvenlik Duvarı (ALF) etkin ve gelen bağlantıları denetliyor.",
+      "details_warn": "Uygulama Güvenlik Duvarı kısmi modda veya kuralları beklenmeyen durumda.",
+      "details_fail": "macOS Uygulama Güvenlik Duvarı devre dışı! Sistem yetkisiz gelen ağ bağlantılarını filtrelemiyor.",
+      "remediation_desc": "Uygulama Güvenlik Duvarını etkinleştirin: sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on"
+    },
+    "NET-02": {
+      "title": "Güvenlik Duvarı Gizlilik (Stealth) Modu",
+      "details_pass": "Güvenlik Duvarı Gizlilik Modu etkin. Sistem ICMP yankı isteklerini ve yetkisiz keşif paketlerini yok sayar.",
+      "details_warn": "Güvenlik Duvarı Gizlilik Modu devre dışı. Cihaz ICMP ping yanıtı verir ve ağ taramalarında görünür.",
+      "details_fail": "Gizlilik modu kapalı; ana bilgisayar açıkça ağ keşif ve tarama saldırılarına yanıt veriyor.",
+      "remediation_desc": "Gizlilik modunu etkinleştirin: sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on"
+    },
+    "NET-03": {
+      "title": "Güvenlik Duvarı İzin Verici İstisnaları",
+      "details_pass": "Güvenlik duvarında gelen bağlantılara izin verilmiş tehlikeli betik yorumlayıcısı veya ağ aracı tespit edilmedi.",
+      "details_warn": "Tehlikeli betik yorumlayıcılarına veya ham ağ araçlarına (python, bash, nc vb.) gelen bağlantı izni verilmiş.",
+      "details_fail": "Kritik geliştirme/kabuk araçları harici ağ bağlantılarını kabul edecek şekilde istisnalara eklenmiş.",
+      "remediation_desc": "Güvenlik duvarı istisnalarındaki yorumlayıcıları engelleyin: sudo /usr/libexec/ApplicationFirewall/socketfilterfw --blockapp <yol>"
+    },
+    "NET-04": {
+      "title": "BPF Paket Yakalama İzinleri",
+      "details_pass": "Berkeley Paket Filtresi (/dev/bpf*) aygıtları kesin olarak root yetkisiyle sınırlandırılmıştır.",
+      "details_warn": "Yetkisiz paket yakalama izni tespit edildi; root ayrıcalığı olmayan kullanıcılar veya süreçler ağ trafiğini dinleyebilir.",
+      "details_fail": "/dev/bpf* aygıtları tüm kullanıcılara açık (world-readable); yerel kullanıcılar şifrelenmemiş trafiği gizlice kaydedebilir.",
+      "remediation_desc": "Kullanıcıyı access_bpf grubundan çıkarın ve aygıt izinlerini sıkılaştırın: sudo chmod 600 /dev/bpf*"
+    },
+    "NET-05": {
+      "title": "/etc/hosts Dosyası Geri Döngü (Loopback) Bütünlüğü",
+      "details_pass": "/etc/hosts dosyasındaki IPv4 ve IPv6 localhost geri döngü eşlemeleri geçerli ve aktif.",
+      "details_warn": "/etc/hosts dosyasında yorum satırı yapılmış veya standart dışı geri döngü kayıtları tespit edildi.",
+      "details_fail": "/etc/hosts dosyasında localhost geri döngü çözümlemesi eksik veya dosya silinmiş! Sistem ad çözümlemesi bozulabilir.",
+      "remediation_desc": "/etc/hosts dosyasına standart localhost eşlemelerini ekleyin: 127.0.0.1 localhost ve ::1 localhost"
+    },
+    "NET-06": {
+      "title": "Genel Ağa Açık Dinleyen TCP Servisleri",
+      "details_pass": "Yetkisiz üçüncü taraf servislerin harici/joker (0.0.0.0 veya *) ağ arayüzlerinde dinleme yapmadığı doğrulandı.",
+      "details_warn": "Sistem dışı servisler harici arayüzlerde (0.0.0.0 / *) dinleme yapıyor; ağdan doğrudan erişilebilir.",
+      "details_fail": "Kritik güvensiz servisler tüm ağ arayüzlerine açık biçimde dinleme gerçekleştiriyor.",
+      "remediation_desc": "Servisleri yalnızca yerel geri döngü arayüzüne (127.0.0.1) bağlanacak şekilde yeniden yapılandırın."
+    },
+    "NET-07": {
+      "title": "AirDrop Kablosuz Paylaşımı",
+      "details_pass": "AirDrop devre dışı veya kablosuz radyo arayüzü (awdl0) etkin değil.",
+      "details_warn": "AirDrop devre dışı bırakılmamış ve awdl0 arayüzü açık; yakındaki cihazlar bu Mac'i keşfedebilir.",
+      "details_fail": "AirDrop herkese açık modda çalışıyor ve yetkisiz kablosuz veri transferine zemin hazırlıyor.",
+      "remediation_desc": "AirDrop özelliğini devre dışı bırakın: defaults write com.apple.NetworkBrowser DisableAirDrop -bool true"
+    },
+    "NET-08": {
+      "title": "İnternet Paylaşımı (NAT / Köprü)",
+      "details_pass": "İnternet Paylaşımı (NAT) devre dışı veya yapılandırılmamış.",
+      "details_warn": "İnternet Paylaşımı servis yapılandırması etkin görünüyor.",
+      "details_fail": "İnternet Paylaşımı (NAT) etkin! Bu Mac diğer cihazlar için ağ geçidi ve yönlendirici olarak çalışıyor.",
+      "remediation_desc": "Sistem Ayarları > Genel > Paylaşım menüsünden İnternet Paylaşımını kapatın."
+    },
+    "NET-09": {
+      "title": "Güvenlik Duvarı Günlük Kaydı (Logging)",
+      "details_pass": "Uygulama Güvenlik Duvarı günlük kaydı modu etkin; bağlantı olayları kaydediliyor.",
+      "details_warn": "Güvenlik duvarı günlük kaydı kapalı; bağlantı izin/engelleme olayları denetim izi için kaydedilmiyor.",
+      "details_fail": "Güvenlik duvarı olay günlükleri tamamen devre dışı; adli analiz veya iz sürme imkansız.",
+      "remediation_desc": "Güvenlik duvarı günlük kaydını açın: sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setloggingmode on"
+    },
+    "NET-10": {
+      "title": "IP Yönlendirme (IP Forwarding)",
+      "details_pass": "IP yönlendirme devre dışı (net.inet.ip.forwarding=0 ve net.inet6.ip6.forwarding=0).",
+      "details_warn": "IPv4 veya IPv6 yönlendirmelerinden biri etkin; sistem paket yönlendirici gibi davranabilir.",
+      "details_fail": "IPv4 paket yönlendirme açık (net.inet.ip.forwarding=1)! Cihaz ağlar arasında izinsiz trafik köprüleyebilir.",
+      "remediation_desc": "Çekirdek IP yönlendirmesini kapatın: sudo sysctl -w net.inet.ip.forwarding=0 && sudo sysctl -w net.inet6.ip6.forwarding=0"
+    },
+    "NET-11": {
+      "title": "Karışık Moddaki Ağ Arayüzleri (Promiscuous Mode)",
+      "details_pass": "Geri döngü haricindeki hiçbir ağ arayüzü karışık (promiscuous) dinleme modunda değil.",
+      "details_warn": "Geri döngü dışı ağ arayüzü karışık (PROMISC) modda; sistemde aktif bir paket yakalama veya dinleme aracı çalışıyor olabilir.",
+      "details_fail": "Fiziksel ağ arayüzü karışık modda ağ trafiğini izliyor; veri sızıntısı veya izinsiz dinleme riski mevcut.",
+      "remediation_desc": "Paket dinleme araçlarını sonlandırın ve arayüzü normal moda alın: sudo ifconfig <arayüz> -promisc"
+    },
+    "SEC-01": {
+      "title": "Kabuk Profillerinde Düz Metin API Anahtarları",
+      "details_pass": "Kabuk başlatma dosyalarında düz metin API anahtarı veya parola tespit edilmedi; izinler korumalı.",
+      "details_warn": "Kabuk başlatma dosyaları herkese açık okunabilir (644 vb.); ortam değişkenlerini ve sistem yollarını ifşa ediyor.",
+      "details_fail": "Kabuk profillerinde düz metin API anahtarları veya parolalar bulundu! Ortam değişkenleri ifşa riski altında.",
+      "remediation_desc": "Sabit kodlanmış API anahtarlarını kaldırıp macOS Keychain'e taşıyın; dosya izinlerini sıkılaştırın: chmod 600 ~/.zshrc ~/.bashrc"
+    },
+    "SEC-02": {
+      "title": "Açıkta Kalan .env Yapılandırma Dosyaları",
+      "details_pass": "Yaygın proje dizinlerinde herkese açık okunabilir .env yapılandırma dosyası tespit edilmedi.",
+      "details_warn": "Hassas sırlar içeren herkese açık okunabilir .env dosyaları tespit edildi.",
+      "details_fail": "Kritik kimlik bilgileri barındıran .env dosyaları tüm sistem kullanıcıları tarafından okunabilir durumda.",
+      "remediation_desc": "Dosya izinlerini kısıtlayın (chmod 600) ve .env dosyalarını kesinlikle .gitignore içerisine ekleyin."
+    },
+    "SEC-03": {
+      "title": "Anahtar Zinciri (Keychain) Otomatik Kilit Zaman Aşımı",
+      "details_pass": "Giriş anahtarlığı otomatik kilitleme ayarı yapılandırılmış (uykuda kilitleme veya süre sınırı devrede).",
+      "details_warn": "Anahtar zinciri durumu veya zaman aşımı ayarı doğrulanamadı; manuel kontrol önerilir.",
+      "details_fail": "Giriş anahtarlığı zaman aşımı olmadan ('no-timeout') ayarlanmış; oturum boştayken kimlik bilgileri sürekli açık kalıyor.",
+      "remediation_desc": "Anahtar zinciri için boşta kalma kilit süresi belirleyin: security set-keychain-settings -t 900 -l ~/Library/Keychains/login.keychain-db"
+    },
+    "SEC-04": {
+      "title": "Çekirdek Bellek Dökümleri (Kernel Core Dumps)",
+      "details_pass": "Çekirdek bellek dökümleri devre dışı (kern.coredump=0).",
+      "details_warn": "Çekirdek bellek dökümleri etkin (kern.coredump=1). Çöken süreçler bellekteki hassas verileri diske yazabilir.",
+      "details_fail": "Çekirdek bellek dökümü korumasız bırakılmış; parola ve anahtar kalıntıları bellek dökümünden elde edilebilir.",
+      "remediation_desc": "Bellek dökümlerini devre dışı bırakın: sudo sysctl -w kern.coredump=0"
+    },
+    "SEC-05": {
+      "title": "SSH Anahtar ve Yapılandırma İzinleri",
+      "details_pass": "~/.ssh dizini (700), özel anahtarlar (600) ve yapılandırma dosyası güvenli izinlere sahip.",
+      "details_warn": "Güvensiz SSH dosya veya dizin izinleri tespit edildi; diğer kullanıcıların erişimine açık olabilir.",
+      "details_fail": "SSH özel anahtarları veya yapılandırma dosyası herkese açık okunabilir/yazılabilir durumda!",
+      "remediation_desc": "SSH dosya ve dizin izinlerini sıkılaştırın: chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_* ~/.ssh/config"
+    },
+    "SEC-06": {
+      "title": "Şifrelenmemiş SSH Özel Anahtarları",
+      "details_pass": "~/.ssh dizininde parola koruması olmayan şifrelenmemiş özel anahtar bulunamadı.",
+      "details_warn": "Parola (passphrase) koruması bulunmayan şifrelenmemiş SSH özel anahtarı tespit edildi.",
+      "details_fail": "Kritik SSH özel anahtarları şifresiz saklanıyor; dosyanın kopyalanması halinde doğrudan yetkisiz erişim sağlanabilir.",
+      "remediation_desc": "Özel anahtarlara güçlü bir parola koruması ekleyin: ssh-keygen -p -f ~/.ssh/<anahtar_dosyası>"
+    },
+    "SEC-07": {
+      "title": "Kabuk Komut Geçmişinde Kalan Gizli Bilgiler",
+      "details_pass": "Kabuk komut geçmişi dosyalarında API anahtarı veya kimlik bilgisi izi tespit edilmedi.",
+      "details_warn": "Kabuk komut geçmişi dosyalarında (zsh_history, bash_history) kimlik bilgisi veya API anahtarı bulundu.",
+      "details_fail": "Kritik parolalar veya üretim belirteçleri kabuk geçmişinde düz metin olarak kaydedilmiş.",
+      "remediation_desc": "İlgili satırları kabuk geçmişinden temizleyin (tüm geçmişi silmeyin): sed -i '' '/ANAHTAR/d' ~/.zsh_history"
+    },
+    "SEC-08": {
+      "title": "SSH Sunucusu (sshd) Sıkılaştırma",
+      "details_pass": "SSH servisi harici erişime kapalı veya sshd yapılandırmasında güvensiz parametre tespit edilmedi.",
+      "details_warn": "SSH sunucusu zayıf yapılandırma parametreleriyle (PermitRootLogin, PasswordAuthentication vb.) dış ağa açık.",
+      "details_fail": "SSH sunucusu doğrudan root girişine ve zayıf kimlik doğrulamasına izin verecek şekilde dışa açık.",
+      "remediation_desc": "/etc/ssh/sshd_config dosyasını düzenleyerek PermitRootLogin no ve PasswordAuthentication no değerlerini uygulayın."
+    },
+    "SEC-09": {
+      "title": "Şüpheli Kabuk Geçmişi Dosyaları",
+      "details_pass": "Kabuk geçmişi dosyaları düzenli standart dosyalardır (~/.zsh_history, ~/.bash_history).",
+      "details_warn": "Standart dışı kabuk geçmişi dosyası tespit edildi (sembolik bağ, dizin, aygıt); saldırgan etkinliğini gizleyebilir.",
+      "details_fail": "Komut geçmişi /dev/null veya harici bir aygıta yönlendirilerek denetim izleri karartılmış.",
+      "remediation_desc": "Yönlendirilmiş veya sembolik bağ olan geçmiş dosyalarını kaldırıp normal dosya ile değiştirin."
+    },
+    "PERS-01": {
+      "title": "LaunchAgents Kalıcılık Denetimi",
+      "details_pass": "~/Library ve /Library altındaki LaunchAgent öğeleri incelendi; tümü geçerli ikili dosyalara işaret ediyor.",
+      "details_warn": "Şüpheli LaunchAgent girdileri tespit edildi (geçici dizinlerden çalıştırma veya satır içi komut yürütme).",
+      "details_fail": "Açıkça zararlı veya geçici yollardan yetkisiz betik çalıştıran LaunchAgent kalıcılık mekanizması bulundu.",
+      "remediation_desc": "İlgili şüpheli plist dosyasını kaldırın ve launchctl unload komutuyla servisi devreden çıkarın."
+    },
+    "PERS-02": {
+      "title": "Sistem LaunchDaemons Kalıcılık Denetimi",
+      "details_pass": "/Library/LaunchDaemons altındaki tüm servisler incelendi; geçerli sistem/uygulama hedeflerine işaret ediyor.",
+      "details_warn": "Şüpheli, bozuk veya geçici dizinleri referans alan sistem LaunchDaemon servisleri bulundu.",
+      "details_fail": "Root yetkisiyle çalışan LaunchDaemon, kullanıcı dizininde veya geçici yolda bulunan bir hedefi çalıştırıyor.",
+      "remediation_desc": "Tanınmayan LaunchDaemon servislerini durdurun ve kaldırın: sudo launchctl unload -w <plist> && sudo rm <plist>"
+    },
+    "PERS-03": {
+      "title": "Zamanlanmış Cron Görevleri",
+      "details_pass": "Yapılandırılmış aktif cron görevi bulunmuyor (sistem yalnızca launchd mekanizmasını kullanıyor).",
+      "details_warn": "Aktif crontab veya sistem cron girdileri bulundu. Eski cron mekanizması denetimsiz kalıcılık için istismar edilebilir.",
+      "details_fail": "Bilinmeyen veya şüpheli betikleri periyodik çalıştıran aktif crontab girdileri tespit edildi.",
+      "remediation_desc": "crontab -l ile zamanlanmış görevleri inceleyin ve yerel macOS launchd plist yapısına geçirin."
+    },
+    "PERS-04": {
+      "title": "Kullanıcı Oturum Açma Öğeleri (Login Items)",
+      "details_pass": "Masaüstü oturumu açılışında otomatik başlayacak kullanıcı oturum açma öğesi yapılandırılmamış.",
+      "details_warn": "Oturum açılışında otomatik başlatılan çok sayıda veya tanınmayan üçüncü taraf uygulaması mevcut.",
+      "details_fail": "Güvenilir olmayan kaynaklardan gelen uygulamalar oturum açma öğelerine eklenmiş.",
+      "remediation_desc": "Sistem Ayarları > Genel > Giriş Öğeleri menüsünden gereksiz başlangıç uygulamalarını kaldırın."
+    },
+    "PERS-05": {
+      "title": "Yetkilendirilmiş SSH Genel Anahtarları",
+      "details_pass": "~/.ssh/authorized_keys dosyası mevcut değil (kullanıcı için gelen genel anahtar ile SSH girişi devre dışı).",
+      "details_warn": "Yetkilendirilmiş genel SSH anahtarları yüklü. Tüm anahtarların doğrulanmış yöneticilere ait olduğundan emin olunmalıdır.",
+      "details_fail": "Tanınmayan veya güvenliği ihlal edilmiş genel anahtarlar SSH erişim listesinde bulunuyor.",
+      "remediation_desc": "~/.ssh/authorized_keys dosyasını denetleyin, gereksiz veya eski anahtarları kaldırın."
+    },
+    "PERS-06": {
+      "title": "Sudoers Yapılandırması ve Parolasız (NOPASSWD) Kurallar",
+      "details_pass": "/etc/sudoers veya /etc/sudoers.d/ altında parolasız NOPASSWD kuralı tespit edilmedi.",
+      "details_warn": "/etc/sudoers.d/ altında özel yapılandırma dosyaları mevcut; yetki tanımları incelenmelidir.",
+      "details_fail": "Parolasız yetki yükseltme (NOPASSWD) tespit edildi! Herhangi bir süreç parola sormadan root ayrıcalığı kazanabilir.",
+      "remediation_desc": "sudo visudo komutuyla NOPASSWD direktiflerini kaldırarak her işlemde parola zorunluluğu getirin."
+    },
+    "PERS-07": {
+      "title": "Ayrıcalıklı Yardımcı Araçlar (Privileged Helper Tools)",
+      "details_pass": "/Library/PrivilegedHelperTools altındaki araçlar incelendi; tüm kod imzaları geçerli ve doğrulandı.",
+      "details_warn": "İmzasız veya kod imzası geçersiz ayrıcalıklı yardımcı araç tespit edildi.",
+      "details_fail": "Geçersiz kod imzasına sahip veya manipüle edilmiş yardımcı araç root yetkileriyle sistemde yer alıyor.",
+      "remediation_desc": "codesign -dv --verbose=2 <yol> ile imzasız yardımcı araçları inceleyin ve şüpheli olanları kaldırın."
+    },
+    "PERS-08": {
+      "title": "Yazıcı Paylaşımı (Printer Sharing)",
+      "details_pass": "Yazıcı Paylaşımı devre dışı (CUPS yazıcıları ağ üzerinden paylaşmıyor).",
+      "details_warn": "Yazıcı Paylaşımı etkin. Paylaşılan yazıcılar CUPS üzerinden yerel saldırı yüzeyini artırır.",
+      "details_fail": "Yazıcı paylaşımı yetkisiz ağ kullanıcılarına baskı ve komut kuyruğu erişimi sağlıyor.",
+      "remediation_desc": "Yazıcı Paylaşımını kapatın: cupsctl --no-share-printers veya Sistem Ayarları > Paylaşım > Yazıcı Paylaşımı kapalı"
+    },
+    "PERS-09": {
+      "title": "Sudo Kimlik Doğrulama Zaman Aşımı",
+      "details_pass": "sudo timestamp_timeout değeri güvenli aralıkta (<= 5 dakika veya her seferinde parola soruyor).",
+      "details_warn": "sudo timestamp_timeout süresi uzun (> 15 dakika); kimlik doğrulama sonrasında yetki penceresini açık bırakıyor.",
+      "details_fail": "sudo oturum zaman aşımı kapatılmış veya tehlikeli derecede uzun bir süreye ayarlanmış.",
+      "remediation_desc": "visudo ile 'Defaults timestamp_timeout=5' satırını ekleyerek yetki süresini 5 dakikaya indirin."
+    }
+  }
+}

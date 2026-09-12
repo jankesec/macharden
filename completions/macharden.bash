@@ -19,9 +19,13 @@ _macharden_completions() {
     local formats="term json markdown html"
     local compliance_frameworks="cis nist mitre all"
     local daemon_schedules="daily weekly monthly hourly on-login"
-    local all_flags="-h --help -v --version -c --category -f --format -o --output -q --quiet --fix --generate-fix --no-color --compliance --daemon-install --daemon-uninstall --daemon-status --alert --skip-test --profile --no-profile"
+    local all_flags="-h --help -v --version -c --category -f --format -l --lang -o --output -q --quiet --fix --generate-fix --no-color --compliance --daemon-install --daemon-uninstall --daemon-status --alert --skip-test --profile --no-profile"
 
     case "${prev}" in
+        -l|--lang)
+            COMPREPLY=( $(compgen -W "en tr" -- "${cur}") )
+            return 0
+            ;;
         -c|--category)
             COMPREPLY=( $(compgen -W "${categories}" -- "${cur}") )
             return 0

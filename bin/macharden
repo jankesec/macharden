@@ -26,6 +26,7 @@ MACHAR_COMPLIANCE=""
 MACHAR_PROFILE=""
 MACHAR_NO_PROFILE=0
 typeset -ga MACHAR_SKIP_CLI=()
+MACHAR_LANG="${MACHAR_LANG:-en}"
 
 # CLI Help and Usage
 show_help() {
@@ -41,6 +42,7 @@ Options:
   -c, --category <name>      Run specific category of audit checks
                              Categories: hardening, network, secrets, persistence, all (default: all)
   -f, --format <format>      Output report format: term, markdown, json, html (default: term)
+  -l, --lang <en|tr>         Output report language: en, tr (default: en)
   -o, --output <file>        Save audit report to the specified file path
   -q, --quiet                Minimal output, print only final executive summary
   --fix                      Interactively prompt and apply remediation fixes for failed checks
@@ -185,6 +187,19 @@ while [[ $# -gt 0 ]]; do
         --no-profile)
             MACHAR_NO_PROFILE=1
             ;;
+        -l|--lang)
+            shift
+            if [[ $# -eq 0 || -z "$1" || "$1" == -* ]]; then
+                echo "Error: -l/--lang requires a language code (en, tr)" >&2
+                exit 1
+            fi
+            MACHAR_LANG="${1:l}"
+            if [[ "$MACHAR_LANG" != "en" && "$MACHAR_LANG" != "tr" ]]; then
+                echo "Error: Invalid language '$MACHAR_LANG'. Supported languages: en, tr" >&2
+                exit 1
+            fi
+            export MACHAR_LANG
+            ;;
         *)
             echo "Error: Unknown option '$1'" >&2
             echo "Run 'macharden --help' for available options." >&2
@@ -212,7 +227,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 
 # Load Core Modules
-for mod in ui.sh engine.sh report.sh report_html.sh remediate.sh monitor.sh compliance.sh; do
+for mod in i18n.sh ui.sh engine.sh report.sh report_html.sh remediate.sh monitor.sh compliance.sh; do
     if [[ -f "$LIB_DIR/$mod" ]]; then
         source "$LIB_DIR/$mod"
     else
@@ -220,6 +235,9 @@ for mod in ui.sh engine.sh report.sh report_html.sh remediate.sh monitor.sh comp
         exit 1
     fi
 done
+
+# Initialize Localization
+i18n_init "$MACHAR_LANG"
 
 # Initialize UI styling
 if (( MACHAR_NO_COLOR )); then
@@ -300,7 +318,7 @@ else
             report_json "$MACHAR_OUTPUT"
             ;;
         html)
-            report_html "$MACHAR_OUTPUT"
+            report_html "$MACHAR_OUTPUT" "$MACHAR_LANG"
             ;;
     esac
 fi

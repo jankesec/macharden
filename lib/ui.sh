@@ -4,6 +4,34 @@
 # Terminal UI, ANSI styling, ASCII banners, status indicators, and progress bars
 # ==============================================================================
 
+# Ensure i18n functions are available
+if ! typeset -f i18n_t >/dev/null 2>&1; then
+    _ui_lib_dir="${0:A:h}"
+    if [[ -f "${_ui_lib_dir}/i18n.sh" ]]; then
+        source "${_ui_lib_dir}/i18n.sh"
+    elif [[ -f "./lib/i18n.sh" ]]; then
+        source "./lib/i18n.sh"
+    elif [[ -f "../lib/i18n.sh" ]]; then
+        source "../lib/i18n.sh"
+    fi
+fi
+
+if ! typeset -f i18n_t >/dev/null 2>&1; then
+    i18n_t() { echo "${2:-$1}"; }
+    i18n_get_check_title() { echo "${2:-$1}"; }
+    i18n_get_check_details() { echo "${3:-$1}"; }
+    i18n_get_category_name() { echo "$1"; }
+    i18n_get_rating_text() {
+        local score="${1:-0}"
+        local s=0
+        [[ "$score" =~ ^[0-9]+ ]] && s=${score%%.*}
+        if (( s >= 85 )); then echo "EXCELLENT / HARDENED"
+        elif (( s >= 70 )); then echo "GOOD / ACCEPTABLE"
+        elif (( s >= 50 )); then echo "FAIR / NEEDS ATTENTION"
+        else echo "CRITICAL / VULNERABLE"; fi
+    }
+fi
+
 # Initialize or reset ANSI color codes
 ui_init_colors() {
     if [[ "${MACHAR_NO_COLOR:-0}" -eq 1 ]] || [[ -n "${NO_COLOR:-}" ]] || [[ ! -t 1 && -z "${MACHAR_FORCE_COLOR:-}" ]]; then
@@ -74,17 +102,29 @@ ui_banner() {
     current_user=$(id -un 2>/dev/null || whoami)
     hostname=$(hostname -s 2>/dev/null || hostname)
 
+    local app_desc="  macOS Security Hardening & Audit Scanner  v${version}"
+    local lbl_host="Target Host:"
+    local lbl_build="macOS Build:"
+    local lbl_time="Audit Time:"
+
+    if [[ "${CURRENT_LANG:-en}" == "tr" ]]; then
+        app_desc="  $(i18n_t "ui.app_desc" "macOS Güvenlik Sıkılaştırma ve Denetim Tarayıcısı")  v${version}"
+        lbl_host="$(i18n_t "ui.kpi.target_host" "Hedef Sistem:")"
+        lbl_build="$(i18n_t "ui.kpi.macos_build" "macOS Sürümü:")"
+        lbl_time="$(i18n_t "ui.kpi.audit_time" "Denetim Zamanı:")"
+    fi
+
     cat <<EOF
 ${COLOR_BCYAN}                   _                     _            ${COLOR_RESET}
 ${COLOR_BCYAN}  _ __ ___   __ _  ___| |__   __ _ _ __   __| | ___ _ __  ${COLOR_RESET}
 ${COLOR_BCYAN} | '_ \` _ \ / _\` |/ __| '_ \ / _\` | '__| / _\` |/ _ \ '_ \ ${COLOR_RESET}
 ${COLOR_BCYAN} | | | | | | (_| | (__| | | | (_| | |   | (_| |  __/ | | |${COLOR_RESET}
 ${COLOR_BCYAN} |_| |_| |_|\__,_|\___|_| |_|\__,_|_|    \__,_|\___|_| |_|${COLOR_RESET}
-${COLOR_DIM}  macOS Security Hardening & Audit Scanner  v${version}${COLOR_RESET}
+${COLOR_DIM}${app_desc}${COLOR_RESET}
 ${COLOR_DIM}──────────────────────────────────────────────────────────────────────${COLOR_RESET}
- ${COLOR_BOLD}Target Host:${COLOR_RESET}   ${COLOR_WHITE}${hostname}${COLOR_RESET} (${COLOR_DIM}${current_user}${COLOR_RESET})
- ${COLOR_BOLD}macOS Build:${COLOR_RESET}   ${COLOR_WHITE}${os_product} ${os_version} (Build ${os_build}) [${arch}]${COLOR_RESET}
- ${COLOR_BOLD}Audit Time:${COLOR_RESET}    ${COLOR_WHITE}${current_time}${COLOR_RESET}
+ ${COLOR_BOLD}${lbl_host}${COLOR_RESET}   ${COLOR_WHITE}${hostname}${COLOR_RESET} (${COLOR_DIM}${current_user}${COLOR_RESET})
+ ${COLOR_BOLD}${lbl_build}${COLOR_RESET}   ${COLOR_WHITE}${os_product} ${os_version} (Build ${os_build}) [${arch}]${COLOR_RESET}
+ ${COLOR_BOLD}${lbl_time}${COLOR_RESET}    ${COLOR_WHITE}${current_time}${COLOR_RESET}
 ${COLOR_DIM}──────────────────────────────────────────────────────────────────────${COLOR_RESET}
 EOF
 }
@@ -105,26 +145,51 @@ ui_result() {
     local details="${4:-}"
 
     local badge=""
-    case "$check_status" in
-        PASS)
-            badge="${COLOR_BGREEN}${COLOR_BOLD}[PASS]${COLOR_RESET}"
-            ;;
-        WARN)
-            badge="${COLOR_BYELLOW}${COLOR_BOLD}[WARN]${COLOR_RESET}"
-            ;;
-        FAIL)
-            badge="${COLOR_BRED}${COLOR_BOLD}[FAIL]${COLOR_RESET}"
-            ;;
-        INFO)
-            badge="${COLOR_BCYAN}${COLOR_BOLD}[INFO]${COLOR_RESET}"
-            ;;
-        SUGG)
-            badge="${COLOR_BMAGENTA}${COLOR_BOLD}[SUGG]${COLOR_RESET}"
-            ;;
-        *)
-            badge="${COLOR_WHITE}[$check_status]${COLOR_RESET}"
-            ;;
-    esac
+    if [[ "${CURRENT_LANG:-en}" == "tr" ]]; then
+        case "$check_status" in
+            PASS)
+                badge="${COLOR_BGREEN}${COLOR_BOLD}[$(i18n_t "ui.status.pass" "BAŞARILI")]${COLOR_RESET}"
+                ;;
+            WARN)
+                badge="${COLOR_BYELLOW}${COLOR_BOLD}[$(i18n_t "ui.status.warn" "UYARI")]${COLOR_RESET}"
+                ;;
+            FAIL)
+                badge="${COLOR_BRED}${COLOR_BOLD}[$(i18n_t "ui.status.fail" "BAŞARISIZ")]${COLOR_RESET}"
+                ;;
+            INFO)
+                badge="${COLOR_BCYAN}${COLOR_BOLD}[$(i18n_t "ui.status.info" "BİLGİ")]${COLOR_RESET}"
+                ;;
+            SUGG)
+                badge="${COLOR_BMAGENTA}${COLOR_BOLD}[$(i18n_t "ui.status.sugg" "ÖNERİ")]${COLOR_RESET}"
+                ;;
+            *)
+                badge="${COLOR_WHITE}[$check_status]${COLOR_RESET}"
+                ;;
+        esac
+        title=$(i18n_get_check_title "$id" "$title")
+        details=$(i18n_get_check_details "$id" "$check_status" "$details")
+    else
+        case "$check_status" in
+            PASS)
+                badge="${COLOR_BGREEN}${COLOR_BOLD}[PASS]${COLOR_RESET}"
+                ;;
+            WARN)
+                badge="${COLOR_BYELLOW}${COLOR_BOLD}[WARN]${COLOR_RESET}"
+                ;;
+            FAIL)
+                badge="${COLOR_BRED}${COLOR_BOLD}[FAIL]${COLOR_RESET}"
+                ;;
+            INFO)
+                badge="${COLOR_BCYAN}${COLOR_BOLD}[INFO]${COLOR_RESET}"
+                ;;
+            SUGG)
+                badge="${COLOR_BMAGENTA}${COLOR_BOLD}[SUGG]${COLOR_RESET}"
+                ;;
+            *)
+                badge="${COLOR_WHITE}[$check_status]${COLOR_RESET}"
+                ;;
+        esac
+    fi
 
     printf "  %b  ${COLOR_BOLD}%-12s${COLOR_RESET} %s\n" "$badge" "$id" "$title"
     if [[ -n "$details" ]]; then
@@ -153,22 +218,28 @@ ui_score_bar() {
     local bar_color="${COLOR_BRED}"
     local rating="CRITICAL / VULNERABLE"
     local rating_color="${COLOR_BRED}"
+    local bar_label="Hardening Index:"
+
+    if [[ "${CURRENT_LANG:-en}" == "tr" ]]; then
+        rating=$(i18n_get_rating_text "$score")
+        bar_label="$(i18n_t "ui.hardening_index" "Sıkılaştırma İndeksi"):"
+    fi
 
     if (( int_score >= 85 )); then
         bar_color="${COLOR_BGREEN}"
-        rating="EXCELLENT / HARDENED"
+        [[ "${CURRENT_LANG:-en}" != "tr" ]] && rating="EXCELLENT / HARDENED"
         rating_color="${COLOR_BGREEN}"
     elif (( int_score >= 70 )); then
         bar_color="${COLOR_BYELLOW}"
-        rating="GOOD / ACCEPTABLE"
+        [[ "${CURRENT_LANG:-en}" != "tr" ]] && rating="GOOD / ACCEPTABLE"
         rating_color="${COLOR_BYELLOW}"
     elif (( int_score >= 50 )); then
         bar_color="${COLOR_YELLOW}"
-        rating="FAIR / NEEDS ATTENTION"
+        [[ "${CURRENT_LANG:-en}" != "tr" ]] && rating="FAIR / NEEDS ATTENTION"
         rating_color="${COLOR_YELLOW}"
     else
         bar_color="${COLOR_BRED}"
-        rating="CRITICAL / VULNERABLE"
+        [[ "${CURRENT_LANG:-en}" != "tr" ]] && rating="CRITICAL / VULNERABLE"
         rating_color="${COLOR_BRED}"
     fi
 
@@ -182,8 +253,8 @@ ui_score_bar() {
         unfilled_str="${unfilled_str}░"
     done
 
-    printf "  ${COLOR_BOLD}Hardening Index:${COLOR_RESET} [${bar_color}%s${COLOR_RESET}${COLOR_DIM}%s${COLOR_RESET}] ${COLOR_BOLD}%5.1f%%${COLOR_RESET} (${rating_color}%s${COLOR_RESET})\n" \
-        "$filled_str" "$unfilled_str" "$score" "$rating"
+    printf "  ${COLOR_BOLD}%s${COLOR_RESET} [${bar_color}%s${COLOR_RESET}${COLOR_DIM}%s${COLOR_RESET}] ${COLOR_BOLD}%5.1f%%${COLOR_RESET} (${rating_color}%s${COLOR_RESET})\n" \
+        "$bar_label" "$filled_str" "$unfilled_str" "$score" "$rating"
 }
 
 # Visually aligned category score row with a colored 15-char progress bar and pass/warn/fail badges
@@ -238,7 +309,18 @@ ui_category_score_row() {
         score_num="$score"
     fi
 
-    printf "  ${COLOR_BOLD}%-14s${COLOR_RESET} [${bar_color}%s${COLOR_RESET}${COLOR_DIM}%s${COLOR_RESET}] ${COLOR_BOLD}%5.1f%%${COLOR_RESET}  ${COLOR_BGREEN}${COLOR_BOLD}[%d PASS]${COLOR_RESET} ${COLOR_BYELLOW}${COLOR_BOLD}[%d WARN]${COLOR_RESET} ${COLOR_BRED}${COLOR_BOLD}[%d FAIL]${COLOR_RESET}\n" \
+    local pass_lbl="PASS"
+    local warn_lbl="WARN"
+    local fail_lbl="FAIL"
+    local cat_width=14
+    if [[ "${CURRENT_LANG:-en}" == "tr" ]]; then
+        pass_lbl="$(i18n_t "ui.status.pass" "BAŞARILI")"
+        warn_lbl="$(i18n_t "ui.status.warn" "UYARI")"
+        fail_lbl="$(i18n_t "ui.status.fail" "BAŞARISIZ")"
+        cat_width=34
+    fi
+
+    printf "  ${COLOR_BOLD}%-${cat_width}s${COLOR_RESET} [${bar_color}%s${COLOR_RESET}${COLOR_DIM}%s${COLOR_RESET}] ${COLOR_BOLD}%5.1f%%${COLOR_RESET}  ${COLOR_BGREEN}${COLOR_BOLD}[%d ${pass_lbl}]${COLOR_RESET} ${COLOR_BYELLOW}${COLOR_BOLD}[%d ${warn_lbl}]${COLOR_RESET} ${COLOR_BRED}${COLOR_BOLD}[%d ${fail_lbl}]${COLOR_RESET}\n" \
         "$cat_name" "$filled_str" "$unfilled_str" "$score_num" "$passed" "$warn" "$fail"
 }
 
@@ -278,7 +360,9 @@ ui_grade_box() {
     fi
 
     if [[ -z "$rating_text" ]]; then
-        if (( int_score >= 85 )); then
+        if typeset -f i18n_get_rating_text >/dev/null 2>&1; then
+            rating_text=$(i18n_get_rating_text "$score")
+        elif (( int_score >= 85 )); then
             rating_text="EXCELLENT / HARDENED"
         elif (( int_score >= 70 )); then
             rating_text="GOOD / ACCEPTABLE"
@@ -312,7 +396,12 @@ ui_grade_box() {
         border_color="${COLOR_BRED}"
     fi
 
-    local text="  GRADE: ${letter_grade} (${score_fmt}%)  •  ${rating_text}  "
+    local grade_word="GRADE"
+    if [[ "${CURRENT_LANG:-en}" == "tr" ]]; then
+        grade_word="$(i18n_t "ui.grade" "DERECE")"
+    fi
+
+    local text="  ${grade_word}: ${letter_grade} (${score_fmt}%)  •  ${rating_text}  "
     local inner_len=${#text}
     if (( inner_len < 42 )); then
         inner_len=42
@@ -331,8 +420,9 @@ ui_grade_box() {
     done
 
     printf "  %b┌%s┐%b\n" "${border_color}" "${hline}" "${COLOR_RESET}"
-    printf "  %b│%b  ${COLOR_BOLD}GRADE: %b%s%b (%s%%)  ${COLOR_DIM}•${COLOR_RESET}  %b%s%b  %s%b│%b\n" \
+    printf "  %b│%b  ${COLOR_BOLD}%s: %b%s%b (%s%%)  ${COLOR_DIM}•${COLOR_RESET}  %b%s%b  %s%b│%b\n" \
         "${border_color}" "${COLOR_RESET}" \
+        "${grade_word}" \
         "${grade_color}" "${letter_grade}" "${COLOR_RESET}" \
         "${score_fmt}" \
         "${grade_color}" "${rating_text}" "${COLOR_RESET}" \

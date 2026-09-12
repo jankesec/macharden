@@ -487,6 +487,41 @@ assert_match "CIS 5.1.2" "$CHIP_CONTENT" "HTML renders CIS chip from compliance 
 assert_match "SI-7" "$CHIP_CONTENT" "HTML renders NIST chip from compliance mappings"
 assert_match "T1562.001" "$CHIP_CONTENT" "HTML renders MITRE chip from compliance mappings"
 assert_match "v1.2.0" "$CHIP_CONTENT" "HTML navbar shows scanner version 1.2.0"
+assert_match 'id="langToggleBtn"' "$CHIP_CONTENT" "HTML contains language toggle button"
+assert_match 'id="langLabel"' "$CHIP_CONTENT" "HTML contains language label badge"
+assert_match 'toggleLanguage' "$CHIP_CONTENT" "HTML contains toggleLanguage function"
+
+# Turkish HTML report generation & validation
+TR_REPORT="${TEST_TMP_DIR}/test_report_tr.html"
+report_html "$TR_REPORT" "tr"
+assert_file_exists "$TR_REPORT" "Turkish HTML report file was generated"
+TR_CONTENT=$(cat "$TR_REPORT")
+assert_match '<html[^>]*lang="tr"' "$TR_CONTENT" "Turkish HTML contains lang='tr' attribute"
+assert_match 'data-lang="tr"' "$TR_CONTENT" "Turkish HTML contains data-lang='tr' attribute"
+assert_match "Sıkılaştırma Skoru" "$TR_CONTENT" "Turkish HTML contains translated Hardening Score"
+assert_match "Hedef Sistem Adı" "$TR_CONTENT" "Turkish HTML contains translated Target Hostname"
+assert_match "Sistem Bilgileri" "$TR_CONTENT" "Turkish HTML contains translated System Metadata"
+assert_match "Toplam Kontroller" "$TR_CONTENT" "Turkish HTML contains translated Total Controls counter"
+assert_match "Zafiyet İyileştirme Reçetesi" "$TR_CONTENT" "Turkish HTML contains translated Remediation Playbook"
+assert_match "Düzeltme Komutunu Kopyala" "$TR_CONTENT" "Turkish HTML contains translated Copy Fix Command button"
+assert_match "Sistem Bütünlüğü Koruması" "$TR_CONTENT" "Turkish HTML contains translated check title for HARD-01"
+
+# Validate zero external links in Turkish HTML report
+TR_EXTERNAL_LINKS=$(python3 -c "
+import re
+content = open('$TR_REPORT').read()
+links = re.findall(r'<(?:link|script|img)[^>]+(?:href|src)=[\"\x27](https?://[^\">>]+)[\"\x27]', content, re.I)
+print(len(links))
+")
+assert_eq "0" "$TR_EXTERNAL_LINKS" "Turkish HTML report has zero external CDN links or scripts"
+
+# CLI integration with --lang tr
+CLI_TR_REPORT="${TEST_TMP_DIR}/cli_tr.html"
+"${PROJECT_ROOT}/bin/macharden" -f html --lang tr -o "$CLI_TR_REPORT" >/dev/null 2>&1
+assert_file_exists "$CLI_TR_REPORT" "macharden -f html --lang tr generates Turkish report"
+CLI_TR_CONTENT=$(cat "$CLI_TR_REPORT")
+assert_match '<html[^>]*lang="tr"' "$CLI_TR_CONTENT" "CLI --lang tr output has lang='tr'"
+assert_match "Sıkılaştırma Skoru" "$CLI_TR_CONTENT" "CLI --lang tr output has Turkish UI strings"
 
 # ==============================================================================
 # Suite 8: Continuous Background Monitoring & Daemon Management
@@ -858,6 +893,9 @@ assert_match "daemon-install" "$HELP_OUT" "Help lists --daemon-install"
 assert_match "compliance" "$HELP_OUT" "Help lists --compliance"
 assert_match "skip-test" "$HELP_OUT" "Help lists --skip-test"
 assert_match "profile" "$HELP_OUT" "Help lists --profile"
+assert_match "lang" "$HELP_OUT" "Help lists --lang"
+INVALID_LANG_OUT=$("${PROJECT_ROOT}/bin/macharden" --lang de 2>&1 || true)
+assert_match "Invalid language" "$INVALID_LANG_OUT" "Invalid --lang prints error"
 
 # Skip-test engine + profile file
 reset_engine

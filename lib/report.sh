@@ -4,9 +4,41 @@
 # Multi-format reporting engine: Terminal summary, GitHub Markdown, and JSON
 # ==============================================================================
 
+# Ensure i18n functions are available
+if ! typeset -f i18n_t >/dev/null 2>&1; then
+    _rep_lib_dir="${0:A:h}"
+    if [[ -f "${_rep_lib_dir}/i18n.sh" ]]; then
+        source "${_rep_lib_dir}/i18n.sh"
+    elif [[ -f "./lib/i18n.sh" ]]; then
+        source "./lib/i18n.sh"
+    elif [[ -f "../lib/i18n.sh" ]]; then
+        source "../lib/i18n.sh"
+    fi
+fi
+
+if ! typeset -f i18n_t >/dev/null 2>&1; then
+    i18n_t() { echo "${2:-$1}"; }
+    i18n_get_check_title() { echo "${2:-$1}"; }
+    i18n_get_check_details() { echo "${3:-$1}"; }
+    i18n_get_category_name() { echo "$1"; }
+    i18n_get_rating_text() {
+        local score="${1:-0}"
+        local s=0
+        [[ "$score" =~ ^[0-9]+ ]] && s=${score%%.*}
+        if (( s >= 85 )); then echo "EXCELLENT / HARDENED"
+        elif (( s >= 70 )); then echo "GOOD / ACCEPTABLE"
+        elif (( s >= 50 )); then echo "FAIR / NEEDS ATTENTION"
+        else echo "CRITICAL / VULNERABLE"; fi
+    }
+fi
+
 # Helper to determine human-readable rating from score
 _get_rating_text() {
     local score="$1"
+    if typeset -f i18n_get_rating_text >/dev/null 2>&1; then
+        i18n_get_rating_text "$score"
+        return 0
+    fi
     local int_score=0
     if [[ "$score" =~ ^[0-9]+ ]]; then
         int_score=${score%%.*}
@@ -68,9 +100,16 @@ _get_severity_tag() {
 
 # Terminal executive report
 report_terminal() {
+    local is_tr=0
+    [[ "${CURRENT_LANG:-en}" == "tr" ]] && is_tr=1
+
     echo ""
     echo "${COLOR_BOLD}${COLOR_BCYAN}======================================================================${COLOR_RESET}"
-    echo "                     ${COLOR_BOLD}EXECUTIVE AUDIT SUMMARY${COLOR_RESET}"
+    if (( is_tr )); then
+        echo "                     ${COLOR_BOLD}$(i18n_t "ui.executive_summary_title" "YÖNETİCİ DENETİM ÖZETİ")${COLOR_RESET}"
+    else
+        echo "                     ${COLOR_BOLD}EXECUTIVE AUDIT SUMMARY${COLOR_RESET}"
+    fi
     echo "${COLOR_BOLD}${COLOR_BCYAN}======================================================================${COLOR_RESET}"
     echo ""
 
@@ -85,20 +124,34 @@ report_terminal() {
     ui_score_bar "$HARDENING_INDEX"
     echo ""
 
-    printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %s\n" "Total Checks Audited:" "${COLOR_BOLD}${COUNT_TOTAL}${COLOR_RESET}"
-    printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Passed Checks:" "${COLOR_BGREEN}${COUNT_PASS}${COLOR_RESET}"
-    printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Warnings:" "${COLOR_BYELLOW}${COUNT_WARN}${COLOR_RESET}"
-    printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Failed Checks:" "${COLOR_BRED}${COUNT_FAIL}${COLOR_RESET}"
-    printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Informational:" "${COLOR_BCYAN}${COUNT_INFO}${COLOR_RESET}"
-    printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Suggestions:" "${COLOR_BMAGENTA}${COUNT_SUGG}${COLOR_RESET}"
-    printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %.1f / %.1f\n" "Score Points Earned:" "$EARNED_POINTS" "$TOTAL_POSSIBLE_POINTS"
+    if (( is_tr )); then
+        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %s\n" "$(i18n_t "ui.kpi.total_checks" "Denetlenen Toplam Kontrol:")" "${COLOR_BOLD}${COUNT_TOTAL}${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.passed_checks" "Başarılı Kontroller:")" "${COLOR_BGREEN}${COUNT_PASS}${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.warnings" "Uyarılar:")" "${COLOR_BYELLOW}${COUNT_WARN}${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.failed_checks" "Başarısız Kontroller:")" "${COLOR_BRED}${COUNT_FAIL}${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.informational" "Bilgilendirme:")" "${COLOR_BCYAN}${COUNT_INFO}${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.suggestions" "Öneriler:")" "${COLOR_BMAGENTA}${COUNT_SUGG}${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %.1f / %.1f\n" "$(i18n_t "ui.kpi.points_earned" "Kazanılan Skor Puanı:")" "$EARNED_POINTS" "$TOTAL_POSSIBLE_POINTS"
+    else
+        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %s\n" "Total Checks Audited:" "${COLOR_BOLD}${COUNT_TOTAL}${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Passed Checks:" "${COLOR_BGREEN}${COUNT_PASS}${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Warnings:" "${COLOR_BYELLOW}${COUNT_WARN}${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Failed Checks:" "${COLOR_BRED}${COUNT_FAIL}${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Informational:" "${COLOR_BCYAN}${COUNT_INFO}${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Suggestions:" "${COLOR_BMAGENTA}${COUNT_SUGG}${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %.1f / %.1f\n" "Score Points Earned:" "$EARNED_POINTS" "$TOTAL_POSSIBLE_POINTS"
+    fi
     echo ""
 
     local n=${#RES_IDS[@]}
     local i=0 j=0
 
     # Category Posture Breakdown section
-    echo "${COLOR_BOLD}${COLOR_BCYAN}▶ Category Posture Breakdown:${COLOR_RESET}"
+    if (( is_tr )); then
+        echo "${COLOR_BOLD}${COLOR_BCYAN}▶ $(i18n_t "ui.sections.category_posture_breakdown" "Kategori Bazlı Güvenlik Durumu:")${COLOR_RESET}"
+    else
+        echo "${COLOR_BOLD}${COLOR_BCYAN}▶ Category Posture Breakdown:${COLOR_RESET}"
+    fi
     echo "${COLOR_DIM}----------------------------------------------------------------------${COLOR_RESET}"
     local categories=("Hardening" "Network" "Secrets" "Persistence")
     local cat_name
@@ -146,7 +199,11 @@ report_terminal() {
             cat_score="0.0"
         fi
 
-        ui_category_score_row "$cat_name" "$cat_score" "$cat_pass" "$cat_warn" "$cat_fail"
+        local display_cat="$cat_name"
+        if (( is_tr )); then
+            display_cat=$(i18n_get_category_name "$cat_lower")
+        fi
+        ui_category_score_row "$display_cat" "$cat_score" "$cat_pass" "$cat_warn" "$cat_fail"
     done
     echo ""
 
@@ -161,7 +218,11 @@ report_terminal() {
     done
 
     if (( has_recs )); then
-        echo "${COLOR_BOLD}${COLOR_BYELLOW}▶ High Priority Remediation Actions:${COLOR_RESET}"
+        if (( is_tr )); then
+            echo "${COLOR_BOLD}${COLOR_BYELLOW}▶ $(i18n_t "ui.sections.high_priority_remediation" "Yüksek Öncelikli İyileştirme Eylemleri:")${COLOR_RESET}"
+        else
+            echo "${COLOR_BOLD}${COLOR_BYELLOW}▶ High Priority Remediation Actions:${COLOR_RESET}"
+        fi
         echo "${COLOR_DIM}----------------------------------------------------------------------${COLOR_RESET}"
         
         # Display FAIL items first, then WARN items
@@ -176,40 +237,97 @@ report_terminal() {
                     local details="${RES_DETAILS[i]}"
                     local rem="${RES_REMEDIATIONS[i]}"
 
+                    if (( is_tr )); then
+                        title=$(i18n_get_check_title "$id" "$title")
+                        details=$(i18n_get_check_details "$id" "$st" "$details")
+                        cat=$(i18n_get_category_name "$cat")
+                    fi
+
                     local badge=""
                     if [[ "$st" == "FAIL" ]]; then
-                        badge="${COLOR_BRED}${COLOR_BOLD}[FAIL]${COLOR_RESET}"
+                        if (( is_tr )); then
+                            badge="${COLOR_BRED}${COLOR_BOLD}[$(i18n_t "ui.status.fail" "BAŞARISIZ")]${COLOR_RESET}"
+                        else
+                            badge="${COLOR_BRED}${COLOR_BOLD}[FAIL]${COLOR_RESET}"
+                        fi
                     else
-                        badge="${COLOR_BYELLOW}${COLOR_BOLD}[WARN]${COLOR_RESET}"
+                        if (( is_tr )); then
+                            badge="${COLOR_BYELLOW}${COLOR_BOLD}[$(i18n_t "ui.status.warn" "UYARI")]${COLOR_RESET}"
+                        else
+                            badge="${COLOR_BYELLOW}${COLOR_BOLD}[WARN]${COLOR_RESET}"
+                        fi
                     fi
 
                     local sev_tag=$(_get_severity_tag "$weight")
                     local sev_badge=""
-                    case "$sev_tag" in
-                        CRITICAL) sev_badge="${COLOR_BRED}${COLOR_BOLD}[CRITICAL]${COLOR_RESET}" ;;
-                        HIGH)     sev_badge="${COLOR_RED}${COLOR_BOLD}[HIGH]${COLOR_RESET}" ;;
-                        MEDIUM)   sev_badge="${COLOR_BYELLOW}${COLOR_BOLD}[MEDIUM]${COLOR_RESET}" ;;
-                        LOW)      sev_badge="${COLOR_BCYAN}${COLOR_BOLD}[LOW]${COLOR_RESET}" ;;
-                    esac
-
-                    printf "  %b  %b  ${COLOR_BOLD}%-10s${COLOR_RESET} %s ${COLOR_DIM}(Severity: %s, Weight: %s, Category: %s)${COLOR_RESET}\n" \
-                        "$badge" "$sev_badge" "$id" "$title" "$sev_tag" "$weight" "$cat"
-                    if [[ -n "$details" ]]; then
-                        printf "        ${COLOR_DIM}Finding:${COLOR_RESET} %s\n" "$details"
+                    local display_sev="$sev_tag"
+                    if (( is_tr )); then
+                        case "$sev_tag" in
+                            CRITICAL)
+                                sev_badge="${COLOR_BRED}${COLOR_BOLD}[$(i18n_t "ui.status.critical" "KRİTİK")]${COLOR_RESET}"
+                                display_sev="$(i18n_t "ui.status.critical" "KRİTİK")"
+                                ;;
+                            HIGH)
+                                sev_badge="${COLOR_RED}${COLOR_BOLD}[$(i18n_t "ui.status.high" "YÜKSEK")]${COLOR_RESET}"
+                                display_sev="$(i18n_t "ui.status.high" "YÜKSEK")"
+                                ;;
+                            MEDIUM)
+                                sev_badge="${COLOR_BYELLOW}${COLOR_BOLD}[$(i18n_t "ui.status.medium" "ORTA")]${COLOR_RESET}"
+                                display_sev="$(i18n_t "ui.status.medium" "ORTA")"
+                                ;;
+                            LOW)
+                                sev_badge="${COLOR_BCYAN}${COLOR_BOLD}[$(i18n_t "ui.status.low" "DÜŞÜK")]${COLOR_RESET}"
+                                display_sev="$(i18n_t "ui.status.low" "DÜŞÜK")"
+                                ;;
+                        esac
+                    else
+                        case "$sev_tag" in
+                            CRITICAL) sev_badge="${COLOR_BRED}${COLOR_BOLD}[CRITICAL]${COLOR_RESET}" ;;
+                            HIGH)     sev_badge="${COLOR_RED}${COLOR_BOLD}[HIGH]${COLOR_RESET}" ;;
+                            MEDIUM)   sev_badge="${COLOR_BYELLOW}${COLOR_BOLD}[MEDIUM]${COLOR_RESET}" ;;
+                            LOW)      sev_badge="${COLOR_BCYAN}${COLOR_BOLD}[LOW]${COLOR_RESET}" ;;
+                        esac
                     fi
-                    if [[ -n "$rem" ]]; then
-                        printf "        ${COLOR_BCYAN}Fix:${COLOR_RESET}     ${COLOR_WHITE}%s${COLOR_RESET}\n" "$rem"
+
+                    if (( is_tr )); then
+                        printf "  %b  %b  ${COLOR_BOLD}%-10s${COLOR_RESET} %s ${COLOR_DIM}(Önem: %s, Ağırlık: %s, Kategori: %s)${COLOR_RESET}\n" \
+                            "$badge" "$sev_badge" "$id" "$title" "$display_sev" "$weight" "$cat"
+                        if [[ -n "$details" ]]; then
+                            printf "        ${COLOR_DIM}%s${COLOR_RESET} %s\n" "$(i18n_t "ui.remediation.finding_label" "Bulgu:")" "$details"
+                        fi
+                        if [[ -n "$rem" ]]; then
+                            printf "        ${COLOR_BCYAN}%s${COLOR_RESET}     ${COLOR_WHITE}%s${COLOR_RESET}\n" "$(i18n_t "ui.remediation.fix_label" "Düzeltme:")" "$rem"
+                        fi
+                    else
+                        printf "  %b  %b  ${COLOR_BOLD}%-10s${COLOR_RESET} %s ${COLOR_DIM}(Severity: %s, Weight: %s, Category: %s)${COLOR_RESET}\n" \
+                            "$badge" "$sev_badge" "$id" "$title" "$sev_tag" "$weight" "$cat"
+                        if [[ -n "$details" ]]; then
+                            printf "        ${COLOR_DIM}Finding:${COLOR_RESET} %s\n" "$details"
+                        fi
+                        if [[ -n "$rem" ]]; then
+                            printf "        ${COLOR_BCYAN}Fix:${COLOR_RESET}     ${COLOR_WHITE}%s${COLOR_RESET}\n" "$rem"
+                        fi
                     fi
                     echo ""
                 fi
             done
         done
         echo "${COLOR_DIM}----------------------------------------------------------------------${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}${COLOR_BGREEN}Remediation Options:${COLOR_RESET}\n"
-        printf "    • Run with ${COLOR_BOLD}--fix${COLOR_RESET} to interactively apply available remediation fixes.\n"
-        printf "    • Run with ${COLOR_BOLD}--generate-fix [file]${COLOR_RESET} to generate an executable shell script.\n"
+        if (( is_tr )); then
+            printf "  ${COLOR_BOLD}${COLOR_BGREEN}%s${COLOR_RESET}\n" "$(i18n_t "ui.sections.remediation_options" "İyileştirme Seçenekleri:")"
+            printf "    • %s\n" "$(i18n_t "ui.remediation.opt_fix" "Kullanılabilir düzeltmeleri etkileşimli olarak uygulamak için --fix ile çalıştırın.")"
+            printf "    • %s\n" "$(i18n_t "ui.remediation.opt_gen_fix" "Çalıştırılabilir bir kabuk betiği oluşturmak için --generate-fix [dosya] ile çalıştırın.")"
+        else
+            printf "  ${COLOR_BOLD}${COLOR_BGREEN}Remediation Options:${COLOR_RESET}\n"
+            printf "    • Run with ${COLOR_BOLD}--fix${COLOR_RESET} to interactively apply available remediation fixes.\n"
+            printf "    • Run with ${COLOR_BOLD}--generate-fix [file]${COLOR_RESET} to generate an executable shell script.\n"
+        fi
     else
-        echo "  ${COLOR_BGREEN}${COLOR_BOLD}✔ Security posture is excellent. No failed checks or warnings detected.${COLOR_RESET}"
+        if (( is_tr )); then
+            echo "  ${COLOR_BGREEN}${COLOR_BOLD}✔ $(i18n_t "ui.remediation.clean_posture" "Güvenlik duruşu mükemmel. Başarısız kontrol veya uyarı tespit edilmedi.")${COLOR_RESET}"
+        else
+            echo "  ${COLOR_BGREEN}${COLOR_BOLD}✔ Security posture is excellent. No failed checks or warnings detected.${COLOR_RESET}"
+        fi
     fi
     echo ""
 }
@@ -238,11 +356,20 @@ report_markdown() {
     local n=${#RES_IDS[@]}
     local i=0 j=0 b=0
 
+    local is_tr=0
+    [[ "${CURRENT_LANG:-en}" == "tr" ]] && is_tr=1
+
     # Build Category Posture Breakdown markdown table
     local cat_table=""
-    cat_table+="| Category | Score | Progress | Status | Passed | Warnings | Deficiencies | Points Earned |
+    if (( is_tr )); then
+        cat_table+="| $(i18n_t "ui.table_headers.category" "Kategori") | $(i18n_t "ui.table_headers.score" "Skor") | $(i18n_t "ui.table_headers.progress" "İlerleme") | $(i18n_t "ui.table_headers.status" "Durum") | $(i18n_t "ui.table_headers.passed" "Başarılı") | $(i18n_t "ui.table_headers.warnings" "Uyarılar") | $(i18n_t "ui.table_headers.deficiencies" "Eksiklikler") | $(i18n_t "ui.table_headers.points_earned" "Kazanılan Puan") |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 "
+    else
+        cat_table+="| Category | Score | Progress | Status | Passed | Warnings | Deficiencies | Points Earned |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+"
+    fi
     local categories=("Hardening" "Network" "Secrets" "Persistence")
     local cat_name
     for cat_name in "${categories[@]}"; do
@@ -299,15 +426,27 @@ report_markdown() {
         local fill_sym="🟩"
         if (( int_cscore >= 85 )); then
             indicator="🟩"
-            status_lbl="🟢 PASS"
+            if (( is_tr )); then
+                status_lbl="🟢 $(i18n_t "ui.status.pass" "BAŞARILI")"
+            else
+                status_lbl="🟢 PASS"
+            fi
             fill_sym="🟩"
         elif (( int_cscore >= 70 )); then
             indicator="🟨"
-            status_lbl="🟡 WARN"
+            if (( is_tr )); then
+                status_lbl="🟡 $(i18n_t "ui.status.warn" "UYARI")"
+            else
+                status_lbl="🟡 WARN"
+            fi
             fill_sym="🟨"
         else
             indicator="🟥"
-            status_lbl="🔴 DEFICIENT"
+            if (( is_tr )); then
+                status_lbl="🔴 $(i18n_t "ui.status.deficient" "YETERSİZ")"
+            else
+                status_lbl="🔴 DEFICIENT"
+            fi
             fill_sym="🟥"
         fi
 
@@ -323,7 +462,12 @@ report_markdown() {
         local earned_fmt=$(printf "%.1f" "$cat_earned")
         local total_fmt=$(printf "%.1f" "$cat_total")
 
-        cat_table+="| **${cat_name}** | **${cat_score_fmt}%** | ${indicator} ${bar} | ${status_lbl} | ${cat_pass} | ${cat_warn} | ${cat_fail} | ${earned_fmt} / ${total_fmt} |
+        local display_cat_name="$cat_name"
+        if (( is_tr )); then
+            display_cat_name="$(i18n_get_category_name "$cat_lower")"
+        fi
+
+        cat_table+="| **${display_cat_name}** | **${cat_score_fmt}%** | ${indicator} ${bar} | ${status_lbl} | ${cat_pass} | ${cat_warn} | ${cat_fail} | ${earned_fmt} / ${total_fmt} |
 "
     done
 
@@ -384,13 +528,23 @@ report_markdown() {
     (( low_pts > 0.0 )) && low_rate=$(printf "%.1f%%" $(( (low_earned / low_pts) * 100.0 )))
 
     local sev_table=""
-    sev_table+="| Severity Level | Weight Range | Total Checks | Passed | Warnings | Failed | Compliance Rate |
+    if (( is_tr )); then
+        sev_table+="| $(i18n_t "ui.table_headers.severity_level" "Önem Derecesi") | $(i18n_t "ui.table_headers.weight_range" "Ağırlık Aralığı") | $(i18n_t "ui.table_headers.total_checks" "Toplam Kontrol") | $(i18n_t "ui.table_headers.passed" "Başarılı") | $(i18n_t "ui.table_headers.warnings" "Uyarılar") | $(i18n_t "ui.table_headers.failed" "Başarısız") | $(i18n_t "ui.table_headers.compliance_rate" "Uyumluluk Oranı") |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| 🔴 **$(i18n_t "ui.status.critical" "Kritik")** | $(i18n_t "ui.table_headers.weight" "Ağırlık") 9 – 10 | ${crit_total} | ${crit_pass} | ${crit_warn} | ${crit_fail} | ${crit_rate} |
+| 🟠 **$(i18n_t "ui.status.high" "Yüksek")** | $(i18n_t "ui.table_headers.weight" "Ağırlık") 7 – 8 | ${high_total} | ${high_pass} | ${high_warn} | ${high_fail} | ${high_rate} |
+| 🟡 **$(i18n_t "ui.status.medium" "Orta")** | $(i18n_t "ui.table_headers.weight" "Ağırlık") 5 – 6 | ${med_total} | ${med_pass} | ${med_warn} | ${med_fail} | ${med_rate} |
+| 🔵 **$(i18n_t "ui.status.low" "Düşük")** | $(i18n_t "ui.table_headers.weight" "Ağırlık") 1 – 4 | ${low_total} | ${low_pass} | ${low_warn} | ${low_fail} | ${low_rate} |
+"
+    else
+        sev_table+="| Severity Level | Weight Range | Total Checks | Passed | Warnings | Failed | Compliance Rate |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | 🔴 **Critical** | Weight 9 – 10 | ${crit_total} | ${crit_pass} | ${crit_warn} | ${crit_fail} | ${crit_rate} |
 | 🟠 **High** | Weight 7 – 8 | ${high_total} | ${high_pass} | ${high_warn} | ${high_fail} | ${high_rate} |
 | 🟡 **Medium** | Weight 5 – 6 | ${med_total} | ${med_pass} | ${med_warn} | ${med_fail} | ${med_rate} |
 | 🔵 **Low** | Weight 1 – 4 | ${low_total} | ${low_pass} | ${low_warn} | ${low_fail} | ${low_rate} |
 "
+    fi
 
     # Ensure compliance metrics are loaded
     if ! typeset -f calculate_compliance_metrics >/dev/null 2>&1; then
@@ -423,15 +577,82 @@ report_markdown() {
     fi
 
     local reg_table=""
-    reg_table+="| Framework | Compliance Score | Status | Evaluated | Compliant / Defended | Warnings | Deficiencies |
+    if (( is_tr )); then
+        reg_table+="| $(i18n_t "ui.table_headers.framework" "Çerçeve") | $(i18n_t "ui.table_headers.compliance_score" "Uyumluluk Skoru") | $(i18n_t "ui.table_headers.status" "Durum") | $(i18n_t "ui.table_headers.evaluated" "Değerlendirilen") | $(i18n_t "ui.table_headers.compliant_defended" "Uyumlu / Savunulan") | $(i18n_t "ui.table_headers.warnings" "Uyarılar") | $(i18n_t "ui.table_headers.deficiencies" "Eksiklikler") |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | **CIS Apple macOS Benchmark** | **${CIS_COMPLIANCE_PCT:-100.0}%** | ${cis_rating} | ${CIS_TOTAL_COUNT:-0} | ${CIS_PASS_COUNT:-0} | ${CIS_WARN_COUNT:-0} | ${CIS_FAIL_COUNT:-0} |
 | **NIST SP 800-53 Rev. 5** | **${NIST_COMPLIANCE_PCT:-100.0}%** | ${nist_rating} | ${NIST_TOTAL_COUNT:-0} | ${NIST_PASS_COUNT:-0} | ${NIST_WARN_COUNT:-0} | ${NIST_FAIL_COUNT:-0} |
 | **MITRE ATT&CK (macOS Defense)** | **${MITRE_COVERAGE_PCT:-100.0}%** | ${mitre_rating} | ${MITRE_TOTAL_COUNT:-0} | ${MITRE_DEFENDED_COUNT:-0} | - | ${MITRE_AT_RISK_COUNT:-0} |
 "
+    else
+        reg_table+="| Framework | Compliance Score | Status | Evaluated | Compliant / Defended | Warnings | Deficiencies |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **CIS Apple macOS Benchmark** | **${CIS_COMPLIANCE_PCT:-100.0}%** | ${cis_rating} | ${CIS_TOTAL_COUNT:-0} | ${CIS_PASS_COUNT:-0} | ${CIS_WARN_COUNT:-0} | ${CIS_FAIL_COUNT:-0} |
+| **NIST SP 800-53 Rev. 5** | **${NIST_COMPLIANCE_PCT:-100.0}%** | ${nist_rating} | ${NIST_TOTAL_COUNT:-0} | ${NIST_PASS_COUNT:-0} | ${NIST_WARN_COUNT:-0} | ${NIST_FAIL_COUNT:-0} |
+| **MITRE ATT&CK (macOS Defense)** | **${MITRE_COVERAGE_PCT:-100.0}%** | ${mitre_rating} | ${MITRE_TOTAL_COUNT:-0} | ${MITRE_DEFENDED_COUNT:-0} | - | ${MITRE_AT_RISK_COUNT:-0} |
+"
+    fi
 
     local md_content=""
-    md_content="# macOS Security Hardening Audit Report
+    if (( is_tr )); then
+        md_content="# macOS Güvenlik Sıkılaştırma Denetim Raporu
+
+> **Otomatik Güvenlik ve Uyumluluk Taraması**  
+> **macharden** v${version} tarafından \`${current_time}\` tarihinde oluşturuldu
+
+---
+
+## 1. $(i18n_t "ui.sections.system_metadata" "Sistem Meta Verileri")
+
+| $(i18n_t "ui.table_headers.attribute" "Öznitelik") | $(i18n_t "ui.table_headers.system_info" "Sistem Bilgisi") |
+| :--- | :--- |
+| **$(i18n_t "ui.kpi.target_host" "Hedef Sistem Adı")** | \`${hostname}\` |
+| **Denetim Kullanıcısı** | \`${current_user}\` |
+| **İşletim Sistemi** | ${os_product} ${os_version} (Build \`${os_build}\`) |
+| **Mimari** | \`${arch}\` |
+| **Çekirdek Sürümü** | \`${kernel_rel}\` |
+
+---
+
+## 2. $(i18n_t "ui.sections.executive_summary" "Yönetici Özeti")
+
+### $(i18n_t "ui.hardening_index" "Sıkılaştırma İndeksi"): **${HARDENING_INDEX}%** — *${rating}* ($(i18n_t "ui.grade" "Derece"): **${letter_grade}**)
+
+| $(i18n_t "ui.table_headers.metric" "Metrik") | $(i18n_t "ui.table_headers.count_value" "Sayı / Değer") | $(i18n_t "ui.table_headers.status" "Durum") |
+| :--- | :---: | :---: |
+| **$(i18n_t "ui.hardening_score" "Sıkılaştırma Skoru")** | **${HARDENING_INDEX}%** | **${rating}** ($(i18n_t "ui.grade" "Derece"): **${letter_grade}**) |
+| **$(i18n_t "ui.total_checks_audited" "Denetlenen Toplam Kontrol")** | **${COUNT_TOTAL}** | - |
+| **$(i18n_t "ui.passed_checks" "Başarılı Kontroller")** | **${COUNT_PASS}** | 🟢 $(i18n_t "ui.status.pass" "BAŞARILI") |
+| **$(i18n_t "ui.warnings" "Uyarılar")** | **${COUNT_WARN}** | 🟡 $(i18n_t "ui.status.warn" "UYARI") |
+| **$(i18n_t "ui.failed_checks" "Başarısız Kontroller")** | **${COUNT_FAIL}** | 🔴 $(i18n_t "ui.status.fail" "BAŞARISIZ") |
+| **$(i18n_t "ui.informational" "Bilgilendirme")** | **${COUNT_INFO}** | 🔵 $(i18n_t "ui.status.info" "BİLGİ") |
+| **$(i18n_t "ui.suggestions" "Öneriler")** | **${COUNT_SUGG}** | 🟣 $(i18n_t "ui.status.sugg" "ÖNERİ") |
+| **$(i18n_t "ui.score_points_earned" "Kazanılan Skor Puanı")** | **${points_display}** | - |
+
+---
+
+### $(i18n_t "ui.sections.category_posture_breakdown" "Kategori Bazlı Güvenlik Durumu")
+
+${cat_table}
+---
+
+### $(i18n_t "ui.sections.risk_severity_distribution" "Risk ve Önem Derecesi Dağılımı")
+
+${sev_table}
+---
+
+### $(i18n_t "ui.sections.regulatory_framework_coverage" "Mevzuat ve Uyumluluk Çerçevesi Kapsamı")
+
+${reg_table}
+---
+
+## 3. $(i18n_t "ui.sections.comprehensive_audit_results" "Kapsamlı Denetim Sonuçları")
+
+| $(i18n_t "ui.table_headers.status" "Durum") | $(i18n_t "ui.table_headers.id" "Kimlik") | $(i18n_t "ui.table_headers.category" "Kategori") | $(i18n_t "ui.table_headers.title" "Kontrol Başlığı") | $(i18n_t "ui.table_headers.weight" "Ağırlık") | $(i18n_t "ui.table_headers.details" "Ayrıntılar") |
+| :---: | :--- | :--- | :--- | :---: | :--- |
+"
+    else
+        md_content="# macOS Security Hardening Audit Report
 
 > **Automated Security & Compliance Scan**  
 > Generated by **macharden** v${version} on \`${current_time}\`
@@ -487,6 +708,7 @@ ${reg_table}
 | Status | ID | Category | Check Title | Weight | Details |
 | :---: | :--- | :--- | :--- | :---: | :--- |
 "
+    fi
 
     local n=${#RES_IDS[@]}
     for (( i = 1; i <= n; i++ )); do
@@ -502,25 +724,48 @@ ${reg_table}
         details="${details//$'\n'/<br>}"
 
         local status_badge=""
-        case "$st" in
-            PASS) status_badge="🟢 PASS" ;;
-            WARN) status_badge="🟡 WARN" ;;
-            FAIL) status_badge="🔴 FAIL" ;;
-            INFO) status_badge="🔵 INFO" ;;
-            SUGG) status_badge="🟣 SUGG" ;;
-            *)    status_badge="⚪ $st" ;;
-        esac
+        if (( is_tr )); then
+            case "$st" in
+                PASS) status_badge="🟢 $(i18n_t "ui.status.pass" "BAŞARILI")" ;;
+                WARN) status_badge="🟡 $(i18n_t "ui.status.warn" "UYARI")" ;;
+                FAIL) status_badge="🔴 $(i18n_t "ui.status.fail" "BAŞARISIZ")" ;;
+                INFO) status_badge="🔵 $(i18n_t "ui.status.info" "BİLGİ")" ;;
+                SUGG) status_badge="🟣 $(i18n_t "ui.status.sugg" "ÖNERİ")" ;;
+                *)    status_badge="⚪ $st" ;;
+            esac
+            title=$(i18n_get_check_title "$id" "$title")
+            details=$(i18n_get_check_details "$id" "$st" "$details")
+            cat=$(i18n_get_category_name "$cat")
+        else
+            case "$st" in
+                PASS) status_badge="🟢 PASS" ;;
+                WARN) status_badge="🟡 WARN" ;;
+                FAIL) status_badge="🔴 FAIL" ;;
+                INFO) status_badge="🔵 INFO" ;;
+                SUGG) status_badge="🟣 SUGG" ;;
+                *)    status_badge="⚪ $st" ;;
+            esac
+        fi
 
         md_content+="${status_badge} | \`${id}\` | \`${cat}\` | ${title} | ${weight} | ${details:-N/A}
 "
     done
 
-    md_content+="
+    if (( is_tr )); then
+        md_content+="
+---
+
+## 4. $(i18n_t "ui.sections.remediation_playbook" "İyileştirme Kılavuzu")
+
+"
+    else
+        md_content+="
 ---
 
 ## 4. Remediation Playbook
 
 "
+    fi
 
     local has_remediation=0
     for (( i = 1; i <= n; i++ )); do
@@ -542,7 +787,36 @@ ${reg_table}
                 ref_md=$(get_compliance_references "$id" "markdown" 2>/dev/null || true)
             fi
 
-            md_content+="### ${icon} [\`${id}\`] ${title}
+            if (( is_tr )); then
+                title=$(i18n_get_check_title "$id" "$title")
+                details=$(i18n_get_check_details "$id" "$st" "$details")
+                cat=$(i18n_get_category_name "$cat")
+                local st_label="$st"
+                case "$st" in
+                    FAIL) st_label="$(i18n_t "ui.status.fail" "BAŞARISIZ")" ;;
+                    WARN) st_label="$(i18n_t "ui.status.warn" "UYARI")" ;;
+                esac
+
+                md_content+="### ${icon} [\`${id}\`] ${title}
+
+- **Kategori:** \`${cat}\`
+- **Önem Derecesi / Ağırlık:** ${weight}
+- **Durum:** **${st_label}**
+- **Bulgu:** ${details}
+- **İyileştirme Komutu:**
+\`\`\`bash
+${rem}
+\`\`\`
+"
+                if [[ -n "$ref_md" ]]; then
+                    md_content+="- **Yetkili Referanslar:**
+${ref_md}
+"
+                fi
+                md_content+="
+"
+            else
+                md_content+="### ${icon} [\`${id}\`] ${title}
 
 - **Category:** \`${cat}\`
 - **Severity / Weight:** ${weight}
@@ -553,25 +827,38 @@ ${reg_table}
 ${rem}
 \`\`\`
 "
-            if [[ -n "$ref_md" ]]; then
-                md_content+="- **Authoritative References:**
+                if [[ -n "$ref_md" ]]; then
+                    md_content+="- **Authoritative References:**
 ${ref_md}
 "
-            fi
-            md_content+="
+                fi
+                md_content+="
 "
+            fi
         fi
     done
 
     if (( ! has_remediation )); then
-        md_content+="*No critical remediation commands required. All audited security controls meet requirements.*
+        if (( is_tr )); then
+            md_content+="*$(i18n_t "ui.remediation.no_critical_remediation" "Kritik iyileştirme komutu gerekmiyor. Denetlenen tüm güvenlik kontrolleri gereksinimleri karşılıyor.")*
 "
+        else
+            md_content+="*No critical remediation commands required. All audited security controls meet requirements.*
+"
+        fi
     fi
 
-    md_content+="
+    if (( is_tr )); then
+        md_content+="
+---
+*Rapor [macharden](https://github.com/macharden/macharden) tarafından otomatik olarak oluşturulmuştur.*
+"
+    else
+        md_content+="
 ---
 *Report generated automatically by [macharden](https://github.com/macharden/macharden).*
 "
+    fi
 
     if [[ -n "$output_file" && "$output_file" != "-" ]]; then
         local out_dir="${output_file:h}"
