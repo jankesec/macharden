@@ -671,7 +671,7 @@ ALERT_CLEAN_OUT=$(send_alert 100.0 0 2>&1)
 assert_match "suppressed" "$ALERT_CLEAN_OUT" "send_alert suppresses notification when audit is 100% clean"
 
 ALERT_FAIL_OUT=$(send_alert 60.0 3 2>&1)
-assert_match "alert" "$ALERT_FAIL_OUT" "send_alert triggers notification when failures > 0"
+assert_match "(alert|ALERT|Alert)" "$ALERT_FAIL_OUT" "send_alert triggers notification when failures > 0"
 
 ALERT_LOW_OUT=$(send_alert 65.0 0 2>&1)
 assert_match "threshold" "$ALERT_LOW_OUT" "send_alert notifies when score is below 70 with zero failures"

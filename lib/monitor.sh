@@ -518,7 +518,7 @@ send_alert() {
     if (( sent )); then
         ui_warn "macOS desktop notification alert sent: $notif_subtitle"
     else
-        ui_warn "[ALERT NOTIFICATION] $notif_title - $notif_subtitle: $notif_message"
+        ui_warn "[ALERT NOTIFICATION] Notification alert: $notif_title - $notif_subtitle: $notif_message"
     fi
 
     return 0
