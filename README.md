@@ -85,26 +85,6 @@ macharden -f html -o report.html && open report.html
 
 ---
 
-## ⚖️ Feature Comparison
-
-| Feature / Capability | **`macharden`** | `Lynis` | `mSCP` (macOS Compliance) | `drduh Guide` |
-|:---|:---:|:---:|:---:|:---:|
-| **macOS Native Architecture Focus** | **Yes (100% Native)** | Partial (Generic BSD) | Yes | Yes |
-| **Zero External Dependencies** | **Yes (Pure Zsh/Bash)** | Yes (POSIX) | No (Python/Ruby) | Manual |
-| **50 Audited Security Controls** | **Yes (50 Rules)** | ~30 (macOS subset) | Variable (SCAP) | Static List |
-| **Objective Hardening Index (0–100%)** | **Yes (Weighted)** | Yes (Index) | No (Pass/Fail) | No |
-| **Baseline Drift & Diff Engine (`--diff`)** | **Yes (JSON Diff)** | Commercial Only | No | No |
-| **CI/CD Security Gate (`--fail-on-regression`)** | **Yes (Exit Code 2)**| No | No | No |
-| **OASIS SARIF v2.1.0 Export (`-f sarif`)** | **Yes (GitHub Code Scanning)** | No | No | No |
-| **Liquid Glass Dark Mode HTML Dashboard** | **Yes (Standalone)** | No | No | No |
-| **Bilingual Localization (EN / TR)** | **Yes (Live Toggle)**| Partial | English only | English only |
-| **Interactive Remediation (`--fix`)** | **Yes (Guided)** | No | No | No |
-| **Standalone Fix Script Generator (`--generate-fix`)** | **Yes (Executable)** | No | Puppet/Chef only | Manual |
-| **Non-Destructive Safe Mode (`--dry-run` & `--undo`)** | **Yes** | No | No | Manual |
-| **Regulatory Mappings (CIS, NIST, MITRE)** | **Yes (All 50 Rules)** | Partial | CIS only | No |
-
----
-
 ## 🚀 Quick Start
 
 ### 1. One-Liner Quick Scan (Direct Execution)
