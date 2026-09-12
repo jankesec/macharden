@@ -25,7 +25,7 @@ all: test
 
 # Generate animated demo recording (combines enriched terminal CLI and HTML5 dashboard)
 demo:
-	@chmod +x scripts/generate_demo_gif.py
+	@chmod +x scripts/demo_fixture.sh scripts/generate_demo_gif.py
 	@python3 scripts/generate_demo_gif.py
 
 
@@ -51,6 +51,7 @@ lint:
 	@echo "Checking completion script syntax..."
 	@zsh -n completions/macharden.zsh
 	@bash -n completions/macharden.bash
+	@zsh -n scripts/demo_fixture.sh
 	@echo "Validating manual page formatting..."
 	@if command -v mandoc >/dev/null 2>&1; then \
 		mandoc -Tlint docs/macharden.1; \

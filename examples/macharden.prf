@@ -1,8 +1,17 @@
-# macharden profile (Lynis-style)
+# macharden profile (Lynis-style, with mSCP organization-defined values)
 # Copy to ~/.macharden/profile or pass --profile PATH
 #
 # skip-test=<CHECK-ID>[,CHECK-ID...]
 # Skipped checks are recorded as INFO and do not affect the Hardening Index.
+
+profile-name=Personal Mac
+machine-role=personal
+
+# Login Keychain policy is deliberately opt-in because it changes how often
+# macOS asks for the account password. Use "none" to explicitly accept the
+# normal no-timeout behavior, or 60..86400 for a maximum timeout in seconds.
+keychain-timeout=none
+keychain-lock-on-sleep=no
 
 # skip-test=HARD-08
 # skip-test=NET-07,HARD-11

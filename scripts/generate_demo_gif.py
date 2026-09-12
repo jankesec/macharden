@@ -5,35 +5,35 @@ Automated high-fidelity demo generator for macharden.
 Combines:
   1. Enriched terminal CLI audit execution (recorded with VHS)
   2. Liquid Glass HTML5 interactive dashboard walkthrough (rendered via headless Chrome & PIL)
+Privacy boundary:
+  Uses scripts/demo_fixture.sh only; it never audits the generating Mac.
 Outputs:
-  assets/demo.gif (Optimized palette, under 2.5 MB)
+  assets/demo.gif (1200x800, optimized 192-color palette)
 """
 
 import os
+import shutil
 import subprocess
-import sys
+import tempfile
 from PIL import Image, ImageDraw
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TMP_DIR = "/tmp/macharden_demo_build"
-os.makedirs(TMP_DIR, exist_ok=True)
+TMP_DIR = tempfile.mkdtemp(prefix="macharden-demo-")
 
 W, H = 1200, 800
 BAR_H = 44
 CONTENT_H = H - BAR_H
 
 def generate_report_html():
-    print("[*] Generating demo HTML report with sanitized metadata...")
-    env = os.environ.copy()
-    env["MACHAR_HOSTNAME"] = "macos-workstation"
-    env["MACHAR_USER"] = "secops"
+    print("[*] Generating a deterministic report with synthetic audit data...")
     report_file = os.path.join(TMP_DIR, "demo_report.html")
     subprocess.run(
-        [os.path.join(REPO_ROOT, "bin", "macharden"), "-f", "html", "-o", report_file],
+        [os.path.join(REPO_ROOT, "scripts", "demo_fixture.sh"), "html", report_file],
         cwd=REPO_ROOT,
-        env=env,
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
+        stderr=subprocess.PIPE,
+        text=True,
+        check=True,
     )
     return report_file
 
@@ -44,7 +44,7 @@ def capture_html_frames(report_html_path):
 
     states = [
         ("frame1_overview", ""),
-        ("frame2_checks", "<script>window.addEventListener('DOMContentLoaded', () => { setTimeout(() => { window.scrollTo({top: 520, behavior: 'instant'}); }, 400); });</script>"),
+        ("frame2_checks", "<script>window.addEventListener('DOMContentLoaded', () => { setTimeout(() => { window.scrollTo({top: 540, behavior: 'instant'}); }, 400); });</script>"),
         ("frame3_secrets", "<script>window.addEventListener('DOMContentLoaded', () => { setTimeout(() => { filterCategory('secrets'); }, 400); });</script>"),
         ("frame4_playbook", "<script>window.addEventListener('DOMContentLoaded', () => { setTimeout(() => { openPlaybookModal(); }, 400); });</script>"),
         ("frame5_light", "<script>window.addEventListener('DOMContentLoaded', () => { setTimeout(() => { toggleTheme(); }, 400); });</script>")
@@ -68,7 +68,7 @@ def capture_html_frames(report_html_path):
             "--virtual-time-budget=1200",
             f"file://{tmp_html}"
         ]
-        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=True)
 
         # Composite macOS Browser Window
         is_light = (name == "frame5_light")
@@ -118,27 +118,22 @@ def render_html_clip(frames):
     print("[*] Rendering HTML dashboard video clip with ffmpeg...")
     concat_txt = os.path.join(TMP_DIR, "html_concat.txt")
     with open(concat_txt, "w") as f:
-        # Overview
-        f.write(f"file '{frames[0]}'\nduration 2.8\n")
-        # Checks table
-        f.write(f"file '{frames[1]}'\nduration 2.5\n")
-        # Secrets domain
-        f.write(f"file '{frames[2]}'\nduration 2.5\n")
-        # Remediation playbook
-        f.write(f"file '{frames[3]}'\nduration 2.8\n")
-        # Light mode
-        f.write(f"file '{frames[4]}'\nduration 2.2\n")
+        f.write(f"file '{frames[0]}'\nduration 2.2\n")
+        f.write(f"file '{frames[1]}'\nduration 1.8\n")
+        f.write(f"file '{frames[2]}'\nduration 1.8\n")
+        f.write(f"file '{frames[3]}'\nduration 2.2\n")
+        f.write(f"file '{frames[4]}'\nduration 1.6\n")
         f.write(f"file '{frames[4]}'\n")
 
     html_mp4 = os.path.join(TMP_DIR, "html_clip.mp4")
     cmd = [
         "ffmpeg", "-y",
         "-f", "concat", "-safe", "0", "-i", concat_txt,
-        "-vf", "scale=1200:800,setsar=1,fps=15,format=yuv420p",
+        "-vf", "scale=1200:800:flags=lanczos,setsar=1,fps=12,format=yuv420p",
         "-c:v", "libx264", "-pix_fmt", "yuv420p",
         html_mp4
     ]
-    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=True)
     return html_mp4
 
 def render_term_clip():
@@ -146,48 +141,48 @@ def render_term_clip():
     tape_content = f"""Output "{os.path.join(TMP_DIR, 'term_clip.mp4')}"
 
 Set Shell "zsh"
-Set FontSize 13
+Set FontSize 15
 Set Width 1200
 Set Height 800
 Set Padding 24
 Set WindowBar Colorful
 Set Theme "Catppuccin Mocha"
-Set LineHeight 1.3
-Set TypingSpeed 30ms
+Set LineHeight 1.2
+Set TypingSpeed 24ms
 Set CursorBlink true
 
 Hide
-Type "export PS1='%F{{cyan}}secops@macos-workstation%f %F{{magenta}}~/macharden%f %# '; export MACHAR_HOSTNAME=macos-workstation; export MACHAR_USER=secops; alias macharden='./bin/macharden'; clear"
+Type "export PS1='%F{{cyan}}audit-demo@demo-mac%f %F{{magenta}}~/macharden%f %# '; alias macharden='./scripts/demo_fixture.sh'; clear"
 Enter
 Sleep 600ms
 Show
 
-Sleep 800ms
-Type "macharden -c hardening"
-Sleep 300ms
+Sleep 600ms
+Type "macharden --check HARD-01,HARD-02,HARD-18,NET-01,NET-10,SEC-03"
+Sleep 240ms
 Enter
-Sleep 5s
-
-Type "macharden -f html -o report.html && open report.html"
-Sleep 300ms
-Enter
-Sleep 2.5s
+Sleep 5.2s
 """
     tape_file = os.path.join(TMP_DIR, "terminal.tape")
     with open(tape_file, "w") as f:
         f.write(tape_content)
 
-    subprocess.run(["vhs", tape_file], cwd=REPO_ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    env = os.environ.copy()
+    env["MACHAR_DEMO_DELAY"] = "1"
+    subprocess.run(
+        ["vhs", tape_file], cwd=REPO_ROOT, env=env,
+        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=True,
+    )
     return os.path.join(TMP_DIR, "term_clip.mp4")
 
 def combine_into_gif(term_mp4, html_mp4, output_gif):
     print(f"[*] Combining terminal and dashboard clips into {output_gif}...")
     filter_complex = (
-        "[0:v]fps=12,scale=1000:666,setsar=1[v0];"
-        "[1:v]fps=12,scale=1000:666,setsar=1[v1];"
+        "[0:v]fps=12,scale=1200:800:flags=lanczos,setsar=1[v0];"
+        "[1:v]fps=12,scale=1200:800:flags=lanczos,setsar=1[v1];"
         "[v0][v1]concat=n=2:v=1:a=0,split[s0][s1];"
-        "[s0]palettegen=max_colors=128:reserve_transparent=0[p];"
-        "[s1][p]paletteuse=dither=bayer:bayer_scale=3"
+        "[s0]palettegen=max_colors=192:stats_mode=diff:reserve_transparent=0[p];"
+        "[s1][p]paletteuse=dither=bayer:bayer_scale=2:diff_mode=rectangle"
     )
     cmd = [
         "ffmpeg", "-y",
@@ -196,14 +191,17 @@ def combine_into_gif(term_mp4, html_mp4, output_gif):
         "-filter_complex", filter_complex,
         output_gif
     ]
-    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=True)
     size_mb = os.path.getsize(output_gif) / (1024 * 1024)
     print(f"[✔] Successfully generated {output_gif} ({size_mb:.2f} MB)")
 
 if __name__ == "__main__":
-    rep = generate_report_html()
-    frames = capture_html_frames(rep)
-    html_clip = render_html_clip(frames)
-    term_clip = render_term_clip()
-    final_gif = os.path.join(REPO_ROOT, "assets", "demo.gif")
-    combine_into_gif(term_clip, html_clip, final_gif)
+    try:
+        rep = generate_report_html()
+        frames = capture_html_frames(rep)
+        html_clip = render_html_clip(frames)
+        term_clip = render_term_clip()
+        final_gif = os.path.join(REPO_ROOT, "assets", "demo.gif")
+        combine_into_gif(term_clip, html_clip, final_gif)
+    finally:
+        shutil.rmtree(TMP_DIR, ignore_errors=True)

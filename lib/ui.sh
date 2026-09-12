@@ -98,6 +98,10 @@ ui_disable_colors() {
 # Terminal width detection
 ui_get_term_width() {
     local cols
+    if [[ "${MACHAR_TERM_WIDTH:-}" =~ ^[0-9]+$ ]] && (( MACHAR_TERM_WIDTH > 0 )); then
+        echo "$MACHAR_TERM_WIDTH"
+        return 0
+    fi
     cols=$(tput cols 2>/dev/null)
     if [[ -z "$cols" || "$cols" -le 0 ]] 2>/dev/null; then
         cols=${COLUMNS:-80}
@@ -106,6 +110,78 @@ ui_get_term_width() {
         cols=80
     fi
     echo "$cols"
+}
+
+ui_repeat() {
+    local char="$1" count="${2:-0}" out="" i
+    for (( i = 0; i < count; i++ )); do out+="$char"; done
+    print -rn -- "$out"
+}
+
+ui_fit_text() {
+    local value="$1" width="${2:-1}"
+    (( width < 1 )) && width=1
+    if (( ${#value} > width )); then
+        if (( width > 3 )); then
+            value="${value[1,$(( width - 3 ))]}..."
+        else
+            value="${value[1,$width]}"
+        fi
+    fi
+    printf "%-${width}s" "$value"
+}
+
+ui_wrap_text() {
+    local prefix="$1" value="$2" width="${3:-$(ui_get_term_width)}"
+    local content_width=$(( width - ${#prefix} - 1 ))
+    (( content_width < 18 )) && content_width=18
+    local continuation=$(printf "%${#prefix}s" "")
+    local first=1
+    print -r -- "$value" | fold -s -w "$content_width" | while IFS= read -r line; do
+        if (( first )); then
+            printf "%s%s\n" "$prefix" "$line"
+            first=0
+        else
+            printf "%s%s\n" "$continuation" "$line"
+        fi
+    done
+}
+
+ui_labeled_text() {
+    local label="$1" value="$2" color="$3" width="${4:-$(ui_get_term_width)}"
+    local lead="        ${label}  "
+    local continuation="        $(printf "%${#label}s" "")  "
+    local content_width=$(( width - ${#lead} - 1 ))
+    (( content_width < 18 )) && content_width=18
+    local first=1
+    print -r -- "$value" | fold -s -w "$content_width" | while IFS= read -r line; do
+        if (( first )); then
+            printf "%b%s%s%b\n" "$color" "$lead" "$line" "$COLOR_RESET"
+            first=0
+        else
+            printf "%b%s%s%b\n" "$COLOR_DIM" "$continuation" "$line" "$COLOR_RESET"
+        fi
+    done
+}
+
+ui_panel_title() {
+    local title="$1" width=$(ui_get_term_width)
+    (( width > 96 )) && width=96
+    (( width < 36 )) && width=36
+    local inner=$(( width - 2 ))
+    local h=$(ui_char border_h) tl=$(ui_char border_round_tl) tr=$(ui_char border_round_tr)
+    local bl=$(ui_char border_round_bl) br=$(ui_char border_round_br) v=$(ui_char border_v)
+    local line=$(ui_repeat "$h" "$inner") fitted=$(ui_fit_text "  $title" "$inner")
+    printf "%b%s%s%s%b\n" "$COLOR_BCYAN" "$tl" "$line" "$tr" "$COLOR_RESET"
+    printf "%b%s%b%b%s%b%b%s%b\n" "$COLOR_BCYAN" "$v" "$COLOR_RESET" "$COLOR_BOLD" "$fitted" "$COLOR_RESET" "$COLOR_BCYAN" "$v" "$COLOR_RESET"
+    printf "%b%s%s%s%b\n" "$COLOR_BCYAN" "$bl" "$line" "$br" "$COLOR_RESET"
+}
+
+ui_rule() {
+    local width=$(ui_get_term_width)
+    (( width > 96 )) && width=96
+    (( width < 8 )) && width=8
+    printf "%b%s%b\n" "$COLOR_DIM" "$(ui_repeat "$(ui_char border_h)" "$width")" "$COLOR_RESET"
 }
 
 # ASCII or Unicode symbol resolver
@@ -165,66 +241,47 @@ ui_banner() {
     local version="${MACHAR_VERSION:-1.3.0}"
     local os_product os_version os_build arch current_time current_user hostname
 
-    os_product=$(sw_vers -productName 2>/dev/null || echo "macOS")
-    os_version=$(sw_vers -productVersion 2>/dev/null || echo "Unknown")
-    os_build=$(sw_vers -buildVersion 2>/dev/null || echo "Unknown")
-    arch=$(uname -m 2>/dev/null || echo "arm64")
-    current_time=$(date "+%Y-%m-%d %H:%M:%S %Z")
+    os_product="${MACHAR_OS_PRODUCT:-$(sw_vers -productName 2>/dev/null || echo "macOS")}"
+    os_version="${MACHAR_OS_VERSION:-$(sw_vers -productVersion 2>/dev/null || echo "Unknown")}"
+    os_build="${MACHAR_OS_BUILD:-$(sw_vers -buildVersion 2>/dev/null || echo "Unknown")}"
+    arch="${MACHAR_ARCH:-$(uname -m 2>/dev/null || echo "arm64")}"
+    current_time="${MACHAR_AUDIT_TIME:-$(date "+%Y-%m-%d %H:%M:%S %Z")}"
     current_user="${MACHAR_USER:-$(id -un 2>/dev/null || whoami)}"
     hostname="${MACHAR_HOSTNAME:-$(hostname -s 2>/dev/null || hostname)}"
 
-    local app_desc="macOS Security Posture Assessment & Hardening Scanner"
-    local app_sub="CIS Apple Benchmark • NIST SP 800-53 Rev 5 • MITRE ATT&CK"
-    local lbl_host="Target Host:"
-    local lbl_build="OS Platform:"
-    local lbl_time="Audit Time :"
-    local lbl_user="Audit User :"
+    local app_desc="macOS Security Posture"
+    local app_sub="CIS Apple • NIST SP 800-53 • MITRE ATT&CK"
+    local lbl_host="HOST" lbl_build="SYSTEM" lbl_time="SCAN" lbl_user="USER"
 
     if [[ "${CURRENT_LANG:-en}" == "tr" ]]; then
-        app_desc="$(i18n_t "ui.app_desc" "macOS Güvenlik Sıkılaştırma ve Denetim Tarayıcısı")"
-        app_sub="$(i18n_t "ui.app_sub" "CIS Kriterleri • NIST SP 800-53 Rev 5 • MITRE ATT&CK")"
-        lbl_host="$(i18n_t "ui.kpi.target_host" "Hedef Sistem:")"
-        lbl_build="$(i18n_t "ui.kpi.macos_build" "İşletim Sis. :")"
-        lbl_time="$(i18n_t "ui.kpi.audit_time" "Denetim Zamanı:")"
-        lbl_user="$(i18n_t "ui.kpi.audit_user" "Denetleyen   :")"
+        app_desc="macOS Güvenlik Duruşu"
+        app_sub="CIS Apple • NIST SP 800-53 • MITRE ATT&CK"
+        lbl_host="SİSTEM"
+        lbl_build="PLATFORM"
+        lbl_time="TARAMA"
+        lbl_user="KULLANICI"
     fi
 
     local term_width=$(ui_get_term_width)
-    if (( term_width < 76 )) || [[ "${MACHAR_ASCII:-0}" -eq 1 ]]; then
-        cat <<EOF
-${COLOR_BCYAN}======================================================================${COLOR_RESET}
-  ${COLOR_BOLD}macharden v${version}${COLOR_RESET} - ${app_desc}
-  ${COLOR_DIM}${app_sub}${COLOR_RESET}
-----------------------------------------------------------------------
-  ${lbl_host} ${hostname} (${current_user})
-  ${lbl_build} ${os_product} ${os_version} (Build ${os_build}) [${arch}]
-  ${lbl_time} ${current_time}
-======================================================================
-EOF
-        return 0
-    fi
+    local width=$term_width
+    (( width > 96 )) && width=96
+    (( width < 36 )) && width=36
+    local inner=$(( width - 2 ))
+    local h=$(ui_char border_h) tl=$(ui_char border_round_tl) tr=$(ui_char border_round_tr)
+    local bl=$(ui_char border_round_bl) br=$(ui_char border_round_br) v=$(ui_char border_v)
+    local line=$(ui_repeat "$h" "$inner")
+    local title="MACHARDEN / ${app_desc} / v${version}"
+    local row1=$(ui_fit_text "  $title" "$inner")
+    local row2=$(ui_fit_text "  $app_sub" "$inner")
+    local row3=$(ui_fit_text "  ${lbl_host}  ${hostname}    ${lbl_user}  ${current_user}" "$inner")
+    local row4=$(ui_fit_text "  ${lbl_build}  ${os_product} ${os_version} (${os_build}) ${arch}    ${lbl_time}  ${current_time:0:16}" "$inner")
 
-    local host_str="${hostname} (${current_user})"
-    local sys_str="${os_product} ${os_version} [${arch}]"
-    if (( ${#host_str} > 20 )); then host_str="${host_str:0:17}..."; fi
-    if (( ${#sys_str} > 20 )); then sys_str="${sys_str:0:17}..."; fi
-
-    local title="🛡️  MACHARDEN  •  macOS Security Hardening & Audit Scanner  v${version}"
-    local sub="CIS Benchmark L1/L2  •  NIST SP 800-53 Rev 5  •  MITRE ATT&CK"
-    if [[ "${CURRENT_LANG:-en}" == "tr" ]]; then
-        title="🛡️  MACHARDEN  •  macOS Güvenlik Sıkılaştırma Tarayıcısı  v${version}"
-        sub="CIS Kriterleri L1/L2  •  NIST SP 800-53 Rev 5  •  MITRE ATT&CK"
-    fi
-
-    echo "${COLOR_BCYAN}╭──────────────────────────────────────────────────────────────────────────╮${COLOR_RESET}"
-    printf "${COLOR_BCYAN}│${COLOR_RESET}  ${COLOR_BOLD}${COLOR_BCYAN}%-70s${COLOR_RESET}  ${COLOR_BCYAN}│${COLOR_RESET}\n" "$title"
-    printf "${COLOR_BCYAN}│${COLOR_RESET}  ${COLOR_DIM}%-70s${COLOR_RESET}  ${COLOR_BCYAN}│${COLOR_RESET}\n" "      $sub"
-    echo "${COLOR_BCYAN}├──────────────────────────────────────────────────────────────────────────┤${COLOR_RESET}"
-    printf "${COLOR_BCYAN}│${COLOR_RESET}  🎯 ${COLOR_BOLD}%-12s${COLOR_RESET} ${COLOR_WHITE}%-20s${COLOR_RESET}  👤 ${COLOR_BOLD}%-12s${COLOR_RESET} ${COLOR_WHITE}%-16s${COLOR_RESET}  ${COLOR_BCYAN}│${COLOR_RESET}\n" \
-        "$lbl_host" "$host_str" "$lbl_user" "$current_user"
-    printf "${COLOR_BCYAN}│${COLOR_RESET}  🍏 ${COLOR_BOLD}%-12s${COLOR_RESET} ${COLOR_WHITE}%-20s${COLOR_RESET}  🕒 ${COLOR_BOLD}%-12s${COLOR_RESET} ${COLOR_WHITE}%-16s${COLOR_RESET}  ${COLOR_BCYAN}│${COLOR_RESET}\n" \
-        "$lbl_build" "$sys_str" "$lbl_time" "${current_time:0:16}"
-    echo "${COLOR_BCYAN}╰──────────────────────────────────────────────────────────────────────────╯${COLOR_RESET}"
+    printf "%b%s%s%s%b\n" "$COLOR_BCYAN" "$tl" "$line" "$tr" "$COLOR_RESET"
+    printf "%b%s%b%b%s%b%b%s%b\n" "$COLOR_BCYAN" "$v" "$COLOR_RESET" "$COLOR_BOLD" "$row1" "$COLOR_RESET" "$COLOR_BCYAN" "$v" "$COLOR_RESET"
+    printf "%b%s%b%b%s%b%b%s%b\n" "$COLOR_BCYAN" "$v" "$COLOR_RESET" "$COLOR_DIM" "$row2" "$COLOR_RESET" "$COLOR_BCYAN" "$v" "$COLOR_RESET"
+    printf "%b%s%b%s%b%s%b\n" "$COLOR_BCYAN" "$v" "$COLOR_RESET" "$row3" "$COLOR_BCYAN" "$v" "$COLOR_RESET"
+    printf "%b%s%b%s%b%s%b\n" "$COLOR_BCYAN" "$v" "$COLOR_RESET" "$row4" "$COLOR_BCYAN" "$v" "$COLOR_RESET"
+    printf "%b%s%s%s%b\n" "$COLOR_BCYAN" "$bl" "$line" "$br" "$COLOR_RESET"
 }
 
 # Section header separator with category badges and modern divider lines
@@ -243,12 +300,19 @@ ui_section() {
         esac
     fi
 
-    echo ""
-    if [[ "${MACHAR_ASCII:-0}" -eq 1 ]]; then
-        echo "=== [ ${title} ] ====================================================="
-    else
-        echo "${COLOR_BOLD}${COLOR_BCYAN}─── ${icon}${title} ${COLOR_DIM}───────────────────────────────────────────────────${COLOR_RESET}"
+    local width=$(ui_get_term_width)
+    (( width > 96 )) && width=96
+    (( width < 72 )) && icon=""
+    local heading="${icon}${title}"
+    local max_heading=$(( width - 9 ))
+    if (( ${#heading} > max_heading )); then
+        heading="$(ui_fit_text "$heading" "$max_heading")"
     fi
+    local remaining=$(( width - ${#heading} - 5 ))
+    (( remaining < 4 )) && remaining=4
+    local rule=$(ui_repeat "$(ui_char border_h)" "$remaining")
+    echo ""
+    printf "%b%s  %s  %b%s%b\n" "$COLOR_BOLD$COLOR_BCYAN" "$(ui_char border_h)" "$heading" "$COLOR_DIM" "$rule" "$COLOR_RESET"
 }
 
 # Formatted check result row with status badge, check ID, title, severity tag, and details
@@ -321,23 +385,41 @@ ui_result() {
         fi
     fi
 
-    if [[ -n "$sev_badge" && ("$check_status" == "FAIL" || "$check_status" == "WARN") ]]; then
-        printf "  %b  ${COLOR_BOLD}${COLOR_BCYAN}%-10s${COLOR_RESET} %-48s %b\n" "$badge" "$id" "$title" "$sev_badge"
+    local term_width=$(ui_get_term_width)
+    if (( term_width < 72 )); then
+        if [[ -n "$sev_badge" && ("$check_status" == "FAIL" || "$check_status" == "WARN") ]]; then
+            printf "  %b  ${COLOR_BOLD}${COLOR_BCYAN}%s${COLOR_RESET}  %b\n" "$badge" "$id" "$sev_badge"
+        else
+            printf "  %b  ${COLOR_BOLD}${COLOR_BCYAN}%s${COLOR_RESET}\n" "$badge" "$id"
+        fi
+        ui_wrap_text "      " "$title" "$term_width"
+    elif [[ -n "$sev_badge" && ("$check_status" == "FAIL" || "$check_status" == "WARN") ]]; then
+        printf "  %b  ${COLOR_BOLD}${COLOR_BCYAN}%-10s${COLOR_RESET} %s  %b\n" "$badge" "$id" "$title" "$sev_badge"
     else
         printf "  %b  ${COLOR_BOLD}${COLOR_BCYAN}%-10s${COLOR_RESET} %s\n" "$badge" "$id" "$title"
     fi
 
     if [[ -n "$details" ]]; then
         local arrow_sym=$(ui_char arrow)
-        echo "$details" | while IFS= read -r line; do
-            [[ -n "$line" ]] && printf "        ${COLOR_DIM}%s %s${COLOR_RESET}\n" "$arrow_sym" "$line"
+        ui_wrap_text "        ${arrow_sym} " "$details" "$term_width" | while IFS= read -r line; do
+            printf "${COLOR_DIM}%s${COLOR_RESET}\n" "$line"
         done
     fi
 
     if [[ -n "$remediation" && ("$check_status" == "FAIL" || "$check_status" == "WARN") ]]; then
-        local fix_lbl="Quick Fix:"
-        [[ "${CURRENT_LANG:-en}" == "tr" ]] && fix_lbl="$(i18n_t "ui.remediation.fix_label" "Düzeltme:")"
-        printf "        ${COLOR_BCYAN}⚡ %s${COLOR_RESET}  ${COLOR_WHITE}%s${COLOR_RESET}\n" "$fix_lbl" "$remediation"
+        local fix_lbl="ACTION" fix_color="$COLOR_BCYAN"
+        if [[ "$remediation" == "[GUIDE] "* ]]; then
+            remediation="${remediation#\[GUIDE\] }"
+            fix_lbl="GUIDE"
+            [[ "${CURRENT_LANG:-en}" == "tr" ]] && fix_lbl="REHBER"
+            fix_color="$COLOR_BYELLOW"
+        elif [[ "$remediation" == "[EXEC] "* ]]; then
+            remediation="${remediation#\[EXEC\] }"
+            [[ "${CURRENT_LANG:-en}" == "tr" ]] && fix_lbl="KOMUT"
+        else
+            [[ "${CURRENT_LANG:-en}" == "tr" ]] && fix_lbl="EYLEM"
+        fi
+        ui_labeled_text "$fix_lbl" "$remediation" "$fix_color" "$term_width"
     fi
 }
 
@@ -354,11 +436,13 @@ ui_score_bar() {
     (( int_score > 100 )) && int_score=100
 
     local term_width=$(ui_get_term_width)
-    local bar_width=30
-    if (( term_width < 60 )); then
-        bar_width=15
-    elif (( term_width < 80 )); then
-        bar_width=20
+    local bar_width=32
+    if (( term_width < 52 )); then
+        bar_width=10
+    elif (( term_width < 72 )); then
+        bar_width=16
+    elif (( term_width < 96 )); then
+        bar_width=24
     fi
 
     local filled=$(( (int_score * bar_width) / 100 ))
@@ -407,22 +491,30 @@ ui_score_bar() {
         unfilled_str="${unfilled_str}${sym_empty}"
     done
 
-    printf "  ${COLOR_BOLD}%s${COLOR_RESET} [${bar_color}%s${COLOR_RESET}${COLOR_DIM}%s${COLOR_RESET}] ${COLOR_BOLD}%5.1f%%${COLOR_RESET} (${rating_color}%s${COLOR_RESET})\n" \
-        "$bar_label" "$filled_str" "$unfilled_str" "$score" "$rating"
+    if (( term_width < 72 )); then
+        printf "  ${COLOR_BOLD}%s${COLOR_RESET} [${bar_color}%s${COLOR_RESET}${COLOR_DIM}%s${COLOR_RESET}] ${COLOR_BOLD}%5.1f%%${COLOR_RESET}\n" \
+            "$bar_label" "$filled_str" "$unfilled_str" "$score"
+        printf "  ${rating_color}%s${COLOR_RESET}\n" "$rating"
+    else
+        printf "  ${COLOR_BOLD}%s${COLOR_RESET} [${bar_color}%s${COLOR_RESET}${COLOR_DIM}%s${COLOR_RESET}] ${COLOR_BOLD}%5.1f%%${COLOR_RESET} (${rating_color}%s${COLOR_RESET})\n" \
+            "$bar_label" "$filled_str" "$unfilled_str" "$score" "$rating"
+    fi
 }
 
-# Visually aligned category score row with a colored 15-char progress bar and pass/warn/fail badges
-# Usage: ui_category_score_row <category_name> <score_percent> <passed> <warn> <fail>
+# Adaptive category score row. Neutral-only categories use N/A instead of a false zero.
+# Usage: ui_category_score_row <category_name> <score_percent|N/A> <passed> <warn> <fail> [info] [suggestions]
 ui_category_score_row() {
     local cat_name="$1"
     local score="${2:-0.0}"
     local passed="${3:-0}"
     local warn="${4:-0}"
     local fail="${5:-0}"
+    local info="${6:-0}"
+    local sugg="${7:-0}"
 
-    # Strip trailing percent symbol if present
     score="${score%%%}"
-
+    local is_na=0
+    [[ "$score" == "N/A" ]] && is_na=1
     local int_score=0
     if [[ "$score" =~ ^[0-9]+ ]]; then
         int_score=${score%%.*}
@@ -430,7 +522,9 @@ ui_category_score_row() {
     (( int_score < 0 )) && int_score=0
     (( int_score > 100 )) && int_score=100
 
+    local term_width=$(ui_get_term_width)
     local bar_width=15
+    (( term_width < 72 )) && bar_width=10
     local filled=$(( (int_score * bar_width) / 100 ))
     local unfilled=$(( bar_width - filled ))
     (( filled < 0 )) && filled=0
@@ -469,16 +563,41 @@ ui_category_score_row() {
     local pass_lbl="PASS"
     local warn_lbl="WARN"
     local fail_lbl="FAIL"
+    local info_lbl="INFO"
+    local sugg_lbl="SUGG"
     local cat_width=14
     if [[ "${CURRENT_LANG:-en}" == "tr" ]]; then
         pass_lbl="$(i18n_t "ui.status.pass" "BAŞARILI")"
         warn_lbl="$(i18n_t "ui.status.warn" "UYARI")"
         fail_lbl="$(i18n_t "ui.status.fail" "BAŞARISIZ")"
+        info_lbl="$(i18n_t "ui.status.info" "BİLGİ")"
+        sugg_lbl="$(i18n_t "ui.status.sugg" "ÖNERİ")"
         cat_width=34
     fi
 
-    printf "  ${COLOR_BOLD}%-${cat_width}s${COLOR_RESET} [${bar_color}%s${COLOR_RESET}${COLOR_DIM}%s${COLOR_RESET}] ${COLOR_BOLD}%5.1f%%${COLOR_RESET}  ${COLOR_BGREEN}${COLOR_BOLD}[%d ${pass_lbl}]${COLOR_RESET} ${COLOR_BYELLOW}${COLOR_BOLD}[%d ${warn_lbl}]${COLOR_RESET} ${COLOR_BRED}${COLOR_BOLD}[%d ${fail_lbl}]${COLOR_RESET}\n" \
-        "$cat_name" "$filled_str" "$unfilled_str" "$score_num" "$passed" "$warn" "$fail"
+    local score_display neutral=""
+    if (( is_na )); then
+        score_display="  N/A "
+        bar_color="$COLOR_DIM"
+    else
+        score_display=$(printf "%5.1f%%" "$score_num")
+    fi
+    (( info > 0 )) && neutral+="  ${info} ${info_lbl}"
+    (( sugg > 0 )) && neutral+="  ${sugg} ${sugg_lbl}"
+
+    if (( term_width < 72 )); then
+        printf "  ${COLOR_BOLD}%s${COLOR_RESET}\n" "$cat_name"
+        printf "    [${bar_color}%s${COLOR_RESET}${COLOR_DIM}%s${COLOR_RESET}] ${COLOR_BOLD}%s${COLOR_RESET}\n" "$filled_str" "$unfilled_str" "$score_display"
+        printf "    ${COLOR_BGREEN}${COLOR_BOLD}[%d ${pass_lbl}]${COLOR_RESET} ${COLOR_BYELLOW}${COLOR_BOLD}[%d ${warn_lbl}]${COLOR_RESET} ${COLOR_BRED}${COLOR_BOLD}[%d ${fail_lbl}]${COLOR_RESET}${COLOR_DIM}%s${COLOR_RESET}\n" \
+            "$passed" "$warn" "$fail" "$neutral"
+    elif (( term_width < 100 )); then
+        printf "  ${COLOR_BOLD}%s${COLOR_RESET}\n" "$cat_name"
+        printf "    [${bar_color}%s${COLOR_RESET}${COLOR_DIM}%s${COLOR_RESET}] ${COLOR_BOLD}%s${COLOR_RESET}  ${COLOR_BGREEN}${COLOR_BOLD}[%d ${pass_lbl}]${COLOR_RESET} ${COLOR_BYELLOW}${COLOR_BOLD}[%d ${warn_lbl}]${COLOR_RESET} ${COLOR_BRED}${COLOR_BOLD}[%d ${fail_lbl}]${COLOR_RESET}${COLOR_DIM}%s${COLOR_RESET}\n" \
+            "$filled_str" "$unfilled_str" "$score_display" "$passed" "$warn" "$fail" "$neutral"
+    else
+        printf "  ${COLOR_BOLD}%-${cat_width}s${COLOR_RESET} [${bar_color}%s${COLOR_RESET}${COLOR_DIM}%s${COLOR_RESET}] ${COLOR_BOLD}%s${COLOR_RESET}  ${COLOR_BGREEN}${COLOR_BOLD}[%d ${pass_lbl}]${COLOR_RESET} ${COLOR_BYELLOW}${COLOR_BOLD}[%d ${warn_lbl}]${COLOR_RESET} ${COLOR_BRED}${COLOR_BOLD}[%d ${fail_lbl}]${COLOR_RESET}${COLOR_DIM}%s${COLOR_RESET}\n" \
+            "$cat_name" "$filled_str" "$unfilled_str" "$score_display" "$passed" "$warn" "$fail" "$neutral"
+    fi
 }
 
 # Clean bordered ASCII box displaying overall grade and rating
@@ -579,10 +698,9 @@ ui_grade_box() {
     local v_char=$(ui_char border_v)
 
     local term_width=$(ui_get_term_width)
-    if (( term_width < 50 )); then
-        # Compact single-line display for narrow terminals
-        printf "  %b[%s: %s (%s%%) • %s]%b\n" \
-            "${grade_color}" "${grade_word}" "${letter_grade}" "${score_fmt}" "${rating_text}" "${COLOR_RESET}"
+    if (( term_width < 72 )); then
+        printf "  %b%s: %s (%s%%)%b\n" "${grade_color}${COLOR_BOLD}" "${grade_word}" "${letter_grade}" "${score_fmt}" "${COLOR_RESET}"
+        printf "  %b%s%b\n" "${grade_color}" "${rating_text}" "${COLOR_RESET}"
         return 0
     fi
 

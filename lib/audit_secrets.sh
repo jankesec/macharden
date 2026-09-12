@@ -273,13 +273,15 @@ audit_env_files() {
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
 }
 
-# SEC-03: Login Keychain Auto-Lock Timeout
+# SEC-03: Login Keychain Lock Policy (organization-defined value)
 # Checks `security show-keychain-info ~/Library/Keychains/login.keychain-db`.
-# WARN/SUGG if `no-timeout` (suggest `security set-keychain-settings -t 900 -l`).
+# The login-keychain timeout is deliberately not auto-remediated: changing it
+# can cause repeated password prompts and is a threat-model/user-experience
+# choice. Profiles may define keychain-timeout and keychain-lock-on-sleep.
 audit_keychain_timeout() {
     local check_id="${1:-SEC-03}"
     local category="${2:-secrets}"
-    local title="${3:-Keychain Auto-Lock Timeout}"
+    local title="${3:-Keychain Lock Policy}"
     local weight="${4:-5}"
 
     local res_status="PASS"
@@ -296,20 +298,53 @@ audit_keychain_timeout() {
         kc_out=$(security show-keychain-info 2>&1 || true)
     fi
 
-    if echo "$kc_out" | grep -qi "no-timeout"; then
-        res_status="SUGG"
-        details="Login keychain is configured with 'no-timeout'. Credentials remain permanently unlocked during idle sessions."
-        remediation="[EXEC] security set-keychain-settings -t 900 -l \"$HOME/Library/Keychains/login.keychain-db\""
-    elif echo "$kc_out" | grep -qiE "timeout=[0-9]+s|lock-on-sleep"; then
-        res_status="PASS"
-        local setting_info
-        setting_info=$(echo "$kc_out" | grep -oE '(lock-on-sleep|timeout=[0-9]+s)' | tr '\n' ' ' | sed 's/ $//')
-        details="Login keychain auto-lock is configured: ${setting_info:-lock active}."
+    local expected_timeout="${MACHAR_KEYCHAIN_TIMEOUT_SECONDS:-}"
+    local expected_sleep="${MACHAR_KEYCHAIN_LOCK_ON_SLEEP:-}"
+    local actual_timeout=""
+    local has_sleep_lock=0
+    local setting_info=""
+
+    actual_timeout=$(echo "$kc_out" | sed -nE 's/.*timeout=([0-9]+)s.*/\1/p' | head -n 1)
+    echo "$kc_out" | grep -qi "lock-on-sleep" && has_sleep_lock=1
+    setting_info=$(echo "$kc_out" | grep -oE '(no-timeout|lock-on-sleep|timeout=[0-9]+s)' | tr '\n' ' ' | sed 's/ $//')
+
+    if ! echo "$kc_out" | grep -qiE "no-timeout|timeout=[0-9]+s|lock-on-sleep"; then
+        res_status="INFO"
+        details="Login keychain policy could not be read safely; no change will be proposed from an ambiguous result."
+        remediation="[GUIDE] Inspect in Keychain Access > Settings for the login keychain. Do not change the timeout based on this inconclusive check."
+    elif [[ "$expected_timeout" == "none" ]]; then
+        if echo "$kc_out" | grep -qi "no-timeout"; then
+            res_status="INFO"
+            details="Login keychain matches the profile's explicit no-timeout exception. The control is neutral rather than counted as framework-compliant."
+        else
+            res_status="INFO"
+            details="Login keychain is stricter than the profile's explicit no-timeout exception (${setting_info}); the exception remains neutral."
+        fi
         remediation=""
+    elif [[ "$expected_timeout" =~ ^[0-9]+$ ]]; then
+        local timeout_ok=0 sleep_ok=1
+        [[ "$actual_timeout" =~ ^[0-9]+$ ]] && (( actual_timeout <= expected_timeout )) && timeout_ok=1
+        [[ "$expected_sleep" == "yes" && $has_sleep_lock -ne 1 ]] && sleep_ok=0
+
+        if (( timeout_ok && sleep_ok )); then
+            res_status="PASS"
+            details="Login keychain meets the profile policy (${setting_info}; maximum ${expected_timeout}s${expected_sleep:+, lock-on-sleep=${expected_sleep}})."
+            remediation=""
+        else
+            res_status="WARN"
+            details="Login keychain does not meet the profile policy (current: ${setting_info:-unknown}; maximum ${expected_timeout}s${expected_sleep:+, lock-on-sleep=${expected_sleep}})."
+            local sleep_flag=""
+            [[ "$expected_sleep" == "yes" ]] && sleep_flag=" -l"
+            remediation="[GUIDE] This user-impacting policy requires explicit opt-in. Apply: security set-keychain-settings -t ${expected_timeout}${sleep_flag} \"${kc_file}\". Restore no-timeout/no-sleep-lock: security set-keychain-settings \"${kc_file}\"."
+        fi
+    elif echo "$kc_out" | grep -qi "no-timeout"; then
+        res_status="SUGG"
+        details="Login keychain uses no timeout and no organization-defined value is set. Choose a policy from the threat model before changing login behavior."
+        remediation="[GUIDE] Optional: set keychain-timeout=900 and keychain-lock-on-sleep=yes in a macharden profile, review the impact, then apply manually. Restore with: security set-keychain-settings \"${kc_file}\"."
     else
-        res_status="WARN"
-        details="Keychain status check returned: $(echo "$kc_out" | head -n 1)"
-        remediation="[EXEC] security set-keychain-settings -t 900 -l \"$HOME/Library/Keychains/login.keychain-db\""
+        res_status="PASS"
+        details="Login keychain auto-lock is configured (${setting_info}); no organization-defined maximum was selected."
+        remediation=""
     fi
 
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
@@ -939,7 +974,7 @@ register_secrets_checks() {
     if command -v register_check >/dev/null 2>&1 || typeset -f register_check >/dev/null 2>&1; then
         register_check "SEC-01" "secrets" "Plaintext API Keys in Shell Profiles" 9 audit_shell_secrets
         register_check "SEC-02" "secrets" "Exposed .env Configuration Files" 6 audit_env_files
-        register_check "SEC-03" "secrets" "Keychain Auto-Lock Timeout" 5 audit_keychain_timeout
+        register_check "SEC-03" "secrets" "Keychain Lock Policy" 5 audit_keychain_timeout
         register_check "SEC-04" "secrets" "Kernel Core Dumps" 5 audit_core_dumps
         register_check "SEC-05" "secrets" "SSH Keys and Config Permissions" 7 audit_ssh_permissions
         register_check "SEC-06" "secrets" "Unencrypted SSH Private Keys" 8 audit_unencrypted_ssh_keys

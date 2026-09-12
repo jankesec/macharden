@@ -27,6 +27,14 @@ MACHAR_CHECK_TIMEOUT=${MACHAR_CHECK_TIMEOUT:-30}
 # Skip-test list (Lynis-style skip-test=ID). INFO results; excluded from score.
 typeset -ga MACHAR_SKIP_IDS=()
 
+# Baseline/profile values. Empty values mean that the organization has not
+# selected a policy for that setting. This mirrors mSCP's organization-defined
+# value (ODV) model instead of silently imposing a workstation preference.
+typeset -g MACHAR_PROFILE_NAME="${MACHAR_PROFILE_NAME:-}"
+typeset -g MACHAR_MACHINE_ROLE="${MACHAR_MACHINE_ROLE:-}"
+typeset -g MACHAR_KEYCHAIN_TIMEOUT_SECONDS="${MACHAR_KEYCHAIN_TIMEOUT_SECONDS:-}"
+typeset -g MACHAR_KEYCHAIN_LOCK_ON_SLEEP="${MACHAR_KEYCHAIN_LOCK_ON_SLEEP:-}"
+
 # Filter-check list (target specific checks, comma-separated)
 typeset -ga MACHAR_FILTER_CHECK_IDS=()
 
@@ -74,21 +82,69 @@ add_skip_test() {
     done
 }
 
-# Load skip-test=ID lines from a profile file (comments and blanks ignored)
+# Load profile settings (comments and blanks ignored).
+# Supported values:
+#   skip-test=ID[,ID...]
+#   profile-name=NAME
+#   machine-role=personal|workstation|server
+#   keychain-timeout=unset|none|SECONDS
+#   keychain-lock-on-sleep=unset|yes|no
 # Usage: load_skip_profile /path/to/profile
 load_skip_profile() {
     local file="$1"
-    local line val
+    local line key val
     [[ -n "$file" && -f "$file" && -r "$file" ]] || return 1
     while IFS= read -r line || [[ -n "$line" ]]; do
         line="${line%%#*}"
         line="${line#"${line%%[![:space:]]*}"}"
         line="${line%"${line##*[![:space:]]}"}"
         [[ -z "$line" ]] && continue
-        if [[ "${line:l}" == skip-test=* ]]; then
-            val="${line#*=}"
-            add_skip_test "$val"
-        fi
+        [[ "$line" == *=* ]] || continue
+        key="${line%%=*}"
+        val="${line#*=}"
+        key="${key:l}"
+        key="${key// /}"
+        val="${val#"${val%%[![:space:]]*}"}"
+        val="${val%"${val##*[![:space:]]}"}"
+
+        case "$key" in
+            skip-test)
+                add_skip_test "$val"
+                ;;
+            profile-name)
+                [[ "$val" =~ ^[[:alnum:]_.[:space:]-]{1,80}$ ]] || return 1
+                MACHAR_PROFILE_NAME="$val"
+                ;;
+            machine-role)
+                case "${val:l}" in
+                    personal|workstation|server) MACHAR_MACHINE_ROLE="${val:l}" ;;
+                    *) return 1 ;;
+                esac
+                ;;
+            keychain-timeout)
+                case "${val:l}" in
+                    unset|"") MACHAR_KEYCHAIN_TIMEOUT_SECONDS="" ;;
+                    none) MACHAR_KEYCHAIN_TIMEOUT_SECONDS="none" ;;
+                    *)
+                        [[ "$val" =~ ^[0-9]+$ ]] || return 1
+                        (( val >= 60 && val <= 86400 )) || return 1
+                        MACHAR_KEYCHAIN_TIMEOUT_SECONDS="$val"
+                        ;;
+                esac
+                ;;
+            keychain-lock-on-sleep)
+                case "${val:l}" in
+                    unset|"") MACHAR_KEYCHAIN_LOCK_ON_SLEEP="" ;;
+                    yes|true|1) MACHAR_KEYCHAIN_LOCK_ON_SLEEP="yes" ;;
+                    no|false|0) MACHAR_KEYCHAIN_LOCK_ON_SLEEP="no" ;;
+                    *) return 1 ;;
+                esac
+                ;;
+            *)
+                # Profile typos must not silently weaken or alter a baseline.
+                return 1
+                ;;
+        esac
     done < "$file"
     return 0
 }
@@ -301,6 +357,9 @@ run_audit() {
             if [[ "$cat" != "$current_section" ]]; then
                 current_section="$cat"
                 local section_display="${(C)cat} Audit Checks"
+                if [[ "${CURRENT_LANG:-en}" == "tr" ]]; then
+                    section_display="$(i18n_get_category_name "$cat") Denetim Kontrolleri"
+                fi
                 ui_section "$section_display"
             fi
         fi

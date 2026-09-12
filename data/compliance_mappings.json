@@ -928,7 +928,7 @@
       ]
     },
     "SEC-03": {
-      "title": "Keychain Auto-Lock Timeout",
+      "title": "Keychain Lock Policy",
       "category": "secrets",
       "cis": {
         "id": "5.7",
@@ -965,8 +965,8 @@
       "references": [
         {
           "type": "standard",
-          "name": "OpenSSH: SSH Key Permissions & Configuration Specifications",
-          "url": "https://www.openssh.com/manual.html"
+          "name": "Apple: Keychain Access User Guide",
+          "url": "https://support.apple.com/guide/keychain-access/welcome/mac"
         },
         {
           "type": "mitre",

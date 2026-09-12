@@ -64,6 +64,7 @@ ui_disable_colors
 source "${PROJECT_ROOT}/lib/engine.sh"
 source "${PROJECT_ROOT}/lib/audit_hardening.sh"
 source "${PROJECT_ROOT}/lib/audit_network.sh"
+source "${PROJECT_ROOT}/lib/audit_secrets.sh"
 
 # ==============================================================================
 # Test 1: SIP Audit Mock (csrutil)
@@ -180,6 +181,67 @@ chmod +x "${MOCK_BIN}/sysctl"
 RES_STATUSES=()
 audit_ip_forwarding "NET-05" "network" "IP Forwarding" 8
 assert_mock_status "FAIL" "${RES_STATUSES[-1]:-}" "audit_ip_forwarding reports FAIL when sysctl is 1"
+
+# ==============================================================================
+# Test 5: Keychain Policy Safety (security)
+# ==============================================================================
+echo "\n\033[1m[Mock Test 5] Organization-Defined Keychain Policy (audit_keychain_timeout)\033[0m"
+
+mkdir -p "${MOCK_DIR}/home/Library/Keychains"
+touch "${MOCK_DIR}/home/Library/Keychains/login.keychain-db"
+cat << 'EOF' > "${MOCK_BIN}/security"
+#!/bin/sh
+printf '%s\n' "${MOCK_KEYCHAIN_INFO:-unable to read settings}"
+EOF
+chmod +x "${MOCK_BIN}/security"
+
+ORIGINAL_TEST_HOME="$HOME"
+export HOME="${MOCK_DIR}/home"
+
+MACHAR_KEYCHAIN_TIMEOUT_SECONDS=""
+MACHAR_KEYCHAIN_LOCK_ON_SLEEP=""
+export MOCK_KEYCHAIN_INFO="Keychain login.keychain-db no-timeout"
+RES_STATUSES=(); RES_REMEDIATIONS=()
+audit_keychain_timeout "SEC-03" "secrets" "Keychain" 5
+assert_mock_status "SUGG" "${RES_STATUSES[-1]:-}" "no-timeout is advisory when no organization policy is selected"
+if [[ "${RES_REMEDIATIONS[-1]:-}" == \[GUIDE\]* ]]; then
+    log_mock_test "PASS" "keychain advisory is manual guidance, never an executable remediation"
+else
+    log_mock_test "FAIL" "keychain advisory is manual guidance, never an executable remediation" "Got: ${RES_REMEDIATIONS[-1]:-empty}"
+fi
+
+MACHAR_KEYCHAIN_TIMEOUT_SECONDS="none"
+MACHAR_KEYCHAIN_LOCK_ON_SLEEP="no"
+RES_STATUSES=(); RES_REMEDIATIONS=()
+audit_keychain_timeout "SEC-03" "secrets" "Keychain" 5
+assert_mock_status "INFO" "${RES_STATUSES[-1]:-}" "explicit no-timeout exception is neutral, not a framework compliance pass"
+
+MACHAR_KEYCHAIN_TIMEOUT_SECONDS="900"
+MACHAR_KEYCHAIN_LOCK_ON_SLEEP="yes"
+export MOCK_KEYCHAIN_INFO="Keychain login.keychain-db lock-on-sleep timeout=600s"
+RES_STATUSES=(); RES_REMEDIATIONS=()
+audit_keychain_timeout "SEC-03" "secrets" "Keychain" 5
+assert_mock_status "PASS" "${RES_STATUSES[-1]:-}" "configured keychain policy passes when timeout is within the profile maximum"
+
+export MOCK_KEYCHAIN_INFO="Keychain login.keychain-db no-timeout"
+RES_STATUSES=(); RES_REMEDIATIONS=()
+audit_keychain_timeout "SEC-03" "secrets" "Keychain" 5
+assert_mock_status "WARN" "${RES_STATUSES[-1]:-}" "configured keychain policy warns when no-timeout is active"
+if [[ "${RES_REMEDIATIONS[-1]:-}" == \[GUIDE\]* ]]; then
+    log_mock_test "PASS" "profile mismatch remains explicit manual guidance"
+else
+    log_mock_test "FAIL" "profile mismatch remains explicit manual guidance" "Got: ${RES_REMEDIATIONS[-1]:-empty}"
+fi
+
+export MOCK_KEYCHAIN_INFO="unable to read settings"
+RES_STATUSES=(); RES_REMEDIATIONS=()
+audit_keychain_timeout "SEC-03" "secrets" "Keychain" 5
+assert_mock_status "INFO" "${RES_STATUSES[-1]:-}" "ambiguous keychain output is neutral and cannot trigger a fix"
+
+export HOME="$ORIGINAL_TEST_HOME"
+unset MOCK_KEYCHAIN_INFO
+MACHAR_KEYCHAIN_TIMEOUT_SECONDS=""
+MACHAR_KEYCHAIN_LOCK_ON_SLEEP=""
 
 # ==============================================================================
 # Summary

@@ -301,11 +301,11 @@
       "remediation_desc": "Dosya izinlerini kısıtlayın (chmod 600) ve .env dosyalarını kesinlikle .gitignore içerisine ekleyin."
     },
     "SEC-03": {
-      "title": "Anahtar Zinciri (Keychain) Otomatik Kilit Zaman Aşımı",
-      "details_pass": "Giriş anahtarlığı otomatik kilitleme ayarı yapılandırılmış (uykuda kilitleme veya süre sınırı devrede).",
-      "details_warn": "Anahtar zinciri durumu veya zaman aşımı ayarı doğrulanamadı; manuel kontrol önerilir.",
-      "details_fail": "Giriş anahtarlığı zaman aşımı olmadan ('no-timeout') ayarlanmış; oturum boştayken kimlik bilgileri sürekli açık kalıyor.",
-      "remediation_desc": "Anahtar zinciri için boşta kalma kilit süresi belirleyin: security set-keychain-settings -t 900 -l ~/Library/Keychains/login.keychain-db"
+      "title": "Anahtar Zinciri (Keychain) Kilit Politikası",
+      "details_pass": "Giriş anahtarlığı, profilde açıkça seçilen kilit politikasıyla uyumlu.",
+      "details_warn": "Giriş anahtarlığı seçilen profil politikasıyla uyumlu değil; kullanıcı etkisi nedeniyle yalnızca manuel inceleme önerilir.",
+      "details_fail": "Giriş anahtarlığı politikası doğrulanamadı.",
+      "remediation_desc": "Tehdit modeline uygun süreyi profilde açıkça seçin; Keychain kilit ayarları otomatik uygulanmaz."
     },
     "SEC-04": {
       "title": "Çekirdek Bellek Dökümleri (Kernel Core Dumps)",

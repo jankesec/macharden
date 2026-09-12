@@ -34,7 +34,7 @@ generate_fix_script() {
             rem_clean="${rem_clean#\[EXEC\] }"
         fi
         rem_clean="$(echo "$rem_clean" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
-        if [[ ( "$st" == "FAIL" || "$st" == "WARN" ) && -n "$rem_clean" ]]; then
+        if [[ ( "$st" == "FAIL" || "$st" == "WARN" ) && -n "$rem_clean" && ( "$rem" == \[EXEC\]* || "$rem" == \[GUIDE\]* ) ]]; then
             fixable_indices+=("$i")
         fi
     done
@@ -158,8 +158,11 @@ EOF
             local details="${RES_DETAILS[idx]}"
             local rem="${RES_REMEDIATIONS[idx]}"
 
-            if [[ "$rem" == \[GUIDE\]* ]]; then
+            if [[ "$rem" != \[EXEC\]* ]]; then
                 local guide_text="${rem#\[GUIDE\] }"
+                if [[ "$rem" != \[GUIDE\]* ]]; then
+                    guide_text="Unclassified remediation was blocked from execution: ${rem}"
+                fi
                 cat <<EOF >> "$output_file"
 # ------------------------------------------------------------------------------
 # [Step ${step_num}/${total_fixes}] ID: ${id} | Category: ${cat}
@@ -176,9 +179,7 @@ echo ""
 
 EOF
             else
-                if [[ "$rem" == \[EXEC\]* ]]; then
-                    rem="${rem#\[EXEC\] }"
-                fi
+                rem="${rem#\[EXEC\] }"
                 rem="$(echo "$rem" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
 
                 if [[ -z "$rem" ]]; then
@@ -401,7 +402,7 @@ apply_remediation_interactive() {
     for (( i = 1; i <= n; i++ )); do
         local st="${RES_STATUSES[i]}"
         local rem="${RES_REMEDIATIONS[i]}"
-        if [[ ( "$st" == "FAIL" || "$st" == "WARN" ) && -n "$rem" ]]; then
+        if [[ ( "$st" == "FAIL" || "$st" == "WARN" ) && ( "$rem" == \[EXEC\]* || "$rem" == \[GUIDE\]* ) ]]; then
             fixable_indices+=("$i")
         fi
     done
@@ -486,8 +487,11 @@ apply_remediation_interactive() {
             printf "        ${COLOR_DIM}Finding : %s${COLOR_RESET}\n" "$details"
         fi
 
-        if [[ "$rem" == \[GUIDE\]* ]]; then
+        if [[ "$rem" != \[EXEC\]* ]]; then
             local guide_text="${rem#\[GUIDE\] }"
+            if [[ "$rem" != \[GUIDE\]* ]]; then
+                guide_text="Unclassified remediation was blocked from execution: ${rem}"
+            fi
             printf "        ${COLOR_BCYAN}Guidance: %s${COLOR_RESET}\n" "$guide_text"
             printf "        ${COLOR_BYELLOW}[INFO] Manual action required (Skipped).${COLOR_RESET}\n"
             (( ++skipped_count ))
@@ -496,9 +500,7 @@ apply_remediation_interactive() {
             continue
         fi
 
-        if [[ "$rem" == \[EXEC\]* ]]; then
-            rem="${rem#\[EXEC\] }"
-        fi
+        rem="${rem#\[EXEC\] }"
 
         printf "        ${COLOR_BCYAN}Command : %s${COLOR_RESET}\n" "$rem"
 
@@ -595,4 +597,3 @@ apply_remediation_interactive() {
 apply_remediations() {
     apply_remediation_interactive "$@"
 }
-

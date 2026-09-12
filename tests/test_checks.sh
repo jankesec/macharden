@@ -121,6 +121,10 @@ reset_engine() {
     COUNT_SUGG=0
     COUNT_TOTAL=0
     MACHAR_SKIP_IDS=()
+    MACHAR_PROFILE_NAME=""
+    MACHAR_MACHINE_ROLE=""
+    MACHAR_KEYCHAIN_TIMEOUT_SECONDS=""
+    MACHAR_KEYCHAIN_LOCK_ON_SLEEP=""
 }
 
 echo ""
@@ -245,8 +249,8 @@ assert_eq "2" "$COUNT_TOTAL" "run_audit 'all' executes all registered checks"
 echo "\n\033[1m[Suite 3] Remediation Script Generation\033[0m"
 
 reset_engine
-record_result "FIX-01" "hardening" "FileVault Disabled" "FAIL" 10 "FileVault is off" "echo 'enabling filevault'"
-record_result "FIX-02" "network" "Stealth Mode Off" "WARN" 5 "Stealth mode disabled" "echo 'enabling stealth mode'"
+record_result "FIX-01" "hardening" "FileVault Disabled" "FAIL" 10 "FileVault is off" "[EXEC] echo 'enabling filevault'"
+record_result "FIX-02" "network" "Stealth Mode Off" "WARN" 5 "Stealth mode disabled" "[EXEC] echo 'enabling stealth mode'"
 record_result "FIX-03" "hardening" "SIP Active" "PASS" 10 "SIP is enabled" ""
 
 FIX_SCRIPT="${TEST_TMP_DIR}/fix_hardening.sh"
@@ -352,6 +356,22 @@ assert_match "12 PASS" "$ROW_OUT" "ui_category_score_row outputs passed count"
 assert_match "1 WARN" "$ROW_OUT" "ui_category_score_row outputs warn count"
 assert_match "1 FAIL" "$ROW_OUT" "ui_category_score_row outputs fail count"
 
+NA_ROW_OUT=$(MACHAR_TERM_WIDTH=60 MACHAR_ASCII=1 ui_category_score_row "Secrets" "N/A" 0 0 0 0 1 2>&1)
+assert_match "N/A" "$NA_ROW_OUT" "neutral-only category score is displayed as N/A"
+assert_match "1 SUGG" "$NA_ROW_OUT" "neutral-only category displays advisory count"
+
+NARROW_UI_OUT=$(MACHAR_TERM_WIDTH=60 MACHAR_ASCII=1 ui_result "FAIL" "TEST-01" \
+    "A deliberately long terminal title that must wrap cleanly" \
+    "A deliberately long finding description that must stay inside a narrow terminal viewport without clipping." \
+    "9" "[GUIDE] Open System Settings and review the organization-defined policy before making this user-impacting change." 2>&1)
+NARROW_MAX_WIDTH=$(print -r -- "$NARROW_UI_OUT" | awk '{ if (length > max) max=length } END { print max+0 }')
+if (( NARROW_MAX_WIDTH <= 60 )); then
+    log_test "PASS" "ui_result stays within a 60-column ASCII viewport"
+else
+    log_test "FAIL" "ui_result stays within a 60-column ASCII viewport" "Longest line: ${NARROW_MAX_WIDTH}"
+fi
+assert_match "GUIDE" "$NARROW_UI_OUT" "ui_result distinguishes manual guidance from executable actions"
+
 BOX_OUT=$(ui_grade_box 80.0 "B+" "GOOD / ACCEPTABLE" 2>&1)
 assert_match "GRADE: B\\+ \\(80.0%\\)" "$BOX_OUT" "ui_grade_box outputs letter grade and percentage"
 assert_match "GOOD / ACCEPTABLE" "$BOX_OUT" "ui_grade_box outputs rating text"
@@ -435,8 +455,8 @@ echo "\n\033[1m[Suite 7] HTML Dashboard Report Generation & Interactive Feature 
 
 reset_engine
 record_result "HTML-01" "hardening" "Test Hardening Check" "PASS" 10 "All good" ""
-record_result "HTML-02" "network" "Test Network Check" "WARN" 8 "Warning details" "sudo network_fix"
-record_result "HTML-03" "secrets" "Test Secrets Check" "FAIL" 9 "Found secrets" "chmod 600 ~/.secret"
+record_result "HTML-02" "network" "Test Network Check" "WARN" 8 "Warning details" "[EXEC] sudo network_fix"
+record_result "HTML-03" "secrets" "Test Secrets Check" "FAIL" 9 "Found secrets" "[GUIDE] Review the secret manually"
 calculate_hardening_index
 
 HTML_REPORT="${TEST_TMP_DIR}/test_report.html"
@@ -466,6 +486,12 @@ assert_match "data-status=\"PASS\"" "$HTML_CONTENT" "HTML contains Pass status f
 assert_match "id=\"searchInput\"" "$HTML_CONTENT" "HTML contains search input element"
 assert_match "Copy Fix Command" "$HTML_CONTENT" "HTML contains Copy Fix Command button"
 assert_match "@media print" "$HTML_CONTENT" "HTML contains @media print styling"
+assert_match "sudo network_fix" "$HTML_CONTENT" "HTML executable playbook includes typed [EXEC] action"
+if echo "$HTML_CONTENT" | grep -q 'lines.push(c.remediation);'; then
+    log_test "FAIL" "HTML export does not copy untyped remediation text into executable blocks"
+else
+    log_test "PASS" "HTML export does not copy untyped remediation text into executable blocks"
+fi
 
 # Validate zero external links/scripts/stylesheets
 EXTERNAL_LINKS=$(python3 -c "
@@ -970,6 +996,38 @@ else
     log_test "FAIL" "load_skip_profile parses skip-test lines and comma lists"
 fi
 
+ODV_PRF="${TEST_TMP_DIR}/odv.prf"
+printf 'profile-name=Developer Workstation\nmachine-role=workstation\nkeychain-timeout=1800\nkeychain-lock-on-sleep=yes\n' > "$ODV_PRF"
+MACHAR_PROFILE_NAME=""
+MACHAR_MACHINE_ROLE=""
+MACHAR_KEYCHAIN_TIMEOUT_SECONDS=""
+MACHAR_KEYCHAIN_LOCK_ON_SLEEP=""
+if load_skip_profile "$ODV_PRF" && \
+   [[ "$MACHAR_PROFILE_NAME" == "Developer Workstation" ]] && \
+   [[ "$MACHAR_MACHINE_ROLE" == "workstation" ]] && \
+   [[ "$MACHAR_KEYCHAIN_TIMEOUT_SECONDS" == "1800" ]] && \
+   [[ "$MACHAR_KEYCHAIN_LOCK_ON_SLEEP" == "yes" ]]; then
+    log_test "PASS" "profile loads mSCP-style organization-defined values"
+else
+    log_test "FAIL" "profile loads mSCP-style organization-defined values"
+fi
+
+INVALID_ODV_PRF="${TEST_TMP_DIR}/invalid-odv.prf"
+printf 'keychain-timeout=10\n' > "$INVALID_ODV_PRF"
+if load_skip_profile "$INVALID_ODV_PRF"; then
+    log_test "FAIL" "profile rejects unsafe or invalid keychain timeout values"
+else
+    log_test "PASS" "profile rejects unsafe or invalid keychain timeout values"
+fi
+
+TYPO_PRF="${TEST_TMP_DIR}/typo.prf"
+printf 'keychan-timeout=900\n' > "$TYPO_PRF"
+if load_skip_profile "$TYPO_PRF"; then
+    log_test "FAIL" "profile rejects unknown keys instead of silently ignoring typos"
+else
+    log_test "PASS" "profile rejects unknown keys instead of silently ignoring typos"
+fi
+
 CLI_SKIP_OUT=$("${PROJECT_ROOT}/bin/macharden" --skip-test HARD-08 -c hardening -q -f json -o "${TEST_TMP_DIR}/skip.json" 2>&1) || true
 if python3 - "$TEST_TMP_DIR/skip.json" << 'PY'
 import json, sys
@@ -1214,7 +1272,20 @@ assert_match "MANUAL ACTION REQUIRED" "$GEN_TEST_CONTENT" "[GUIDE] item rendered
 assert_match "Reboot into Recovery" "$GEN_TEST_CONTENT" "Guide text present in comments"
 assert_match "socketfilterfw" "$GEN_TEST_CONTENT" "[EXEC] command present in fix script"
 
+reset_engine
+record_result "REM-03" "hardening" "Untagged Item" "FAIL" 10 "Unsafe legacy action" "echo must-not-run"
+UNTAGGED_SCRIPT="${TEST_TMP_DIR}/untagged-remediation.sh"
+generate_fix_script "$UNTAGGED_SCRIPT"
+UNTAGGED_CONTENT=$(cat "$UNTAGGED_SCRIPT")
+if echo "$UNTAGGED_CONTENT" | grep -q "must-not-run"; then
+    log_test "FAIL" "untagged remediation is excluded from executable fix scripts"
+else
+    log_test "PASS" "untagged remediation is excluded from executable fix scripts"
+fi
+
 # 2. Test Dry-Run interactive flow
+reset_engine
+record_result "REM-02" "network" "Exec Item" "WARN" 5 "Firewall off" "[EXEC] sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on"
 MACHAR_DRY_RUN=1
 DRY_RUN_OUT=$(apply_remediations 2>&1)
 assert_match "DRY RUN MODE" "$DRY_RUN_OUT" "apply_remediations honors dry-run mode"

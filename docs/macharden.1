@@ -213,7 +213,13 @@ Skip one or more check IDs (comma-separated, repeatable). Skipped checks
 are recorded as INFO and do not affect the Hardening Index.
 .TP
 .BR \-\-profile " " \fIfile\fR
-Load \fBskip-test=\fRID lines from a profile file (Lynis-style).
+Load a tailored profile (Lynis-style). Supported settings include
+\fBskip-test=\fRID, \fBprofile-name=\fRNAME,
+\fBmachine-role=\fRpersonal|workstation|server,
+\fBkeychain-timeout=\fRunset|none|SECONDS, and
+\fBkeychain-lock-on-sleep=\fRunset|yes|no. Unknown keys and unsafe timeout
+values are rejected. Keychain policy is guidance-only and is never applied
+automatically.
 .TP
 .B \-\-no\-profile
 Do not auto-load \fB~/.macharden/profile\fR or

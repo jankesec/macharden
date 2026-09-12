@@ -889,16 +889,16 @@ CHECK_I18N = {
   },
   "SEC-03": {
     "title": {
-      "en": "Keychain Auto-Lock Timeout",
-      "tr": "Anahtar Zinciri Otomatik Kilit Zaman Aşımı"
+      "en": "Keychain Lock Policy",
+      "tr": "Anahtar Zinciri Kilit Politikası"
     },
     "desc": {
-      "en": "Verifies the macOS login keychain has auto-lock timeout configured when the system is inactive.",
-      "tr": "Sistem boştayken macOS oturum açma anahtar zincirinin otomatik kilitlenme zaman aşımına sahip olduğunu doğrular."
+      "en": "Evaluates the login keychain against an explicit organization-defined policy without automatically changing user authentication behavior.",
+      "tr": "Kullanıcı kimlik doğrulama davranışını otomatik değiştirmeden giriş anahtarlığını açıkça seçilmiş kurum politikasına göre değerlendirir."
     },
     "finding": {
-      "PASS": "Oturum anahtar zinciri için otomatik kilitleme aktif.",
-      "WARN": "Anahtar zinciri zaman aşımı olmadan açık kalıyor; kilit süresi ayarlanmalıdır."
+      "PASS": "Giriş anahtarlığı seçilen politikayla uyumlu.",
+      "WARN": "Giriş anahtarlığı seçilen politikayla uyumlu değil; manuel inceleme gerekli."
     }
   },
   "SEC-04": {
@@ -1285,7 +1285,11 @@ for c in checks:
 cis_pct = round((cis_passed / cis_total * 100) if cis_total > 0 else 85.0, 1)
 nist_pct = round((nist_passed / nist_total * 100) if nist_total > 0 else 82.0, 1)
 
-remediable_checks = [c for c in checks if c.get('status') in ['FAIL', 'WARN'] and c.get('remediation')]
+remediable_checks = [
+    c for c in checks
+    if c.get('status') in ['FAIL', 'WARN']
+    and c.get('remediation', '').startswith('[EXEC] ')
+]
 remediable_count = len(remediable_checks)
 remed_script_lines = [
     "#!/bin/zsh",
@@ -1305,7 +1309,7 @@ if remediable_checks:
         cid = c.get('id', '')
         ctitle = c.get('title', '')
         csev = get_severity(c.get('weight', 5))
-        rem = c.get('remediation', '')
+        rem = c.get('remediation', '')[7:]
         remed_script_lines.append("# ------------------------------------------------------------------------------")
         remed_script_lines.append(f"# [{cid}] {ctitle} (Severity: {csev})")
         remed_script_lines.append("# ------------------------------------------------------------------------------")
@@ -1315,8 +1319,9 @@ if remediable_checks:
     remed_script_lines.append("echo \"[✔] All remediation commands executed successfully.\"")
     remed_script_lines.append("echo \"[✔] Re-run macharden audit to verify hardening posture.\"")
 else:
-    remed_script_lines.append("# No automated remediation commands required! Security posture is fully hardened.")
-    remed_script_lines.append("echo \"[✔] No failed or warning controls detected. System is hardened.\"")
+    remed_script_lines.append("# No executable remediation actions are available.")
+    remed_script_lines.append("# Manual guidance may still remain in the audit report.")
+    remed_script_lines.append("echo \"[✔] No typed executable remediation actions are available.\"")
 raw_playbook_script = "\n".join(remed_script_lines)
 
 doc = []
@@ -4425,7 +4430,11 @@ function exportMarkdownReport() {
     lines.push('');
   });
 
-  const remediations = checks.filter(c => (c.status === 'FAIL' || c.status === 'WARN') && c.remediation);
+  const remediations = checks.filter(c =>
+    (c.status === 'FAIL' || c.status === 'WARN') &&
+    typeof c.remediation === 'string' &&
+    c.remediation.startsWith('[EXEC] ')
+  );
   if (remediations.length > 0) {
     lines.push('---');
     lines.push('');
@@ -4438,7 +4447,7 @@ function exportMarkdownReport() {
     lines.push('');
     remediations.forEach(c => {
       lines.push('# ' + c.id + ': ' + c.title);
-      lines.push(c.remediation);
+      lines.push(c.remediation.slice(7));
       lines.push('');
     });
     lines.push('```');

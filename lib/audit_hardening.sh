@@ -174,7 +174,7 @@ audit_screenlock() {
     else
         res_status="WARN"
         details="Screen lock configuration is ambiguous (askForPassword=${ask_pw}, delay=${ask_delay})."
-        remediation="[EXEC] defaults write com.apple.screensaver askForPassword -int 1 && defaults write com.apple.screensaver askForPasswordDelay -int 0"
+        remediation="[GUIDE] Inspect System Settings > Lock Screen. No automatic change is offered because the current state could not be determined reliably."
     fi
 
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
@@ -1023,4 +1023,3 @@ register_hardening_checks() {
 }
 
 register_hardening_checks
-

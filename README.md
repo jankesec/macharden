@@ -21,9 +21,9 @@
 ## 🎬 Live Terminal & Interactive Dashboard Demo
 
 <p align="center">
-  <img src="assets/demo.gif" alt="macharden live terminal execution and interactive dashboard demo" width="95%">
+  <img src="assets/demo.gif" alt="macharden terminal audit and interactive dashboard demonstration" width="100%">
 </p>
-<p align="center"><em>Real-time security audit execution of macharden on macOS: evaluating system controls with modern box-drawing CLI aesthetics, calculating the weighted Hardening Index, displaying category posture breakdowns, and seamlessly generating the interactive Liquid Glass HTML5 security dashboard.</em></p>
+<p align="center"><em>Terminal audit, weighted Hardening Index, category posture, and the interactive Liquid Glass dashboard. The recording is generated from deterministic synthetic findings and contains no workstation identity, local paths, credentials, or real security posture data.</em></p>
 
 ---
 
@@ -57,7 +57,8 @@ Unlike generic Unix scanners that treat macOS as a generic BSD derivative, **mac
 | 🛡️ **OASIS SARIF v2.1.0** | Native integration with GitHub Advanced Security (Code Scanning tab), GitLab SAST, DefectDojo, and SIEM pipelines. |
 | 💎 **Liquid Glass HTML5 Dashboard** | Standalone, single-file interactive dashboard with zero external CDN dependencies, search, filters, and Dark/Light modes. |
 | 🌐 **Bilingual (EN / TR)** | Complete native English and Turkish language support across Terminal, HTML dashboard, Markdown reports, and SARIF tags. |
-| 🔧 **Automated & Safe Remediation** | Interactive remediation (`--fix`), standalone script generation (`--generate-fix`), dry-run preview (`--dry-run`), and automated rollback (`--undo`). |
+| 🔧 **Risk-Aware Remediation** | Only explicitly typed `[EXEC]` actions can run; `[GUIDE]` items stay manual. Includes interactive remediation (`--fix`), dry-run preview, executable playbooks, and rollback. |
+| 🎛️ **Tailored Baselines** | Lynis-style profiles support skipped controls plus mSCP-style organization-defined values (ODVs), so user-impacting policy is never silently imposed. |
 | 📜 **Regulatory Compliance** | Direct control mapping to **CIS Apple macOS Benchmark**, **NIST SP 800-53 Rev 5**, and **MITRE ATT&CK Matrix for macOS**. |
 
 ---
@@ -120,6 +121,31 @@ make install-man           # UNIX manual page (man macharden)
 ```
 
 *(Installs binary to `/usr/local/bin` or `~/.local/bin`, completions to Zsh/Bash site-functions, and manual page to `share/man/man1/macharden.1`)*
+
+### 4. Tailor a Baseline
+
+Copy `examples/macharden.prf` and select values that match the Mac's role and threat model:
+
+```ini
+profile-name=Developer Workstation
+machine-role=workstation
+
+# Explicitly retain normal login-keychain behavior:
+keychain-timeout=none
+keychain-lock-on-sleep=no
+
+# Or require a reviewed 15-minute policy (never auto-applied):
+# keychain-timeout=900
+# keychain-lock-on-sleep=yes
+
+skip-test=HARD-08
+```
+
+```bash
+macharden --profile ./developer.prf
+```
+
+Keychain timeout changes are guidance-only because they can cause recurring password prompts. The Keychain check evaluates the selected baseline while leaving this user-impacting choice to the operator.
 
 ---
 
@@ -344,7 +370,7 @@ macharden/
 ├── bin/
 │   └── macharden                  # Unified CLI executable & scanner entrypoint
 ├── lib/
-│   ├── audit_hardening.sh         # 17 macOS system & kernel hardening checks
+│   ├── audit_hardening.sh         # 21 macOS system & kernel hardening checks
 │   ├── audit_network.sh           # 12 network, socket & packet capture checks
 │   ├── audit_secrets.sh           # 11 secret leak, cloud credential & PATH checks
 │   ├── audit_persistence.sh       # 10 persistence, launchd & cron checks
@@ -363,18 +389,23 @@ macharden/
 │   └── locales/
 │       └── tr.json                # Authentic Turkish cybersecurity terminology
 ├── assets/
-│   ├── demo.gif                   # Animated terminal demo recording (vhs)
+│   ├── demo.gif                   # Privacy-safe terminal + dashboard demo
+│   ├── demo.tape                  # Reproducible VHS terminal capture source
 │   └── dashboard.png              # High-resolution HTML5 dashboard preview
 ├── completions/
 │   ├── macharden.zsh              # Native Zsh completion definition
 │   └── macharden.bash             # Native Bash completion definition
 ├── docs/
-│   └── macharden.1                # Standard UNIX manual page (groff man format)
+│   ├── macharden.1                # Standard UNIX manual page (groff man format)
+│   └── reference-design.md        # NIST mSCP, Lynis, and hardening design notes
+├── scripts/
+│   ├── demo_fixture.sh            # Deterministic synthetic demo data
+│   └── generate_demo_gif.py       # High-fidelity GIF rendering pipeline
 ├── launchd/
 │   └── com.macharden.daemon.plist # Launchd template for background audits
 ├── tests/
 │   ├── test_runner.sh             # Master test suite runner
-│   ├── test_checks.sh             # 301 unit tests, schema verifiers & CLI tests
+│   ├── test_checks.sh             # Unit tests, schema verifiers & CLI tests
 │   └── test_mocks.sh              # Mocked system checks validation
 ├── .github/
 │   └── workflows/ci.yml           # Cross-platform GitHub Actions CI pipeline

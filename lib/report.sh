@@ -107,15 +107,7 @@ report_terminal() {
     (( is_tr )) && header_title="$(i18n_t "ui.executive_summary_title" "YÖNETİCİ DENETİM ÖZETİ")"
 
     echo ""
-    if [[ "${MACHAR_ASCII:-0}" -eq 1 ]]; then
-        echo "${COLOR_BOLD}${COLOR_BCYAN}======================================================================${COLOR_RESET}"
-        echo "                     ${COLOR_BOLD}${header_title}${COLOR_RESET}"
-        echo "${COLOR_BOLD}${COLOR_BCYAN}======================================================================${COLOR_RESET}"
-    else
-        echo "${COLOR_BCYAN}╭──────────────────────────────────────────────────────────────────────────╮${COLOR_RESET}"
-        printf "${COLOR_BCYAN}│${COLOR_RESET}  ${COLOR_BOLD}%-70s${COLOR_RESET}  ${COLOR_BCYAN}│${COLOR_RESET}\n" "           🛡️   ${header_title}"
-        echo "${COLOR_BCYAN}╰──────────────────────────────────────────────────────────────────────────╯${COLOR_RESET}"
-    fi
+    ui_panel_title "$header_title"
     echo ""
 
     local letter_grade
@@ -129,22 +121,25 @@ report_terminal() {
     ui_score_bar "$HARDENING_INDEX"
     echo ""
 
-    if (( is_tr )); then
-        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.total_checks" "Denetlenen Toplam Kontrol:")" "${COLOR_BOLD}${COUNT_TOTAL}${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.passed_checks" "Başarılı Kontroller:")" "${COLOR_BGREEN}${COLOR_BOLD}[✔ ${COUNT_PASS}]${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.warnings" "Uyarılar:")" "${COLOR_BYELLOW}${COLOR_BOLD}[▲ ${COUNT_WARN}]${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.failed_checks" "Başarısız Kontroller:")" "${COLOR_BRED}${COLOR_BOLD}[✖ ${COUNT_FAIL}]${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.informational" "Bilgilendirme:")" "${COLOR_BCYAN}${COLOR_BOLD}[ℹ ${COUNT_INFO}]${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.suggestions" "Öneriler:")" "${COLOR_BMAGENTA}${COLOR_BOLD}[💡 ${COUNT_SUGG}]${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %.1f / %.1f\n" "$(i18n_t "ui.kpi.points_earned" "Kazanılan Skor Puanı:")" "$EARNED_POINTS" "$TOTAL_POSSIBLE_POINTS"
+    local term_width=$(ui_get_term_width)
+    if (( is_tr && term_width < 72 )); then
+        printf "  ${COLOR_BOLD}SONUÇLAR${COLOR_RESET}  %s toplam  ${COLOR_DIM}•${COLOR_RESET}  ${COLOR_BGREEN}%s başarılı${COLOR_RESET}\n" "$COUNT_TOTAL" "$COUNT_PASS"
+        printf "            ${COLOR_BYELLOW}%s uyarı${COLOR_RESET}  ${COLOR_DIM}•${COLOR_RESET}  ${COLOR_BRED}%s başarısız${COLOR_RESET}\n" "$COUNT_WARN" "$COUNT_FAIL"
+        printf "            ${COLOR_BCYAN}%s bilgi${COLOR_RESET}  ${COLOR_DIM}•${COLOR_RESET}  ${COLOR_BMAGENTA}%s öneri${COLOR_RESET}\n" "$COUNT_INFO" "$COUNT_SUGG"
+        printf "  ${COLOR_BOLD}PUANLAR${COLOR_RESET}   %.1f / %.1f ağırlıklı puan\n" "$EARNED_POINTS" "$TOTAL_POSSIBLE_POINTS"
+    elif (( ! is_tr && term_width < 72 )); then
+        printf "  ${COLOR_BOLD}RESULTS${COLOR_RESET}  %s total  ${COLOR_DIM}•${COLOR_RESET}  ${COLOR_BGREEN}%s pass${COLOR_RESET}\n" "$COUNT_TOTAL" "$COUNT_PASS"
+        printf "           ${COLOR_BYELLOW}%s warn${COLOR_RESET}  ${COLOR_DIM}•${COLOR_RESET}  ${COLOR_BRED}%s fail${COLOR_RESET}\n" "$COUNT_WARN" "$COUNT_FAIL"
+        printf "           ${COLOR_BCYAN}%s info${COLOR_RESET}  ${COLOR_DIM}•${COLOR_RESET}  ${COLOR_BMAGENTA}%s advisory${COLOR_RESET}\n" "$COUNT_INFO" "$COUNT_SUGG"
+        printf "  ${COLOR_BOLD}POINTS${COLOR_RESET}   %.1f / %.1f weighted\n" "$EARNED_POINTS" "$TOTAL_POSSIBLE_POINTS"
+    elif (( is_tr )); then
+        printf "  ${COLOR_BOLD}SONUÇLAR${COLOR_RESET}  %s toplam  ${COLOR_DIM}•${COLOR_RESET}  ${COLOR_BGREEN}%s başarılı${COLOR_RESET}  ${COLOR_DIM}•${COLOR_RESET}  ${COLOR_BYELLOW}%s uyarı${COLOR_RESET}  ${COLOR_DIM}•${COLOR_RESET}  ${COLOR_BRED}%s başarısız${COLOR_RESET}\n" "$COUNT_TOTAL" "$COUNT_PASS" "$COUNT_WARN" "$COUNT_FAIL"
+        printf "            ${COLOR_BCYAN}%s bilgi${COLOR_RESET}  ${COLOR_DIM}•${COLOR_RESET}  ${COLOR_BMAGENTA}%s öneri${COLOR_RESET}\n" "$COUNT_INFO" "$COUNT_SUGG"
+        printf "  ${COLOR_BOLD}PUANLAR${COLOR_RESET}   %.1f / %.1f ağırlıklı puan\n" "$EARNED_POINTS" "$TOTAL_POSSIBLE_POINTS"
     else
-        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Total Checks Audited:" "${COLOR_BOLD}${COUNT_TOTAL}${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Passed Checks:" "${COLOR_BGREEN}${COLOR_BOLD}[✔ ${COUNT_PASS}]${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Warnings:" "${COLOR_BYELLOW}${COLOR_BOLD}[▲ ${COUNT_WARN}]${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Failed Checks:" "${COLOR_BRED}${COLOR_BOLD}[✖ ${COUNT_FAIL}]${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Informational:" "${COLOR_BCYAN}${COLOR_BOLD}[ℹ ${COUNT_INFO}]${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Suggestions:" "${COLOR_BMAGENTA}${COLOR_BOLD}[💡 ${COUNT_SUGG}]${COLOR_RESET}"
-        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %.1f / %.1f\n" "Score Points Earned:" "$EARNED_POINTS" "$TOTAL_POSSIBLE_POINTS"
+        printf "  ${COLOR_BOLD}RESULTS${COLOR_RESET}  %s total  ${COLOR_DIM}•${COLOR_RESET}  ${COLOR_BGREEN}%s pass${COLOR_RESET}  ${COLOR_DIM}•${COLOR_RESET}  ${COLOR_BYELLOW}%s warn${COLOR_RESET}  ${COLOR_DIM}•${COLOR_RESET}  ${COLOR_BRED}%s fail${COLOR_RESET}\n" "$COUNT_TOTAL" "$COUNT_PASS" "$COUNT_WARN" "$COUNT_FAIL"
+        printf "           ${COLOR_BCYAN}%s info${COLOR_RESET}  ${COLOR_DIM}•${COLOR_RESET}  ${COLOR_BMAGENTA}%s advisory${COLOR_RESET}\n" "$COUNT_INFO" "$COUNT_SUGG"
+        printf "  ${COLOR_BOLD}POINTS${COLOR_RESET}   %.1f / %.1f weighted\n" "$EARNED_POINTS" "$TOTAL_POSSIBLE_POINTS"
     fi
     echo ""
 
@@ -157,10 +152,10 @@ report_terminal() {
     else
         echo "${COLOR_BOLD}${COLOR_BCYAN}▶ Category Posture Breakdown:${COLOR_RESET}"
     fi
-    echo "${COLOR_DIM}----------------------------------------------------------------------${COLOR_RESET}"
+    ui_rule
     local -a categories=()
     local -A seen_cats=()
-    for cat in "${REG_CATEGORIES[@]}"; do
+    for cat in "${RES_CATEGORIES[@]}"; do
         local cat_key="${cat:l}"
         if [[ -z "${seen_cats[$cat_key]:-}" ]]; then
             seen_cats[$cat_key]=1
@@ -173,6 +168,8 @@ report_terminal() {
         local cat_pass=0
         local cat_warn=0
         local cat_fail=0
+        local cat_info=0
+        local cat_sugg=0
         local cat_earned=0.0
         local cat_total=0.0
 
@@ -198,6 +195,8 @@ report_terminal() {
                         (( ++cat_fail ))
                         cat_total=$(( cat_total + w ))
                         ;;
+                    INFO) (( ++cat_info )) ;;
+                    SUGG) (( ++cat_sugg )) ;;
                     *)
                         ;;
                 esac
@@ -209,14 +208,14 @@ report_terminal() {
             local raw_score=$(( (cat_earned / cat_total) * 100.0 ))
             cat_score=$(printf "%.1f" "$raw_score")
         elif (( cat_pass + cat_warn + cat_fail == 0 )); then
-            cat_score="0.0"
+            cat_score="N/A"
         fi
 
         local display_cat="$cat_name"
         if (( is_tr )); then
             display_cat=$(i18n_get_category_name "$cat_lower")
         fi
-        ui_category_score_row "$display_cat" "$cat_score" "$cat_pass" "$cat_warn" "$cat_fail"
+        ui_category_score_row "$display_cat" "$cat_score" "$cat_pass" "$cat_warn" "$cat_fail" "$cat_info" "$cat_sugg"
     done
     echo ""
 
@@ -236,7 +235,7 @@ report_terminal() {
         else
             echo "${COLOR_BOLD}${COLOR_BYELLOW}▶ High Priority Remediation Actions:${COLOR_RESET}"
         fi
-        echo "${COLOR_DIM}----------------------------------------------------------------------${COLOR_RESET}"
+        ui_rule
         
         # Display FAIL items first, then WARN items
         for priority_st in "FAIL" "WARN"; do
@@ -341,7 +340,7 @@ report_terminal() {
                 fi
             done
         done
-        echo "${COLOR_DIM}----------------------------------------------------------------------${COLOR_RESET}"
+        ui_rule
         if (( is_tr )); then
             printf "  ${COLOR_BOLD}${COLOR_BGREEN}%s${COLOR_RESET}\n" "$(i18n_t "ui.sections.remediation_options" "İyileştirme Seçenekleri:")"
             printf "    • %s\n" "$(i18n_t "ui.remediation.opt_fix" "Kullanılabilir düzeltmeleri etkileşimli olarak uygulamak için --fix ile çalıştırın.")"
@@ -352,7 +351,13 @@ report_terminal() {
             printf "    • Run with ${COLOR_BOLD}--generate-fix [file]${COLOR_RESET} to generate an executable shell script.\n"
         fi
     else
-        if (( is_tr )); then
+        if (( COUNT_INFO + COUNT_SUGG > 0 )); then
+            if (( is_tr )); then
+                ui_wrap_text "  ✔ " "Engelleyici bulgu yok. ${COUNT_INFO} bilgi ve ${COUNT_SUGG} öneri skoru etkilemedi." "$(ui_get_term_width)"
+            else
+                ui_wrap_text "  ✔ " "No blocking findings. ${COUNT_INFO} info and ${COUNT_SUGG} advisory results did not affect the score." "$(ui_get_term_width)"
+            fi
+        elif (( is_tr )); then
             echo "  ${COLOR_BGREEN}${COLOR_BOLD}✔ $(i18n_t "ui.remediation.clean_posture" "Güvenlik duruşu mükemmel. Başarısız kontrol veya uyarı tespit edilmedi.")${COLOR_RESET}"
         else
             echo "  ${COLOR_BGREEN}${COLOR_BOLD}✔ Security posture is excellent. No failed checks or warnings detected.${COLOR_RESET}"
@@ -367,12 +372,12 @@ report_markdown() {
     local version="${MACHAR_VERSION:-1.3.0}"
     local os_product os_version os_build arch current_time current_user hostname kernel_rel rating
 
-    os_product=$(sw_vers -productName 2>/dev/null || echo "macOS")
-    os_version=$(sw_vers -productVersion 2>/dev/null || echo "Unknown")
-    os_build=$(sw_vers -buildVersion 2>/dev/null || echo "Unknown")
-    arch=$(uname -m 2>/dev/null || echo "arm64")
-    kernel_rel=$(uname -r 2>/dev/null || echo "Darwin")
-    current_time=$(date "+%Y-%m-%d %H:%M:%S %Z")
+    os_product="${MACHAR_OS_PRODUCT:-$(sw_vers -productName 2>/dev/null || echo "macOS")}"
+    os_version="${MACHAR_OS_VERSION:-$(sw_vers -productVersion 2>/dev/null || echo "Unknown")}"
+    os_build="${MACHAR_OS_BUILD:-$(sw_vers -buildVersion 2>/dev/null || echo "Unknown")}"
+    arch="${MACHAR_ARCH:-$(uname -m 2>/dev/null || echo "arm64")}"
+    kernel_rel="${MACHAR_KERNEL_RELEASE:-$(uname -r 2>/dev/null || echo "Darwin")}"
+    current_time="${MACHAR_AUDIT_TIME:-$(date "+%Y-%m-%d %H:%M:%S %Z")}"
     current_user="${MACHAR_USER:-$(id -un 2>/dev/null || whoami)}"
     hostname="${MACHAR_HOSTNAME:-$(hostname -s 2>/dev/null || hostname)}"
     rating=$(_get_rating_text "$HARDENING_INDEX")
@@ -915,12 +920,12 @@ report_json() {
     local version="${MACHAR_VERSION:-1.3.0}"
     local os_product os_version os_build arch current_time current_user hostname kernel_rel rating
 
-    os_product=$(sw_vers -productName 2>/dev/null || echo "macOS")
-    os_version=$(sw_vers -productVersion 2>/dev/null || echo "Unknown")
-    os_build=$(sw_vers -buildVersion 2>/dev/null || echo "Unknown")
-    arch=$(uname -m 2>/dev/null || echo "arm64")
-    kernel_rel=$(uname -r 2>/dev/null || echo "Darwin")
-    current_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    os_product="${MACHAR_OS_PRODUCT:-$(sw_vers -productName 2>/dev/null || echo "macOS")}"
+    os_version="${MACHAR_OS_VERSION:-$(sw_vers -productVersion 2>/dev/null || echo "Unknown")}"
+    os_build="${MACHAR_OS_BUILD:-$(sw_vers -buildVersion 2>/dev/null || echo "Unknown")}"
+    arch="${MACHAR_ARCH:-$(uname -m 2>/dev/null || echo "arm64")}"
+    kernel_rel="${MACHAR_KERNEL_RELEASE:-$(uname -r 2>/dev/null || echo "Darwin")}"
+    current_time="${MACHAR_AUDIT_TIME_ISO:-$(date -u +"%Y-%m-%dT%H:%M:%SZ")}"
     current_user="${MACHAR_USER:-$(id -un 2>/dev/null || whoami)}"
     hostname="${MACHAR_HOSTNAME:-$(hostname -s 2>/dev/null || hostname)}"
     rating=$(_get_rating_text "$HARDENING_INDEX")
