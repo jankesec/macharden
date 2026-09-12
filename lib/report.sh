@@ -125,7 +125,7 @@ report_terminal() {
     echo ""
 
     if (( is_tr )); then
-        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %s\n" "$(i18n_t "ui.kpi.total_checks" "Denetlenen Toplam Kontrol:")" "${COLOR_BOLD}${COUNT_TOTAL}${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.total_checks" "Denetlenen Toplam Kontrol:")" "${COLOR_BOLD}${COUNT_TOTAL}${COLOR_RESET}"
         printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.passed_checks" "Başarılı Kontroller:")" "${COLOR_BGREEN}${COUNT_PASS}${COLOR_RESET}"
         printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.warnings" "Uyarılar:")" "${COLOR_BYELLOW}${COUNT_WARN}${COLOR_RESET}"
         printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.failed_checks" "Başarısız Kontroller:")" "${COLOR_BRED}${COUNT_FAIL}${COLOR_RESET}"
@@ -133,7 +133,7 @@ report_terminal() {
         printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %b\n" "$(i18n_t "ui.kpi.suggestions" "Öneriler:")" "${COLOR_BMAGENTA}${COUNT_SUGG}${COLOR_RESET}"
         printf "  ${COLOR_BOLD}%-28s${COLOR_RESET} %.1f / %.1f\n" "$(i18n_t "ui.kpi.points_earned" "Kazanılan Skor Puanı:")" "$EARNED_POINTS" "$TOTAL_POSSIBLE_POINTS"
     else
-        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %s\n" "Total Checks Audited:" "${COLOR_BOLD}${COUNT_TOTAL}${COLOR_RESET}"
+        printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Total Checks Audited:" "${COLOR_BOLD}${COUNT_TOTAL}${COLOR_RESET}"
         printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Passed Checks:" "${COLOR_BGREEN}${COUNT_PASS}${COLOR_RESET}"
         printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Warnings:" "${COLOR_BYELLOW}${COUNT_WARN}${COLOR_RESET}"
         printf "  ${COLOR_BOLD}%-24s${COLOR_RESET} %b\n" "Failed Checks:" "${COLOR_BRED}${COUNT_FAIL}${COLOR_RESET}"
@@ -352,8 +352,8 @@ report_markdown() {
     arch=$(uname -m 2>/dev/null || echo "arm64")
     kernel_rel=$(uname -r 2>/dev/null || echo "Darwin")
     current_time=$(date "+%Y-%m-%d %H:%M:%S %Z")
-    current_user=$(id -un 2>/dev/null || whoami)
-    hostname=$(hostname -s 2>/dev/null || hostname)
+    current_user="${MACHAR_USER:-$(id -un 2>/dev/null || whoami)}"
+    hostname="${MACHAR_HOSTNAME:-$(hostname -s 2>/dev/null || hostname)}"
     rating=$(_get_rating_text "$HARDENING_INDEX")
     local letter_grade
     letter_grade=$(_get_letter_grade "$HARDENING_INDEX")
@@ -900,8 +900,8 @@ report_json() {
     arch=$(uname -m 2>/dev/null || echo "arm64")
     kernel_rel=$(uname -r 2>/dev/null || echo "Darwin")
     current_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    current_user=$(id -un 2>/dev/null || whoami)
-    hostname=$(hostname -s 2>/dev/null || hostname)
+    current_user="${MACHAR_USER:-$(id -un 2>/dev/null || whoami)}"
+    hostname="${MACHAR_HOSTNAME:-$(hostname -s 2>/dev/null || hostname)}"
     rating=$(_get_rating_text "$HARDENING_INDEX")
 
     local diff_payload=""

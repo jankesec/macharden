@@ -146,8 +146,8 @@ ui_banner() {
     os_build=$(sw_vers -buildVersion 2>/dev/null || echo "Unknown")
     arch=$(uname -m 2>/dev/null || echo "arm64")
     current_time=$(date "+%Y-%m-%d %H:%M:%S %Z")
-    current_user=$(id -un 2>/dev/null || whoami)
-    hostname=$(hostname -s 2>/dev/null || hostname)
+    current_user="${MACHAR_USER:-$(id -un 2>/dev/null || whoami)}"
+    hostname="${MACHAR_HOSTNAME:-$(hostname -s 2>/dev/null || hostname)}"
 
     local app_desc="  macOS Security Hardening & Audit Scanner  v${version}"
     local lbl_host="Target Host:"
