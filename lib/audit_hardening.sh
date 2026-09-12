@@ -43,11 +43,11 @@ audit_sip() {
     elif echo "$csr_out" | grep -qi "disabled"; then
         res_status="FAIL"
         details="System Integrity Protection (SIP) is disabled! System binaries, SIP NVRAM variables, and kernel extensions can be modified."
-        remediation="Reboot into Recovery Mode (hold Cmd+R or Power button) and run: csrutil enable"
+        remediation="[GUIDE] Reboot into Recovery Mode (hold Cmd+R or Power button) and run: csrutil enable"
     else
         res_status="WARN"
         details="Unexpected SIP status: $(echo "$csr_out" | head -n 1)"
-        remediation="Check SIP configuration manually via 'csrutil status'"
+        remediation="[GUIDE] Check SIP configuration manually via 'csrutil status'"
     fi
 
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
@@ -75,11 +75,11 @@ audit_filevault() {
     elif echo "$fde_out" | grep -qi "FileVault is Off"; then
         res_status="FAIL"
         details="FileVault is disabled! Local storage is unencrypted; data is accessible if the Mac is physically lost or stolen."
-        remediation="sudo fdesetup enable"
+        remediation="[EXEC] sudo fdesetup enable"
     else
         res_status="WARN"
         details="FileVault status check returned: $(echo "$fde_out" | head -n 1)"
-        remediation="sudo fdesetup status"
+        remediation="[EXEC] sudo fdesetup status"
     fi
 
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
@@ -91,7 +91,7 @@ audit_gatekeeper() {
     local check_id="${1:-HARD-03}"
     local category="${2:-hardening}"
     local title="${3:-Gatekeeper App Assessment}"
-    local weight="${4:-9}"
+    local weight="${4:-10}"
 
     local res_status="FAIL"
     local details=""
@@ -107,7 +107,7 @@ audit_gatekeeper() {
     else
         res_status="FAIL"
         details="Gatekeeper assessment is disabled! Untrusted and unsigned third-party applications can execute without verification."
-        remediation="sudo spctl --global-enable 2>/dev/null || sudo spctl --master-enable"
+        remediation="[EXEC] sudo spctl --global-enable 2>/dev/null || sudo spctl --master-enable"
     fi
 
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
@@ -120,7 +120,7 @@ audit_screenlock() {
     local check_id="${1:-HARD-04}"
     local category="${2:-hardening}"
     local title="${3:-Screen Lock Password Requirement}"
-    local weight="${4:-6}"
+    local weight="${4:-7}"
 
     local res_status="FAIL"
     local details=""
@@ -160,12 +160,12 @@ audit_screenlock() {
     if [[ "$ask_pw" == "0" ]]; then
         res_status="FAIL"
         details="Screen saver password requirement is disabled. The system can be accessed without authentication when idle."
-        remediation="defaults write com.apple.screensaver askForPassword -int 1 && defaults write com.apple.screensaver askForPasswordDelay -int 0"
+        remediation="[EXEC] defaults write com.apple.screensaver askForPassword -int 1 && defaults write com.apple.screensaver askForPasswordDelay -int 0"
     elif [[ "$ask_pw" == "1" ]]; then
         if [[ "$ask_delay" =~ ^[0-9]+$ ]] && (( ask_delay > 5 )); then
             res_status="WARN"
             details="Screen lock requires password, but grace period delay is ${ask_delay}s (exceeds CIS recommended <= 5s)."
-            remediation="defaults write com.apple.screensaver askForPasswordDelay -int 0"
+            remediation="[EXEC] defaults write com.apple.screensaver askForPasswordDelay -int 0"
         else
             res_status="PASS"
             details="Immediate screen lock password is required (delay: ${ask_delay}s)."
@@ -174,7 +174,7 @@ audit_screenlock() {
     else
         res_status="WARN"
         details="Screen lock configuration is ambiguous (askForPassword=${ask_pw}, delay=${ask_delay})."
-        remediation="defaults write com.apple.screensaver askForPassword -int 1 && defaults write com.apple.screensaver askForPasswordDelay -int 0"
+        remediation="[EXEC] defaults write com.apple.screensaver askForPassword -int 1 && defaults write com.apple.screensaver askForPasswordDelay -int 0"
     fi
 
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
@@ -187,7 +187,7 @@ audit_guest_account() {
     local check_id="${1:-HARD-05}"
     local category="${2:-hardening}"
     local title="${3:-Guest Account Status}"
-    local weight="${4:-5}"
+    local weight="${4:-6}"
 
     local res_status="PASS"
     local details=""
@@ -199,7 +199,7 @@ audit_guest_account() {
     if [[ "$guest_val" == "1" ]]; then
         res_status="FAIL"
         details="Guest user account is enabled on the login window, allowing unauthenticated physical logon."
-        remediation="sudo defaults write /Library/Preferences/com.apple.loginwindow GuestEnabled -bool false"
+        remediation="[EXEC] sudo defaults write /Library/Preferences/com.apple.loginwindow GuestEnabled -bool false"
     else
         res_status="PASS"
         details="Guest user account is disabled."
@@ -236,15 +236,25 @@ audit_auto_updates() {
 
     local auto_install
     auto_install=$(defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates 2>/dev/null || echo "0")
+    
+    local crit_update
+    crit_update=$(defaults read /Library/Preferences/com.apple.SoftwareUpdate CriticalUpdateInstall 2>/dev/null || echo "0")
+    
+    local config_data
+    config_data=$(defaults read /Library/Preferences/com.apple.SoftwareUpdate ConfigDataInstall 2>/dev/null || echo "0")
 
     if [[ "$auto_check" == "0" ]]; then
         res_status="WARN"
         details="Automatic checking for software and security updates is disabled."
-        remediation="sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled -bool true && sudo softwareupdate --schedule on"
+        remediation="[EXEC] sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled -bool true && sudo softwareupdate --schedule on"
+    elif [[ "$crit_update" == "0" ]] || [[ "$config_data" == "0" ]]; then
+        res_status="WARN"
+        details="Background security response and critical system updates installation is disabled."
+        remediation="[EXEC] sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate CriticalUpdateInstall -bool true && sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate ConfigDataInstall -bool true"
     elif [[ "$auto_install" == "0" ]]; then
         res_status="SUGG"
         details="Automatic update check is enabled, but automatic background installation of macOS updates is disabled."
-        remediation="sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool true"
+        remediation="[EXEC] sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool true"
     else
         res_status="PASS"
         details="Automatic software update checking and automatic background installation are both enabled."
@@ -325,7 +335,7 @@ audit_sharing_services() {
             res_status="WARN"
         fi
         details="Active remote sharing services detected: ${active_services}"
-        remediation="${remed_commands}"
+        remediation="[EXEC] ${remed_commands}"
     fi
 
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
@@ -361,7 +371,7 @@ audit_firmware_password() {
         && ! echo "$fw_out" | grep -qi "not supported"; then
         res_status="FAIL"
         details="Firmware password is not enabled. An attacker with physical access can boot from external media or reset NVRAM."
-        remediation="Reboot into Recovery and set a firmware password via Startup Security Utility (Intel) or Recovery Lock (MDM/Apple Silicon)."
+        remediation="[GUIDE] Reboot into Recovery and set a firmware password via Startup Security Utility (Intel) or Recovery Lock (MDM/Apple Silicon)."
     else
         res_status="INFO"
         details="Firmware password is Intel-only and is not supported on this Mac (Apple Silicon). Secure Boot / HARD-09 covers equivalent boot protection."
@@ -408,7 +418,7 @@ audit_secure_boot() {
         sb_state="other"
     fi
 
-    local warn_fix='Reboot into Recovery → Startup Security Utility → Full Security; enable Authenticated Root (`csrutil authenticated-root enable` from Recovery).'
+    local warn_fix='[GUIDE] Reboot into Recovery → Startup Security Utility → Full Security; enable Authenticated Root (`csrutil authenticated-root enable` from Recovery).'
 
     if [[ -z "$ar_state" && -z "$sb_state" ]]; then
         res_status="INFO"
@@ -462,7 +472,7 @@ audit_autologin() {
     if [[ -n "$auto_user" ]]; then
         res_status="FAIL"
         details="Automatic login is enabled for a user account. The desktop is reachable without interactive authentication at boot."
-        remediation="sudo defaults delete /Library/Preferences/com.apple.loginwindow autoLoginUser"
+        remediation="[EXEC] sudo defaults delete /Library/Preferences/com.apple.loginwindow autoLoginUser"
     else
         res_status="PASS"
         details="Automatic login is disabled (autoLoginUser is unset or empty)."
@@ -497,7 +507,7 @@ audit_bluetooth_sharing() {
     if [[ "$bt_share" == "1" ]] || echo "$bt_share" | grep -qiE "^(true|yes)$"; then
         res_status="WARN"
         details="Bluetooth Sharing (PrefKeyServicesEnabled) is enabled. Nearby devices can accept files or browse services over Bluetooth."
-        remediation="sudo defaults write /Library/Preferences/com.apple.Bluetooth PrefKeyServicesEnabled -bool false"
+        remediation="[EXEC] sudo defaults write /Library/Preferences/com.apple.Bluetooth PrefKeyServicesEnabled -bool false"
     else
         res_status="PASS"
         details="Bluetooth Sharing is disabled (PrefKeyServicesEnabled is 0, false, or unset)."
@@ -539,7 +549,7 @@ audit_home_permissions() {
     elif [[ "$other_digit" == [4-7] ]] || [[ "$group_digit" == [2367] ]]; then
         res_status="WARN"
         details="Home directory ($HOME) permissions are ${perms}. World-readable/writable (other class 4-7) or group-writable homes expose user files."
-        remediation="chmod 700 \"$HOME\""
+        remediation="[EXEC] chmod 700 \"$HOME\""
     elif [[ "$other_digit" == "0" ]]; then
         res_status="PASS"
         details="Home directory permissions are ${perms} (other class bits are 0)."
@@ -547,7 +557,7 @@ audit_home_permissions() {
     else
         res_status="WARN"
         details="Home directory ($HOME) permissions are ${perms} (expected 700 or 750)."
-        remediation="chmod 700 \"$HOME\""
+        remediation="[EXEC] chmod 700 \"$HOME\""
     fi
 
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
@@ -575,7 +585,7 @@ audit_network_time() {
     elif echo "$ntp_out" | grep -qi "Off"; then
         res_status="WARN"
         details="Network time synchronization is disabled (usingnetworktime Off). Inaccurate clocks weaken TLS, logs, and Kerberos."
-        remediation="sudo systemsetup -setusingnetworktime on"
+        remediation="[EXEC] sudo systemsetup -setusingnetworktime on"
     else
         res_status="INFO"
         details="Could not determine network time status (systemsetup -getusingnetworktime failed or returned unexpected output)."
@@ -640,7 +650,7 @@ audit_malware_protection() {
         if [[ -n "$running_av" ]]; then
             details="${details} Third-party AV process(es) running: ${running_av}."
         fi
-        remediation="Ensure macOS XProtect is present via Software Update. Apple XProtect is sufficient; do not install third-party AV solely to satisfy this check."
+        remediation="[GUIDE] Ensure macOS XProtect is present via Software Update. Apple XProtect is sufficient; do not install third-party AV solely to satisfy this check."
     fi
 
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
@@ -672,7 +682,7 @@ audit_usb_restricted_mode() {
     if echo "$val" | grep -qiE '^(0|false)$'; then
         res_status="WARN"
         details="USB Restricted Mode is explicitly disabled (restrict-usb=${val}). Accessories can attach while the Mac is locked."
-        remediation="defaults delete com.apple.security.restrict-usb restrict-usb 2>/dev/null; or System Settings > Privacy & Security > Allow accessories to connect = Ask"
+        remediation="[GUIDE] Run: defaults delete com.apple.security.restrict-usb restrict-usb 2>/dev/null"
     elif echo "$val" | grep -qiE '^(1|true)$'; then
         res_status="PASS"
         details="USB Restricted Mode is enabled (restrict-usb=${val})."
@@ -685,6 +695,84 @@ audit_usb_restricted_mode() {
             res_status="INFO"
             details="USB Restricted Mode preference is unset. Feature applies to T2/Apple Silicon; confirm System Settings > Privacy & Security > Allow accessories to connect is not Always."
         fi
+        remediation=""
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
+# HARD-16: Diagnostic & Telemetry Reporting
+# Checks if Apple Diagnostic & Telemetry reporting is enabled via
+# `defaults read /Library/Application Support/CrashReporter/DiagnosticReporting AutoSubmit`
+# or `SubmitDiagInfo`. WARN if enabled, PASS if disabled.
+audit_diagnostic_telemetry() {
+    local check_id="${1:-HARD-16}"
+    local category="${2:-hardening}"
+    local title="${3:-Diagnostic & Telemetry Reporting}"
+    local weight="${4:-4}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    local auto_submit=""
+    local submit_diag=""
+
+    auto_submit=$(defaults read "/Library/Application Support/CrashReporter/DiagnosticReporting" AutoSubmit 2>/dev/null || echo "")
+    submit_diag=$(defaults read "/Library/Application Support/CrashReporter/DiagnosticReporting" SubmitDiagInfo 2>/dev/null || echo "")
+
+    if [[ -z "$submit_diag" && -f "/Library/Preferences/com.apple.SubmitDiagInfo.plist" ]]; then
+        submit_diag=$(defaults read /Library/Preferences/com.apple.SubmitDiagInfo AutoSubmit 2>/dev/null || echo "")
+    fi
+
+    local is_enabled=0
+    if echo "$auto_submit" | grep -qiE '^[[:space:]]*(1|true)[[:space:]]*$'; then
+        is_enabled=1
+    elif echo "$submit_diag" | grep -qiE '^[[:space:]]*(1|true)[[:space:]]*$'; then
+        is_enabled=1
+    fi
+
+    if (( is_enabled )); then
+        res_status="WARN"
+        details="Apple Diagnostic & Telemetry data submission is enabled (AutoSubmit or SubmitDiagInfo is active)."
+        remediation="[EXEC] sudo defaults write '/Library/Application Support/CrashReporter/DiagnosticReporting' AutoSubmit -bool false"
+    else
+        res_status="PASS"
+        details="Apple Diagnostic & Telemetry data submission is disabled (AutoSubmit is false or not configured)."
+        remediation=""
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
+# HARD-17: AirDrop Discoverability Exposure
+# Checks AirDrop discoverability mode via `defaults read com.apple.sharingd DiscoverableMode`.
+# FAIL/WARN if 'Everyone', PASS if 'Off' or 'Contacts Only'.
+audit_airdrop_exposure() {
+    local check_id="${1:-HARD-17}"
+    local category="${2:-hardening}"
+    local title="${3:-AirDrop Discoverability Exposure}"
+    local weight="${4:-6}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    local mode=""
+    mode=$(defaults read com.apple.sharingd DiscoverableMode 2>/dev/null || echo "")
+
+    if echo "$mode" | grep -qi "Everyone"; then
+        res_status="WARN"
+        details="AirDrop discoverability is set to 'Everyone' (discoverable by any nearby device; wireless exposure risk)."
+        remediation="[EXEC] defaults write com.apple.sharingd DiscoverableMode -string 'Contacts Only'"
+    elif echo "$mode" | grep -qiE '^(Off|Contacts[[:space:]]+Only)$' || [[ -z "$mode" ]]; then
+        local display_mode="${mode:-Off}"
+        res_status="PASS"
+        details="AirDrop discoverability mode is securely configured ('${display_mode}')."
+        remediation=""
+    else
+        res_status="PASS"
+        details="AirDrop discoverability mode is set to '${mode}'."
         remediation=""
     fi
 
@@ -707,6 +795,8 @@ audit_hard_12() { audit_home_permissions "$@"; }
 audit_hard_13() { audit_network_time "$@"; }
 audit_hard_14() { audit_malware_protection "$@"; }
 audit_hard_15() { audit_usb_restricted_mode "$@"; }
+audit_hard_16() { audit_diagnostic_telemetry "$@"; }
+audit_hard_17() { audit_airdrop_exposure "$@"; }
 
 # Category Runner
 run_audit_hardening() {
@@ -725,6 +815,8 @@ run_audit_hardening() {
     audit_network_time
     audit_malware_protection
     audit_usb_restricted_mode
+    audit_diagnostic_telemetry
+    audit_airdrop_exposure
 }
 
 # Auto-registration with engine.sh
@@ -732,9 +824,9 @@ register_hardening_checks() {
     if command -v register_check >/dev/null 2>&1 || typeset -f register_check >/dev/null 2>&1; then
         register_check "HARD-01" "hardening" "System Integrity Protection (SIP)" 10 audit_sip
         register_check "HARD-02" "hardening" "FileVault Full Disk Encryption" 10 audit_filevault
-        register_check "HARD-03" "hardening" "Gatekeeper App Assessment" 9 audit_gatekeeper
-        register_check "HARD-04" "hardening" "Screen Lock Password Requirement" 6 audit_screenlock
-        register_check "HARD-05" "hardening" "Guest Account Status" 5 audit_guest_account
+        register_check "HARD-03" "hardening" "Gatekeeper App Assessment" 10 audit_gatekeeper
+        register_check "HARD-04" "hardening" "Screen Lock Password Requirement" 7 audit_screenlock
+        register_check "HARD-05" "hardening" "Guest Account Status" 6 audit_guest_account
         register_check "HARD-06" "hardening" "Automatic Software Updates" 6 audit_auto_updates
         register_check "HARD-07" "hardening" "Unnecessary Sharing Services" 7 audit_sharing_services
         register_check "HARD-08" "hardening" "Firmware Password / Recovery Lock" 8 audit_firmware_password
@@ -745,6 +837,8 @@ register_hardening_checks() {
         register_check "HARD-13" "hardening" "Network Time Synchronization" 5 audit_network_time
         register_check "HARD-14" "hardening" "Built-in Malware Protection" 6 audit_malware_protection
         register_check "HARD-15" "hardening" "USB Restricted Mode" 5 audit_usb_restricted_mode
+        register_check "HARD-16" "hardening" "Diagnostic & Telemetry Reporting" 4 audit_diagnostic_telemetry
+        register_check "HARD-17" "hardening" "AirDrop Discoverability Exposure" 6 audit_airdrop_exposure
     fi
 }
 

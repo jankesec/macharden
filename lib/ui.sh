@@ -89,9 +89,56 @@ ui_disable_colors() {
     ui_init_colors
 }
 
+# Terminal width detection
+ui_get_term_width() {
+    local cols
+    cols=$(tput cols 2>/dev/null)
+    if [[ -z "$cols" || "$cols" -le 0 ]] 2>/dev/null; then
+        cols=${COLUMNS:-80}
+    fi
+    if [[ -z "$cols" || "$cols" -le 0 ]] 2>/dev/null; then
+        cols=80
+    fi
+    echo "$cols"
+}
+
+# ASCII or Unicode symbol resolver
+ui_char() {
+    local sym="$1"
+    if [[ "${MACHAR_ASCII:-0}" -eq 1 ]]; then
+        case "$sym" in
+            bar_full)  echo "#" ;;
+            bar_empty) echo "-" ;;
+            bullet)    echo ">" ;;
+            arrow)     echo "->" ;;
+            border_tl) echo "+" ;;
+            border_tr) echo "+" ;;
+            border_bl) echo "+" ;;
+            border_br) echo "+" ;;
+            border_h)  echo "-" ;;
+            border_v)  echo "|" ;;
+            *) echo "$sym" ;;
+        esac
+    else
+        case "$sym" in
+            bar_full)  echo "█" ;;
+            bar_empty) echo "░" ;;
+            bullet)    echo "▶" ;;
+            arrow)     echo "↳" ;;
+            border_tl) echo "┌" ;;
+            border_tr) echo "┐" ;;
+            border_bl) echo "└" ;;
+            border_br) echo "┘" ;;
+            border_h)  echo "─" ;;
+            border_v)  echo "│" ;;
+            *) echo "$sym" ;;
+        esac
+    fi
+}
+
 # Display ASCII banner with system metadata
 ui_banner() {
-    local version="${MACHAR_VERSION:-1.2.0}"
+    local version="${MACHAR_VERSION:-1.3.0}"
     local os_product os_version os_build arch current_time current_user hostname
 
     os_product=$(sw_vers -productName 2>/dev/null || echo "macOS")
@@ -133,7 +180,7 @@ EOF
 ui_section() {
     local title="$1"
     echo ""
-    echo "${COLOR_BOLD}${COLOR_BCYAN}▶ ${title}${COLOR_RESET}"
+    echo "${COLOR_BOLD}${COLOR_BCYAN}$(ui_char bullet) ${title}${COLOR_RESET}"
     echo "${COLOR_DIM}----------------------------------------------------------------------${COLOR_RESET}"
 }
 
@@ -193,8 +240,9 @@ ui_result() {
 
     printf "  %b  ${COLOR_BOLD}%-12s${COLOR_RESET} %s\n" "$badge" "$id" "$title"
     if [[ -n "$details" ]]; then
+        local arrow_sym=$(ui_char arrow)
         echo "$details" | while IFS= read -r line; do
-            [[ -n "$line" ]] && printf "        ${COLOR_DIM}↳ %s${COLOR_RESET}\n" "$line"
+            [[ -n "$line" ]] && printf "        ${COLOR_DIM}%s %s${COLOR_RESET}\n" "$arrow_sym" "$line"
         done
     fi
 }
@@ -211,9 +259,18 @@ ui_score_bar() {
     (( int_score < 0 )) && int_score=0
     (( int_score > 100 )) && int_score=100
 
+    local term_width=$(ui_get_term_width)
     local bar_width=30
+    if (( term_width < 60 )); then
+        bar_width=15
+    elif (( term_width < 80 )); then
+        bar_width=20
+    fi
+
     local filled=$(( (int_score * bar_width) / 100 ))
     local unfilled=$(( bar_width - filled ))
+    (( filled < 0 )) && filled=0
+    (( unfilled < 0 )) && unfilled=0
 
     local bar_color="${COLOR_BRED}"
     local rating="CRITICAL / VULNERABLE"
@@ -243,14 +300,17 @@ ui_score_bar() {
         rating_color="${COLOR_BRED}"
     fi
 
+    local sym_full=$(ui_char bar_full)
+    local sym_empty=$(ui_char bar_empty)
+
     local filled_str=""
     for (( i = 0; i < filled; i++ )); do
-        filled_str="${filled_str}█"
+        filled_str="${filled_str}${sym_full}"
     done
 
     local unfilled_str=""
     for (( i = 0; i < unfilled; i++ )); do
-        unfilled_str="${unfilled_str}░"
+        unfilled_str="${unfilled_str}${sym_empty}"
     done
 
     printf "  ${COLOR_BOLD}%s${COLOR_RESET} [${bar_color}%s${COLOR_RESET}${COLOR_DIM}%s${COLOR_RESET}] ${COLOR_BOLD}%5.1f%%${COLOR_RESET} (${rating_color}%s${COLOR_RESET})\n" \
@@ -293,15 +353,18 @@ ui_category_score_row() {
         bar_color="${COLOR_BRED}"
     fi
 
+    local sym_full=$(ui_char bar_full)
+    local sym_empty=$(ui_char bar_empty)
+
     local filled_str=""
     local i
     for (( i = 0; i < filled; i++ )); do
-        filled_str="${filled_str}█"
+        filled_str="${filled_str}${sym_full}"
     done
 
     local unfilled_str=""
     for (( i = 0; i < unfilled; i++ )); do
-        unfilled_str="${unfilled_str}░"
+        unfilled_str="${unfilled_str}${sym_empty}"
     done
 
     local score_num=0.0
@@ -414,21 +477,36 @@ ui_grade_box() {
         pad_right="${pad_right} "
     done
 
+    local tl=$(ui_char border_tl)
+    local tr=$(ui_char border_tr)
+    local bl=$(ui_char border_bl)
+    local br=$(ui_char border_br)
+    local h_char=$(ui_char border_h)
+    local v_char=$(ui_char border_v)
+
+    local term_width=$(ui_get_term_width)
+    if (( term_width < 50 )); then
+        # Compact single-line display for narrow terminals
+        printf "  %b[%s: %s (%s%%) • %s]%b\n" \
+            "${grade_color}" "${grade_word}" "${letter_grade}" "${score_fmt}" "${rating_text}" "${COLOR_RESET}"
+        return 0
+    fi
+
     local hline=""
     for (( i = 0; i < inner_len; i++ )); do
-        hline="${hline}─"
+        hline="${hline}${h_char}"
     done
 
-    printf "  %b┌%s┐%b\n" "${border_color}" "${hline}" "${COLOR_RESET}"
-    printf "  %b│%b  ${COLOR_BOLD}%s: %b%s%b (%s%%)  ${COLOR_DIM}•${COLOR_RESET}  %b%s%b  %s%b│%b\n" \
-        "${border_color}" "${COLOR_RESET}" \
+    printf "  %b%s%s%s%b\n" "${border_color}" "${tl}" "${hline}" "${tr}" "${COLOR_RESET}"
+    printf "  %b%s%b  ${COLOR_BOLD}%s: %b%s%b (%s%%)  ${COLOR_DIM}•${COLOR_RESET}  %b%s%b  %s%b%s%b\n" \
+        "${border_color}" "${v_char}" "${COLOR_RESET}" \
         "${grade_word}" \
         "${grade_color}" "${letter_grade}" "${COLOR_RESET}" \
         "${score_fmt}" \
         "${grade_color}" "${rating_text}" "${COLOR_RESET}" \
         "${pad_right}" \
-        "${border_color}" "${COLOR_RESET}"
-    printf "  %b└%s┘%b\n" "${border_color}" "${hline}" "${COLOR_RESET}"
+        "${border_color}" "${v_char}" "${COLOR_RESET}"
+    printf "  %b%s%s%s%b\n" "${border_color}" "${bl}" "${hline}" "${br}" "${COLOR_RESET}"
 }
 
 

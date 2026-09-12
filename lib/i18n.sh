@@ -34,8 +34,8 @@ _i18n_find_locale_file() {
         echo "${self_dir}/../data/locales/${lang}.json"
         return 0
     fi
-    if [[ -f "<project_root>/data/locales/${lang}.json" ]]; then
-        echo "<project_root>/data/locales/${lang}.json"
+    if [[ -f "${BASE_DIR}/data/locales/${lang}.json" ]]; then
+        echo "${BASE_DIR}/data/locales/${lang}.json"
         return 0
     fi
     return 1

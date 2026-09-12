@@ -92,7 +92,7 @@ make install-man           # UNIX manual page (man macharden)
 ## 💻 CLI Usage & Examples
 
 ```text
-macharden - macOS Security Hardening & Audit Scanner (v1.2.0)
+macharden - macOS Security Hardening & Audit Scanner (v1.3.0)
 
 Usage:
   macharden [options]
@@ -162,7 +162,7 @@ macharden --daemon-install weekly
  | '_ ` _ \ / _` |/ __| '_ \ / _` | '__| / _` |/ _ \ '_ \ 
  | | | | | | (_| | (__| | | | (_| | |   | (_| |  __/ | | |
  |_| |_| |_|\__,_|\___|_| |_|\__,_|_|    \__,_|\___|_| |_|
-  macOS Security Hardening & Audit Scanner  v1.2.0
+  macOS Security Hardening & Audit Scanner  v1.3.0
 ──────────────────────────────────────────────────────────────────────
  Target Host:   macOS-Workstation (auditor)
  macOS Build:   macOS 15.3 (Build 24D60) [arm64]

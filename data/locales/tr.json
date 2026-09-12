@@ -411,6 +411,54 @@
       "details_warn": "sudo timestamp_timeout süresi uzun (> 15 dakika); kimlik doğrulama sonrasında yetki penceresini açık bırakıyor.",
       "details_fail": "sudo oturum zaman aşımı kapatılmış veya tehlikeli derecede uzun bir süreye ayarlanmış.",
       "remediation_desc": "visudo ile 'Defaults timestamp_timeout=5' satırını ekleyerek yetki süresini 5 dakikaya indirin."
+    },
+    "SEC-10": {
+      "title": "Güvensiz PATH Dizin İzinleri",
+      "desc": "PATH ortam değişkenindeki dizinlerin izinlerini ve geçerli dizin ('.') varlığını denetler.",
+      "details_pass": "PATH ortam değişkenindeki tüm dizin izinleri güvenli ve geçerli dizin ('.') PATH içinde bulunmuyor.",
+      "details_warn": "PATH içinde herkese yazma izni (world-writable) bulunan dizin tespit edildi.",
+      "details_fail": "PATH ortam değişkeninde geçerli dizin ('.') veya herkese yazılabilir dizinler mevcut; yetki yükseltme (PATH hijacking) riski var.",
+      "remediation_desc": "Kabuk yapılandırma dosyalarından (ör. ~/.zshrc, ~/.bashrc) '.' girdisini kaldırın ve chmod o-w <dizin> ile yazma izinlerini kısıtlayın."
+    },
+    "SEC-11": {
+      "title": "Bulut ve API Kimlik Bilgisi Dosya İzinleri",
+      "desc": "Hassas bulut ve kimlik doğrulama dosyalarının (~/.aws/credentials, ~/.kube/config, ~/.netrc, ~/.docker/config.json) erişim izinlerini denetler.",
+      "details_pass": "Bulut ve API kimlik bilgisi dosyaları güvenli izinlere (600/400) sahip veya sistemde bulunmuyor.",
+      "details_warn": "Hassas kimlik doğrulama dosyaları grup veya diğer kullanıcılar tarafından okunabilir izinlere sahip.",
+      "details_fail": "Hassas kimlik doğrulama dosyaları (AWS, Kubernetes, netrc, Docker) herkese açık okunabilir (644 vb.) durumda; kimlik bilgisi sızıntısı riski!",
+      "remediation_desc": "Hassas kimlik bilgisi dosyalarının izinlerini yalnızca dosya sahibine özel (600) yapın: chmod 600 ~/.aws/credentials ~/.kube/config ~/.netrc ~/.docker/config.json"
+    },
+    "HARD-16": {
+      "title": "Tanılama ve Telemetri Raporlaması",
+      "desc": "Apple Tanılama ve Telemetri verilerinin otomatik gönderim durumunu (AutoSubmit / SubmitDiagInfo) denetler.",
+      "details_pass": "Apple Tanılama ve Telemetri veri gönderimi devre dışı bırakılmış.",
+      "details_warn": "Apple Tanılama ve Telemetri otomatik veri gönderimi etkin; sistem kullanım verileri Apple sunucularına aktarılıyor.",
+      "details_fail": "Tanılama ve kullanım verilerinin Apple'a otomatik gönderimi etkinleştirilmiş.",
+      "remediation_desc": "Tanılama verisi gönderimini kapatın: sudo defaults write '/Library/Application Support/CrashReporter/DiagnosticReporting' AutoSubmit -bool false"
+    },
+    "HARD-17": {
+      "title": "AirDrop Görünürlük ve İfşa Riski",
+      "desc": "AirDrop keşfedilebilirlik modunu (DiscoverableMode) denetler.",
+      "details_pass": "AirDrop görünürlük modu güvenli şekilde yapılandırılmış ('Kapalı' veya 'Sadece Kişiler').",
+      "details_warn": "AirDrop görünürlük modu 'Herkes' (Everyone) olarak ayarlanmış; yakındaki tüm cihazlar bu Mac'i görebilir ve dosya transferi başlatabilir.",
+      "details_fail": "AirDrop 'Herkes' tarafından görülebilir durumda; kimliksiz dosya transferi ve kablosuz saldırı yüzeyi riski oluşturuyor.",
+      "remediation_desc": "AirDrop görünürlüğünü 'Sadece Kişiler' veya 'Kapalı' yapın: defaults write com.apple.sharingd DiscoverableMode -string 'Contacts Only'"
+    },
+    "NET-12": {
+      "title": "Açık Wi-Fi Ağlarına Otomatik Bağlanma",
+      "desc": "Açık ve şifresiz Wi-Fi ağlarına otomatik bağlanma ayarını (AutoJoinIsOpenNetwork) denetler.",
+      "details_pass": "Açık Wi-Fi ağlarına otomatik bağlanma devre dışı (AutoJoinIsOpenNetwork kapalı veya tanımsız).",
+      "details_warn": "Açık Wi-Fi ağlarına otomatik bağlanma etkin; sistem şifresiz genel ağlara otomatik bağlanabilir (ortadaki adam / dinleme riski).",
+      "details_fail": "Wi-Fi tercihlerinde açık ağlara otomatik bağlanma açık; cihaz güvenilmeyen kablosuz ağlara otomatik katılabilir.",
+      "remediation_desc": "Açık ağlara otomatik bağlanmayı kapatın: sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.airport.preferences.plist AutoJoinIsOpenNetwork -bool false"
+    },
+    "PERS-10": {
+      "title": "Periyodik Sistem Betikleri Bütünlüğü",
+      "desc": "/etc/periodic/daily, weekly ve monthly dizinlerindeki periyodik bakım betiklerinin bütünlüğünü denetler.",
+      "details_pass": "Periyodik betik dizinlerinde yalnızca standart macOS betikleri mevcut (veya dizinler mevcut değil).",
+      "details_warn": "/etc/periodic dizinlerinde standart dışı özel çalıştırılabilir betik tespit edildi (MITRE T1053.003 kalıcılık riski).",
+      "details_fail": "Periyodik bakım dizinlerinde yetkisiz ve standart dışı çalıştırılabilir betikler bulunuyor; kalıcı arka kapı riski!",
+      "remediation_desc": "/etc/periodic/daily, weekly ve monthly altındaki yetkisiz betikleri inceleyin ve güvenilmeyenleri kaldırın."
     }
   }
 }

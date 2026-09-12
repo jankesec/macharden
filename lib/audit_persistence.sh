@@ -18,14 +18,23 @@ _get_plist_program() {
     local plist="$1"
     local prog=""
 
-    # Try Program key first
-    prog=$(defaults read "$plist" Program 2>/dev/null || echo "")
-    if [[ -z "$prog" ]]; then
-        # Try first element of ProgramArguments
-        prog=$(defaults read "$plist" ProgramArguments 2>/dev/null | grep -E '^[[:space:]]+' | head -n 1 | sed -E 's/^[[:space:]]*"?//; s/"?[,;[:space:]]*$//')
+    if command -v plutil >/dev/null 2>&1; then
+        prog=$(plutil -extract Program raw "$plist" 2>/dev/null || echo "")
+        if [[ -z "$prog" ]]; then
+            prog=$(plutil -extract ProgramArguments.0 raw "$plist" 2>/dev/null || echo "")
+        fi
     fi
-    # Strip any lingering quotes, commas, or semicolons
-    prog=$(echo "$prog" | sed -E 's/^[[:space:]]*"?//; s/"?[,;[:space:]]*$//')
+
+    if [[ -z "$prog" ]]; then
+        # Try Program key first
+        prog=$(defaults read "$plist" Program 2>/dev/null || echo "")
+        if [[ -z "$prog" ]]; then
+            # Try first element of ProgramArguments
+            prog=$(defaults read "$plist" ProgramArguments 2>/dev/null | grep -E '^[[:space:]]+' | head -n 1 | sed -E 's/^[[:space:]]*"?//; s/"?[,;[:space:]]*$//')
+        fi
+        # Strip any lingering quotes, commas, or semicolons
+        prog=$(echo "$prog" | sed -E 's/^[[:space:]]*"?//; s/"?[,;[:space:]]*$//')
+    fi
     echo "$prog"
 }
 
@@ -100,11 +109,11 @@ audit_launch_agents() {
     if [[ -n "$suspicious_list" ]]; then
         res_status="WARN"
         details="Suspicious LaunchAgents detected: ${suspicious_list}"
-        remediation="${fix_cmds}"
+        remediation="[EXEC] ${fix_cmds}"
     elif [[ -n "$custom_list" ]]; then
         res_status="INFO"
         details="Reviewed ${total_count} LaunchAgents. Custom user agents noted: ${custom_list}"
-        remediation="Review custom LaunchAgents in ~/Library/LaunchAgents/ if not recognized"
+        remediation="[GUIDE] Review custom LaunchAgents in ~/Library/LaunchAgents/ if not recognized"
     else
         res_status="PASS"
         details="Inspected ${total_count} LaunchAgents across ~/Library and /Library; all point to standard binaries."
@@ -150,6 +159,12 @@ audit_launch_daemons() {
             elif [[ -n "$prog" && ! -e "$prog" ]]; then
                 suspicious_list="${suspicious_list:+$suspicious_list; }${fname} (missing binary target: $prog)"
                 fix_cmds="${fix_cmds:+$fix_cmds; }sudo launchctl unload -w \"$plist\" 2>/dev/null; sudo rm \"$plist\""
+            elif [[ -n "$prog" && -e "$prog" ]]; then
+                if command -v codesign >/dev/null 2>&1; then
+                    if ! codesign --verify --deep --strict "$prog" 2>/dev/null; then
+                        suspicious_list="${suspicious_list:+$suspicious_list; }${fname} (unsigned daemon binary: $prog)"
+                    fi
+                fi
             fi
         done <<< "$(find "$daemons_dir" -maxdepth 1 -name "*.plist" 2>/dev/null || true)"
     fi
@@ -157,7 +172,7 @@ audit_launch_daemons() {
     if [[ -n "$suspicious_list" ]]; then
         res_status="WARN"
         details="Suspicious or broken LaunchDaemons found: ${suspicious_list}"
-        remediation="${fix_cmds}"
+        remediation="[EXEC] ${fix_cmds}"
     else
         res_status="PASS"
         details="Inspected ${total_count} LaunchDaemons in /Library/LaunchDaemons; all reference valid system/application targets."
@@ -173,7 +188,7 @@ audit_crontabs() {
     local check_id="${1:-PERS-03}"
     local category="${2:-persistence}"
     local title="${3:-Scheduled Cron Jobs}"
-    local weight="${4:-5}"
+    local weight="${4:-6}"
 
     local res_status="PASS"
     local details=""
@@ -215,7 +230,7 @@ audit_crontabs() {
             summary="${summary:+$summary; }System cron entries found: ${etc_cron_entries}"
         fi
         details="${summary}. Legacy cron is deprecated on macOS and commonly abused for unmonitored persistence."
-        remediation="Review scheduled tasks via 'crontab -l' and migrate to native launchd plists"
+        remediation="[GUIDE] Review scheduled tasks via 'crontab -l' and migrate to native launchd plists"
     else
         res_status="PASS"
         details="No active cron jobs configured (system relies exclusively on launchd)."
@@ -231,7 +246,7 @@ audit_login_items() {
     local check_id="${1:-PERS-04}"
     local category="${2:-persistence}"
     local title="${3:-User Login Items}"
-    local weight="${4:-4}"
+    local weight="${4:-5}"
 
     local res_status="PASS"
     local details=""
@@ -248,7 +263,7 @@ audit_login_items() {
     if [[ -n "$login_items" ]]; then
         res_status="INFO"
         details="Configured user login items: ${login_items}"
-        remediation="Review login items in System Settings > General > Login Items & Extensions"
+        remediation="[GUIDE] Review login items in System Settings > General > Login Items & Extensions"
     else
         res_status="PASS"
         details="No user login items configured to launch at desktop session logon."
@@ -264,7 +279,7 @@ audit_authorized_keys() {
     local check_id="${1:-PERS-05}"
     local category="${2:-persistence}"
     local title="${3:-SSH Authorized Public Keys}"
-    local weight="${4:-6}"
+    local weight="${4:-7}"
 
     local res_status="PASS"
     local details=""
@@ -292,7 +307,7 @@ audit_authorized_keys() {
     if (( key_count > 0 )); then
         res_status="INFO"
         details="${key_count} authorized public key(s) installed (${active_keys}). Ensure all keys belong to verified administrative entities."
-        remediation="Audit public keys in ~/.ssh/authorized_keys and revoke unneeded or obsolete entries"
+        remediation="[GUIDE] Audit public keys in ~/.ssh/authorized_keys and revoke unneeded or obsolete entries"
     else
         res_status="PASS"
         details="No ~/.ssh/authorized_keys file present (inbound SSH public-key logins disabled for current user)."
@@ -343,7 +358,7 @@ audit_sudoers() {
     if [[ -n "$nopasswd_matches" ]]; then
         res_status="FAIL"
         details="Passwordless privilege escalation (NOPASSWD) detected in: ${nopasswd_matches}"
-        remediation="Remove NOPASSWD directives from /etc/sudoers and /etc/sudoers.d/ using 'sudo visudo'"
+        remediation="[GUIDE] Remove NOPASSWD directives from /etc/sudoers and /etc/sudoers.d/ using 'sudo visudo'"
     elif [[ -n "$custom_files" ]]; then
         res_status="INFO"
         details="Custom sudoers configuration files present in /etc/sudoers.d/: ${custom_files} (no NOPASSWD found)."
@@ -407,7 +422,7 @@ audit_privileged_helpers() {
     elif [[ -n "$unsigned_list" ]]; then
         res_status="WARN"
         details="Unsigned or invalid-signature privileged helper(s): ${unsigned_list}"
-        remediation="Review unsigned privileged helpers with 'codesign -dv --verbose=2 <path>'. Remove only after confirming they are unexpected. Do not blindly delete."
+        remediation="[GUIDE] Review unsigned privileged helpers with 'codesign -dv --verbose=2 <path>'. Remove only after confirming they are unexpected. Do not blindly delete."
     elif (( can_codesign == 1 )); then
         res_status="INFO"
         details="Reviewed ${helper_count} privileged helper tool(s); all signatures verified"
@@ -477,7 +492,7 @@ audit_printer_sharing() {
     if (( sharing_on == 1 )); then
         res_status="WARN"
         details="Printer Sharing is enabled (${evidence}). Shared printers increase the local attack surface via CUPS."
-        remediation="cupsctl --no-share-printers; or System Settings > General > Sharing > Printer Sharing off"
+        remediation="[EXEC] cupsctl --no-share-printers"
     else
         res_status="PASS"
         if [[ -z "$cupsctl_bin" ]]; then
@@ -501,7 +516,7 @@ audit_sudo_timestamp() {
 
     local res_status="INFO"
     local details=""
-    local remediation="Add 'Defaults timestamp_timeout=5' via visudo (0 = always re-prompt)."
+    local remediation="[GUIDE] Add 'Defaults timestamp_timeout=5' via visudo (0 = always re-prompt)."
     local raw=""
     local minutes=""
 
@@ -544,6 +559,57 @@ audit_sudo_timestamp() {
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
 }
 
+# PERS-10: Periodic Maintenance Scripts Integrity
+# Inspects /etc/periodic/daily, /etc/periodic/weekly, /etc/periodic/monthly.
+# PASS if only standard macOS scripts exist (or directories absent),
+# WARN if custom executable scripts are present (MITRE T1053.003).
+audit_periodic_scripts() {
+    local check_id="${1:-PERS-10}"
+    local category="${2:-persistence}"
+    local title="${3:-Periodic Scripts Integrity}"
+    local weight="${4:-7}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    local standard_scripts=" 110.clean-tmps 130.clean-msgs 140.clean-rwho 199.clean-fax 310.accounting 400.status-disks 420.status-network 999.local 320.whatis 199.installkey 200.accounting "
+
+    local custom_count=0
+    local custom_list=""
+    local -a periodic_dirs=("/etc/periodic/daily" "/etc/periodic/weekly" "/etc/periodic/monthly")
+
+    local pdir
+    for pdir in "${periodic_dirs[@]}"; do
+        if [[ -d "$pdir" ]]; then
+            local entry
+            for entry in "$pdir"/*; do
+                [[ -e "$entry" ]] || continue
+                local base="${entry##*/}"
+                [[ "$base" == .* ]] && continue
+                [[ "$base" == *~ ]] && continue
+
+                if [[ "$standard_scripts" != *" $base "* ]]; then
+                    (( custom_count++ ))
+                    custom_list="${custom_list:+$custom_list, }${pdir##*/}/${base}"
+                fi
+            done
+        fi
+    done
+
+    if (( custom_count > 0 )); then
+        res_status="WARN"
+        details="Custom executable script(s) found in /etc/periodic (${custom_count}): ${custom_list} (MITRE T1053.003 persistence risk)."
+        remediation="[GUIDE] Inspect and remove unauthorized scripts in /etc/periodic/daily, weekly, or monthly."
+    else
+        res_status="PASS"
+        details="No custom periodic scripts detected (/etc/periodic is clean or directories are absent)."
+        remediation=""
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
 # Aliases for ID-based execution
 audit_pers_01() { audit_launch_agents "$@"; }
 audit_pers_02() { audit_launch_daemons "$@"; }
@@ -554,6 +620,7 @@ audit_pers_06() { audit_sudoers "$@"; }
 audit_pers_07() { audit_privileged_helpers "$@"; }
 audit_pers_08() { audit_printer_sharing "$@"; }
 audit_pers_09() { audit_sudo_timestamp "$@"; }
+audit_pers_10() { audit_periodic_scripts "$@"; }
 
 # Category Runner
 run_audit_persistence() {
@@ -566,6 +633,7 @@ run_audit_persistence() {
     audit_privileged_helpers
     audit_printer_sharing
     audit_sudo_timestamp
+    audit_periodic_scripts
 }
 
 # Auto-registration with engine.sh
@@ -573,13 +641,14 @@ register_persistence_checks() {
     if command -v register_check >/dev/null 2>&1 || typeset -f register_check >/dev/null 2>&1; then
         register_check "PERS-01" "persistence" "LaunchAgents Persistence Review" 7 audit_launch_agents
         register_check "PERS-02" "persistence" "System LaunchDaemons Review" 7 audit_launch_daemons
-        register_check "PERS-03" "persistence" "Scheduled Cron Jobs" 5 audit_crontabs
-        register_check "PERS-04" "persistence" "User Login Items" 4 audit_login_items
-        register_check "PERS-05" "persistence" "SSH Authorized Public Keys" 6 audit_authorized_keys
+        register_check "PERS-03" "persistence" "Scheduled Cron Jobs" 6 audit_crontabs
+        register_check "PERS-04" "persistence" "User Login Items" 5 audit_login_items
+        register_check "PERS-05" "persistence" "SSH Authorized Public Keys" 7 audit_authorized_keys
         register_check "PERS-06" "persistence" "Sudoers Configuration & NOPASSWD Rules" 8 audit_sudoers
         register_check "PERS-07" "persistence" "Privileged Helper Tools" 6 audit_privileged_helpers
         register_check "PERS-08" "persistence" "Printer Sharing" 5 audit_printer_sharing
         register_check "PERS-09" "persistence" "Sudo Timestamp Timeout" 5 audit_sudo_timestamp
+        register_check "PERS-10" "persistence" "Periodic Scripts Integrity" 7 audit_periodic_scripts
     fi
 }
 

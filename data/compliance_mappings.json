@@ -2549,6 +2549,357 @@
           "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
         }
       ]
+    },
+    "SEC-10": {
+      "title": "Insecure PATH Directory Permissions",
+      "category": "secrets",
+      "cis": {
+        "id": "6.2.7",
+        "section": "6. User Accounts and Environment",
+        "title": "Ensure system and user PATH directories have secure permissions and do not contain '.'",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": [
+          "AC-6",
+          "CM-6",
+          "SI-7"
+        ],
+        "primary": "AC-6",
+        "family": "Access Control",
+        "title": "Least Privilege"
+      },
+      "mitre": {
+        "tactics": [
+          "Privilege Escalation",
+          "Persistence",
+          "Defense Evasion"
+        ],
+        "primary_technique": "T1574.007",
+        "techniques": [
+          {
+            "id": "T1574.007",
+            "name": "Hijack Execution Flow: Path Interception by PATH Environment Variable"
+          },
+          {
+            "id": "T1574",
+            "name": "Hijack Execution Flow"
+          }
+        ]
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple Platform Security: Secure execution environment and environment variables",
+          "url": "https://support.apple.com/guide/security/welcome/web"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1574.007",
+          "url": "https://attack.mitre.org/techniques/T1574/007/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a76.2.7",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AC-6)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
+    },
+    "SEC-11": {
+      "title": "Cloud and API Credentials File Permissions",
+      "category": "secrets",
+      "cis": {
+        "id": "6.2.8",
+        "section": "6. User Accounts and Environment",
+        "title": "Ensure sensitive credential files have restricted access permissions (600 or 400)",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": [
+          "AC-3",
+          "IA-5",
+          "SC-28"
+        ],
+        "primary": "IA-5",
+        "family": "Identification and Authentication",
+        "title": "Authenticator Management"
+      },
+      "mitre": {
+        "tactics": [
+          "Credential Access"
+        ],
+        "primary_technique": "T1552.001",
+        "techniques": [
+          {
+            "id": "T1552.001",
+            "name": "Unsecured Credentials: Credentials In Files"
+          },
+          {
+            "id": "T1552",
+            "name": "Unsecured Credentials"
+          }
+        ]
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple Platform Security: Keychain and data protection architecture",
+          "url": "https://support.apple.com/guide/security/welcome/web"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1552.001",
+          "url": "https://attack.mitre.org/techniques/T1552/001/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a76.2.8",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (IA-5)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
+    },
+    "HARD-16": {
+      "title": "Diagnostic & Telemetry Reporting",
+      "category": "hardening",
+      "cis": {
+        "id": "2.6.3",
+        "section": "2. Logging and Auditing",
+        "title": "Ensure Diagnostic and Usage Data is Not Sent to Apple",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": [
+          "AU-2",
+          "AU-12",
+          "SC-7"
+        ],
+        "primary": "AU-2",
+        "family": "Audit and Accountability",
+        "title": "Event Logging"
+      },
+      "mitre": {
+        "tactics": [
+          "Collection",
+          "Exfiltration"
+        ],
+        "primary_technique": "T1005",
+        "techniques": [
+          {
+            "id": "T1005",
+            "name": "Data from Local System"
+          }
+        ]
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple Support: Share analytics, diagnostic, and usage info with Apple",
+          "url": "https://support.apple.com/guide/mac-help/share-analytics-information-with-apple-mh27733/mac"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1005",
+          "url": "https://attack.mitre.org/techniques/T1005/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a72.6.3",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AU-2)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
+    },
+    "HARD-17": {
+      "title": "AirDrop Discoverability Exposure",
+      "category": "hardening",
+      "cis": {
+        "id": "2.3.1",
+        "section": "2. Network Configurations",
+        "title": "Ensure AirDrop is Disabled or Restricted to Contacts Only",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": [
+          "AC-3",
+          "AC-17",
+          "AC-18",
+          "CM-7"
+        ],
+        "primary": "AC-18",
+        "family": "Access Control",
+        "title": "Wireless Access"
+      },
+      "mitre": {
+        "tactics": [
+          "Initial Access",
+          "Lateral Movement"
+        ],
+        "primary_technique": "T1012",
+        "techniques": [
+          {
+            "id": "T1012",
+            "name": "Query Registry / System Settings"
+          },
+          {
+            "id": "T1200",
+            "name": "Hardware Additions / Wireless Ad-Hoc Connections"
+          }
+        ]
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple Support: Use AirDrop on your Mac",
+          "url": "https://support.apple.com/en-us/102635"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1200",
+          "url": "https://attack.mitre.org/techniques/T1200/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a72.3.1",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AC-18)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
+    },
+    "NET-12": {
+      "title": "Wi-Fi Auto-Join Open Networks",
+      "category": "network",
+      "cis": {
+        "id": "2.4.1",
+        "section": "2. Network Configurations",
+        "title": "Ensure Wi-Fi is Not Configured to Automatically Join Open Networks",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": [
+          "AC-18",
+          "CM-7",
+          "SC-7"
+        ],
+        "primary": "AC-18",
+        "family": "Access Control",
+        "title": "Wireless Access"
+      },
+      "mitre": {
+        "tactics": [
+          "Initial Access",
+          "Credential Access"
+        ],
+        "primary_technique": "T1040",
+        "techniques": [
+          {
+            "id": "T1040",
+            "name": "Network Sniffing"
+          },
+          {
+            "id": "T1557",
+            "name": "Adversary-in-the-Middle"
+          }
+        ]
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple Support: Manage Wi-Fi connection settings on Mac",
+          "url": "https://support.apple.com/guide/mac-help/manage-the-wi-fi-connection-mchlp2711/mac"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1040",
+          "url": "https://attack.mitre.org/techniques/T1040/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a72.4.1",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (AC-18)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
+    },
+    "PERS-10": {
+      "title": "Periodic Scripts Integrity",
+      "category": "persistence",
+      "cis": {
+        "id": "5.1.8",
+        "section": "5. System Access, Authentication and Authorization",
+        "title": "Ensure periodic system maintenance directories contain only authorized scripts",
+        "profile": "Level 1"
+      },
+      "nist": {
+        "controls": [
+          "CM-6",
+          "SI-4",
+          "SI-7"
+        ],
+        "primary": "SI-7",
+        "family": "System and Information Integrity",
+        "title": "Software, Firmware, and Information Integrity"
+      },
+      "mitre": {
+        "tactics": [
+          "Persistence",
+          "Privilege Escalation"
+        ],
+        "primary_technique": "T1053.003",
+        "techniques": [
+          {
+            "id": "T1053.003",
+            "name": "Scheduled Task/Job: Cron and Periodic Scripts"
+          },
+          {
+            "id": "T1053",
+            "name": "Scheduled Task/Job"
+          }
+        ]
+      },
+      "references": [
+        {
+          "type": "standard",
+          "name": "Apple Developer Documentation: periodic(8) Mac Developer Library",
+          "url": "https://support.apple.com/guide/terminal/welcome/mac"
+        },
+        {
+          "type": "mitre",
+          "name": "MITRE ATT&CK T1053.003",
+          "url": "https://attack.mitre.org/techniques/T1053/003/"
+        },
+        {
+          "type": "cis",
+          "name": "CIS Apple macOS Benchmark \u00a75.1.8",
+          "url": "https://www.cisecurity.org/benchmark/apple_os"
+        },
+        {
+          "type": "nist",
+          "name": "NIST SP 800-53 Rev. 5 (SI-7)",
+          "url": "https://csrc.nist.gov/projects/csrc-publication/sp-800-53/rev-5"
+        }
+      ]
     }
   }
 }

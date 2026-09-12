@@ -19,6 +19,10 @@ typeset -ga RES_STATUSES=()
 typeset -ga RES_WEIGHTS=()
 typeset -ga RES_DETAILS=()
 typeset -ga RES_REMEDIATIONS=()
+typeset -ga RES_DURATIONS=()
+
+# Per-check timeout threshold (seconds). Checks exceeding this emit a warning.
+MACHAR_CHECK_TIMEOUT=${MACHAR_CHECK_TIMEOUT:-30}
 
 # Skip-test list (Lynis-style skip-test=ID). INFO results; excluded from score.
 typeset -ga MACHAR_SKIP_IDS=()
@@ -216,6 +220,7 @@ run_audit() {
     RES_WEIGHTS=()
     RES_DETAILS=()
     RES_REMEDIATIONS=()
+    RES_DURATIONS=()
 
     COUNT_PASS=0
     COUNT_WARN=0
@@ -294,9 +299,17 @@ run_audit() {
         local pre_count=${#RES_IDS[@]}
 
         if [[ -n "$callable" ]]; then
-            # Execute audit function
+            # Execute audit function with timing
+            local check_start=$SECONDS
             "$callable" "$id" "$cat" "$title" "$weight"
             local exit_code=$?
+            local check_duration=$(( SECONDS - check_start ))
+            RES_DURATIONS+=("$check_duration")
+
+            # Warn if check exceeded timeout threshold
+            if (( check_duration > MACHAR_CHECK_TIMEOUT )); then
+                ui_warn "Check $id took ${check_duration}s (threshold: ${MACHAR_CHECK_TIMEOUT}s)"
+            fi
 
             # Fallback if function did not explicitly invoke record_result
             if (( ${#RES_IDS[@]} == pre_count )); then
@@ -307,6 +320,7 @@ run_audit() {
                 fi
             fi
         else
+            RES_DURATIONS+=("0")
             record_result "$id" "$cat" "$title" "WARN" "$weight" "Audit implementation '$func' not found" ""
         fi
     done

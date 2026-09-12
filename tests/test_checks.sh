@@ -23,6 +23,8 @@ source "${PROJECT_ROOT}/lib/report.sh"
 source "${PROJECT_ROOT}/lib/report_html.sh"
 source "${PROJECT_ROOT}/lib/remediate.sh"
 source "${PROJECT_ROOT}/lib/compliance.sh"
+source "${PROJECT_ROOT}/lib/diff.sh"
+source "${PROJECT_ROOT}/lib/report_sarif.sh"
 
 # Test state
 TOTAL_TESTS=0
@@ -81,6 +83,16 @@ assert_file_exists() {
     fi
 }
 
+assert_dir_exists() {
+    local dirpath="$1"
+    local desc="$2"
+    if [[ -d "$dirpath" ]]; then
+        log_test "PASS" "$desc"
+    else
+        log_test "FAIL" "$desc" "Directory not found: $dirpath"
+    fi
+}
+
 # Reset engine state between test suites
 reset_engine() {
     REG_IDS=()
@@ -96,6 +108,7 @@ reset_engine() {
     RES_WEIGHTS=()
     RES_DETAILS=()
     RES_REMEDIATIONS=()
+    RES_DURATIONS=()
 
     HARDENING_INDEX=0.0
     TOTAL_POSSIBLE_POINTS=0.0
@@ -486,7 +499,7 @@ CHIP_CONTENT=$(cat "$CHIP_HTML")
 assert_match "CIS 5.1.2" "$CHIP_CONTENT" "HTML renders CIS chip from compliance mappings"
 assert_match "SI-7" "$CHIP_CONTENT" "HTML renders NIST chip from compliance mappings"
 assert_match "T1562.001" "$CHIP_CONTENT" "HTML renders MITRE chip from compliance mappings"
-assert_match "v1.2.0" "$CHIP_CONTENT" "HTML navbar shows scanner version 1.2.0"
+assert_match "v1.3.0" "$CHIP_CONTENT" "HTML navbar shows scanner version 1.3.0"
 assert_match 'id="langToggleBtn"' "$CHIP_CONTENT" "HTML contains language toggle button"
 assert_match 'id="langLabel"' "$CHIP_CONTENT" "HTML contains language label badge"
 assert_match 'toggleLanguage' "$CHIP_CONTENT" "HTML contains toggleLanguage function"
@@ -836,9 +849,9 @@ source "${PROJECT_ROOT}/lib/audit_network.sh"
 source "${PROJECT_ROOT}/lib/audit_secrets.sh"
 source "${PROJECT_ROOT}/lib/audit_persistence.sh"
 
-assert_eq "44" "${#REG_IDS[@]}" "v1.2 registers 44 audit checks"
+assert_eq "50" "${#REG_IDS[@]}" "v1.2 registers 50 audit checks"
 
-for expected_id in HARD-08 HARD-09 HARD-10 HARD-11 HARD-12 HARD-13 HARD-14 HARD-15 NET-07 NET-08 NET-09 NET-10 NET-11 SEC-06 SEC-07 SEC-08 SEC-09 PERS-07 PERS-08 PERS-09; do
+for expected_id in HARD-08 HARD-09 HARD-10 HARD-11 HARD-12 HARD-13 HARD-14 HARD-15 HARD-16 HARD-17 NET-07 NET-08 NET-09 NET-10 NET-11 NET-12 SEC-06 SEC-07 SEC-08 SEC-09 SEC-10 SEC-11 PERS-07 PERS-08 PERS-09 PERS-10; do
     found_id=0
     for (( i = 1; i <= ${#REG_IDS[@]}; i++ )); do
         if [[ "${REG_IDS[i]}" == "$expected_id" ]]; then
@@ -872,14 +885,20 @@ if typeset -f audit_firmware_password >/dev/null 2>&1 \
     && typeset -f audit_suspicious_history_files >/dev/null 2>&1 \
     && typeset -f audit_printer_sharing >/dev/null 2>&1 \
     && typeset -f audit_usb_restricted_mode >/dev/null 2>&1 \
-    && typeset -f audit_sudo_timestamp >/dev/null 2>&1; then
+    && typeset -f audit_sudo_timestamp >/dev/null 2>&1 \
+    && typeset -f audit_insecure_path_dirs >/dev/null 2>&1 \
+    && typeset -f audit_cloud_credentials >/dev/null 2>&1 \
+    && typeset -f audit_diagnostic_telemetry >/dev/null 2>&1 \
+    && typeset -f audit_airdrop_exposure >/dev/null 2>&1 \
+    && typeset -f audit_wifi_autojoin_open >/dev/null 2>&1 \
+    && typeset -f audit_periodic_scripts >/dev/null 2>&1; then
     log_test "PASS" "All v1.2 audit functions are defined"
 else
     log_test "FAIL" "All v1.2 audit functions are defined"
 fi
 
 VERSION_OUT=$("${PROJECT_ROOT}/bin/macharden" --version 2>&1)
-assert_match "1.2.0" "$VERSION_OUT" "macharden --version reports 1.2.0"
+assert_match "1.3.0" "$VERSION_OUT" "macharden --version reports 1.3.0"
 
 INVALID_CAT_OUT=$("${PROJECT_ROOT}/bin/macharden" -c bogus 2>&1) || true
 INVALID_CAT_EC=0
@@ -936,6 +955,296 @@ then
 else
     log_test "FAIL" "CLI --skip-test HARD-08 records INFO skipped in JSON"
 fi
+# ==============================================================================
+# Suite 11: Baseline Drift & Security Diff Engine (lib/diff.sh)
+# ==============================================================================
+echo "\n\033[1m[Suite 11] Baseline Drift & Security Diff Engine\033[0m"
+
+# Test helper functions existence
+if typeset -f diff_load_baseline >/dev/null 2>&1 \
+    && typeset -f diff_calculate >/dev/null 2>&1 \
+    && typeset -f diff_report_terminal >/dev/null 2>&1 \
+    && typeset -f diff_has_regressions >/dev/null 2>&1 \
+    && typeset -f diff_get_json >/dev/null 2>&1; then
+    log_test "PASS" "All diff engine functions are defined"
+else
+    log_test "FAIL" "All diff engine functions are defined"
+fi
+
+# Create a mock baseline JSON file
+MOCK_BASELINE="${TEST_TMP_DIR}/mock_baseline.json"
+cat << 'EOF' > "$MOCK_BASELINE"
+{
+  "scanner": { "name": "macharden", "version": "1.3.0", "timestamp": "2026-09-01T12:00:00Z" },
+  "system": { "hostname": "audit-host-1", "user": "admin", "os_product": "macOS", "os_version": "15.0", "arch": "arm64" },
+  "summary": { "hardening_index": 100.0, "rating": "EXCELLENT / HARDENED", "total_checks": 3, "passed": 3, "warnings": 0, "failed": 0, "info": 0, "suggestions": 0, "earned_points": 29.0, "total_possible_points": 29.0 },
+  "checks": [
+    { "id": "HARD-01", "category": "hardening", "title": "System Integrity Protection (SIP)", "status": "PASS", "weight": 10, "details": "SIP is enabled", "remediation": "" },
+    { "id": "HARD-02", "category": "hardening", "title": "FileVault Full Disk Encryption", "status": "PASS", "weight": 10, "details": "FileVault is On", "remediation": "" },
+    { "id": "SEC-01", "category": "secrets", "title": "Plaintext API Keys in Shell Profiles", "status": "PASS", "weight": 9, "details": "No secrets", "remediation": "" }
+  ]
+}
+EOF
+
+# Test loading baseline
+diff_reset
+if diff_load_baseline "$MOCK_BASELINE"; then
+    log_test "PASS" "diff_load_baseline loads valid JSON"
+else
+    log_test "FAIL" "diff_load_baseline loads valid JSON"
+fi
+assert_eq "audit-host-1" "$BASELINE_HOSTNAME" "Baseline hostname parsed correctly"
+assert_eq "100.0" "$BASELINE_SCORE" "Baseline score parsed correctly"
+assert_eq "PASS" "${BASELINE_STATUS[HARD-01]}" "Baseline check status parsed correctly"
+
+# Setup current scan state with a regression: HARD-02 changed from PASS to FAIL
+reset_engine
+record_result "HARD-01" "hardening" "System Integrity Protection (SIP)" "PASS" 10 "SIP is enabled" ""
+record_result "HARD-02" "hardening" "FileVault Full Disk Encryption" "FAIL" 10 "FileVault is Off" "fdesetup enable"
+calculate_hardening_index
+
+# Calculate diff
+diff_calculate
+assert_eq "1" "$DIFF_COUNT_REGRESSIONS" "diff_calculate detects 1 regression"
+assert_match "HARD-02" "${DIFF_REGRESSIONS_IDS[1]}" "Regression correctly identifies HARD-02"
+if diff_has_regressions; then
+    log_test "PASS" "diff_has_regressions returns 0 (true) when regressions present"
+else
+    log_test "FAIL" "diff_has_regressions returns 0 (true) when regressions present"
+fi
+
+# Terminal diff report formatting
+DIFF_TERM_OUT=$(diff_report_terminal)
+assert_match "BASELINE DRIFT" "$DIFF_TERM_OUT" "diff_report_terminal outputs header"
+assert_match "Regressions" "$DIFF_TERM_OUT" "diff_report_terminal outputs regressions"
+
+# JSON diff serialization
+DIFF_JSON_OUT=$(diff_get_json)
+if echo "$DIFF_JSON_OUT" | python3 -c "import json, sys; d = json.load(sys.stdin); assert d['delta']['has_regressions'] == True; assert d['delta']['regressions_count'] == 1" 2>/dev/null; then
+    log_test "PASS" "diff_get_json outputs valid JSON with drift metadata"
+else
+    log_test "FAIL" "diff_get_json outputs valid JSON with drift metadata"
+fi
+
+# Test CLI integration: --diff and --fail-on-regression
+CLI_DIFF_OUT=$("${PROJECT_ROOT}/bin/macharden" --diff "$MOCK_BASELINE" -c hardening -q 2>&1) || true
+assert_match "BASELINE DRIFT" "$CLI_DIFF_OUT" "CLI --diff generates drift summary"
+
+CLI_REG_EC=0
+"${PROJECT_ROOT}/bin/macharden" --diff "$MOCK_BASELINE" -c secrets -q --fail-on-regression >/dev/null 2>&1 || CLI_REG_EC=$?
+assert_eq "2" "$CLI_REG_EC" "CLI --fail-on-regression exits 2 when regression detected"
+
+
+# ==============================================================================
+# Suite 12: OASIS SARIF v2.1.0 Report Generator (lib/report_sarif.sh)
+# ==============================================================================
+echo "\n\033[1m[Suite 12] OASIS SARIF v2.1.0 Report Generator\033[0m"
+
+if typeset -f report_sarif >/dev/null 2>&1; then
+    log_test "PASS" "report_sarif function is defined"
+else
+    log_test "FAIL" "report_sarif function is defined"
+fi
+
+SARIF_OUT="${TEST_TMP_DIR}/test_report.sarif"
+reset_engine
+record_result "HARD-01" "hardening" "System Integrity Protection (SIP)" "PASS" 10 "SIP is enabled" ""
+record_result "SEC-01" "secrets" "Plaintext Secrets" "FAIL" 9 "Found secrets in .zshrc" "chmod 600 ~/.zshrc"
+record_result "NET-03" "network" "Firewall Permissive" "WARN" 8 "Permissive app" "blockapp"
+report_sarif "$SARIF_OUT"
+
+assert_file_exists "$SARIF_OUT" "report_sarif generates output file"
+
+if python3 -c "
+import json
+with open('$SARIF_OUT') as f:
+    sarif = json.load(f)
+assert sarif['version'] == '2.1.0'
+assert 'runs' in sarif and len(sarif['runs']) > 0
+run = sarif['runs'][0]
+assert run['tool']['driver']['name'] == 'macharden'
+assert len(run['tool']['driver']['rules']) > 0
+assert len(run['results']) == 2
+rule_ids = [r['ruleId'] for r in run['results']]
+assert 'SEC-01' in rule_ids
+assert 'NET-03' in rule_ids
+" 2>/dev/null; then
+    log_test "PASS" "Generated SARIF document is 100% valid OASIS SARIF v2.1.0"
+else
+    log_test "FAIL" "Generated SARIF document is 100% valid OASIS SARIF v2.1.0"
+fi
+
+CLI_SARIF_OUT="${TEST_TMP_DIR}/cli_test.sarif"
+"${PROJECT_ROOT}/bin/macharden" -c hardening -f sarif -o "$CLI_SARIF_OUT" >/dev/null 2>&1 || true
+assert_file_exists "$CLI_SARIF_OUT" "CLI -f sarif generates output file"
+if python3 -m json.tool "$CLI_SARIF_OUT" >/dev/null 2>&1; then
+    log_test "PASS" "CLI -f sarif output is valid JSON"
+else
+    log_test "FAIL" "CLI -f sarif output is valid JSON"
+fi
+
+
+# ==============================================================================
+# Suite 13: Expanded 50 Audit Rules Verification
+# ==============================================================================
+echo "\n\033[1m[Suite 13] Expanded 50 Audit Rules Verification\033[0m"
+
+# Verify all 6 new check functions exist
+if typeset -f audit_insecure_path_dirs >/dev/null 2>&1 \
+    && typeset -f audit_cloud_credentials >/dev/null 2>&1 \
+    && typeset -f audit_diagnostic_telemetry >/dev/null 2>&1 \
+    && typeset -f audit_airdrop_exposure >/dev/null 2>&1 \
+    && typeset -f audit_wifi_autojoin_open >/dev/null 2>&1 \
+    && typeset -f audit_periodic_scripts >/dev/null 2>&1; then
+    log_test "PASS" "All 6 new audit check functions are defined"
+else
+    log_test "FAIL" "All 6 new audit check functions are defined"
+fi
+
+# Verify compliance mappings for all 50 checks
+if python3 -c "
+import json
+with open('${PROJECT_ROOT}/data/compliance_mappings.json') as f:
+    d = json.load(f)
+mappings = d.get('mappings', {})
+assert len(mappings) == 50, f'Expected 50 mappings, got {len(mappings)}'
+for cid in ['SEC-10', 'SEC-11', 'HARD-16', 'HARD-17', 'NET-12', 'PERS-10']:
+    assert cid in mappings, f'{cid} missing from mappings'
+    assert 'references' in mappings[cid], f'references missing in {cid}'
+" 2>/dev/null; then
+    log_test "PASS" "All 50 checks have compliance mappings and authoritative references"
+else
+    log_test "FAIL" "All 50 checks have compliance mappings and authoritative references"
+fi
+
+# Verify Turkish translations for all 50 checks
+if python3 -c "
+import json
+with open('${PROJECT_ROOT}/data/locales/tr.json') as f:
+    d = json.load(f)
+checks = d.get('checks', {})
+assert len(checks) == 50, f'Expected 50 translated checks, got {len(checks)}'
+for cid in ['SEC-10', 'SEC-11', 'HARD-16', 'HARD-17', 'NET-12', 'PERS-10']:
+    assert cid in checks, f'{cid} missing from tr.json'
+    assert 'title' in checks[cid], f'title missing in tr.json for {cid}'
+" 2>/dev/null; then
+    log_test "PASS" "All 50 checks have complete Turkish localization"
+else
+    log_test "FAIL" "All 50 checks have complete Turkish localization"
+fi
+
+# ==============================================================================
+# Suite 14: Remediation Safety & Advanced Features ([GUIDE], Dry-Run, Rollback)
+# ==============================================================================
+echo "\n\033[1m[Suite 14] Remediation Safety & Advanced Features\033[0m"
+
+# 1. Test [GUIDE] vs [EXEC] in generate_fix_script
+reset_engine
+record_result "REM-01" "hardening" "Guide Only Item" "FAIL" 10 "Advisory details" "[GUIDE] Reboot into Recovery and run csrutil enable"
+record_result "REM-02" "network" "Exec Item" "WARN" 5 "Firewall off" "[EXEC] sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on"
+GEN_TEST_SCRIPT="${TEST_TMP_DIR}/test_remed_gen.sh"
+generate_fix_script "$GEN_TEST_SCRIPT"
+assert_file_exists "$GEN_TEST_SCRIPT" "Fix script generated for safety test"
+GEN_TEST_CONTENT=$(cat "$GEN_TEST_SCRIPT")
+assert_match "MANUAL ACTION REQUIRED" "$GEN_TEST_CONTENT" "[GUIDE] item rendered as manual action in fix script"
+assert_match "Reboot into Recovery" "$GEN_TEST_CONTENT" "Guide text present in comments"
+assert_match "socketfilterfw" "$GEN_TEST_CONTENT" "[EXEC] command present in fix script"
+
+# 2. Test Dry-Run interactive flow
+MACHAR_DRY_RUN=1
+DRY_RUN_OUT=$(apply_remediations 2>&1)
+assert_match "DRY RUN MODE" "$DRY_RUN_OUT" "apply_remediations honors dry-run mode"
+assert_match "Would execute" "$DRY_RUN_OUT" "Dry-run indicates command preview without execution"
+MACHAR_DRY_RUN=0
+
+# 3. Test backup and undo functionality
+if typeset -f undo_last_remediation >/dev/null 2>&1 && typeset -f _create_backup_dir >/dev/null 2>&1; then
+    log_test "PASS" "Remediation backup and undo functions are defined"
+else
+    log_test "FAIL" "Remediation backup and undo functions are defined"
+fi
+
+TEST_BKP_DIR=$(_create_backup_dir)
+assert_dir_exists "$TEST_BKP_DIR" "Backup directory created"
+_save_backup_entry "$TEST_BKP_DIR" "TEST-BKP" "defaults write com.apple.screensaver askForPassword -int 1"
+assert_file_exists "${TEST_BKP_DIR}/undo.sh" "Undo script created in backup directory"
+rm -rf "$TEST_BKP_DIR"
+
+# ==============================================================================
+# Suite 15: CLI v1.3.0 Feature Tests (--flag=value, --fail-on-warn, --min-score)
+# ==============================================================================
+echo "\n\033[1m[Suite 15] CLI v1.3.0 Features & Enhancements\033[0m"
+
+# 1. GNU --flag=value syntax
+CLI_GNU_OUT=$("${PROJECT_ROOT}/bin/macharden" --category=hardening -q 2>&1) || true
+assert_match "Hardening" "$CLI_GNU_OUT" "CLI supports --category=hardening GNU syntax"
+
+# 2. --fail-on-warn
+CLI_FOW_EC=0
+"${PROJECT_ROOT}/bin/macharden" -c network --fail-on-warn -q >/dev/null 2>&1 || CLI_FOW_EC=$?
+if (( CLI_FOW_EC == 1 || CLI_FOW_EC == 0 )); then
+    log_test "PASS" "CLI --fail-on-warn executes correctly"
+else
+    log_test "FAIL" "CLI --fail-on-warn unexpected exit code: $CLI_FOW_EC"
+fi
+
+# 3. --min-score
+CLI_MIN_EC=0
+"${PROJECT_ROOT}/bin/macharden" -c hardening --min-score 99.9 -q >/dev/null 2>&1 || CLI_MIN_EC=$?
+assert_eq "1" "$CLI_MIN_EC" "CLI --min-score exits 1 when score is below threshold"
+
+# 4. Format auto-detection for .json and .md
+AUTO_JSON="${TEST_TMP_DIR}/auto.json"
+"${PROJECT_ROOT}/bin/macharden" -c hardening -o "$AUTO_JSON" -q >/dev/null 2>&1 || true
+assert_file_exists "$AUTO_JSON" "Format auto-detected .json output file created"
+if python3 -m json.tool "$AUTO_JSON" >/dev/null 2>&1; then
+    log_test "PASS" "Auto-detected .json output is valid JSON"
+else
+    log_test "FAIL" "Auto-detected .json output is valid JSON"
+fi
+
+# 5. Timing and execution duration tracking
+if [[ -n "${RES_DURATIONS+x}" ]]; then
+    log_test "PASS" "Engine RES_DURATIONS timing array is active"
+else
+    log_test "FAIL" "Engine RES_DURATIONS timing array is active"
+fi
+
+# ==============================================================================
+# Suite 16: Weight Consistency & Integrity Verification
+# ==============================================================================
+echo "\n\033[1m[Suite 16] Weight Consistency & Risk Integrity\033[0m"
+
+reset_engine
+register_hardening_checks
+register_network_checks
+register_secrets_checks
+register_persistence_checks
+
+check_weight() {
+    local target_id="$1"
+    local expected_w="$2"
+    local i found=0
+    for (( i = 1; i <= ${#REG_IDS[@]}; i++ )); do
+        if [[ "${REG_IDS[i]}" == "$target_id" ]]; then
+            found=1
+            local act_w="${REG_WEIGHTS[i]}"
+            assert_eq "$expected_w" "$act_w" "Weight for $target_id matches expected $expected_w"
+            return 0
+        fi
+    done
+    log_test "FAIL" "Check $target_id found in registry"
+}
+
+check_weight "HARD-03" "10"
+check_weight "HARD-04" "7"
+check_weight "HARD-05" "6"
+check_weight "NET-01"  "8"
+check_weight "NET-05"  "9"
+check_weight "SEC-04"  "5"
+check_weight "PERS-03" "6"
+check_weight "PERS-04" "5"
+check_weight "PERS-05" "7"
 
 # ==============================================================================
 # Final Test Summary

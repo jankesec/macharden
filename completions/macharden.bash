@@ -16,10 +16,10 @@ _macharden_completions() {
     fi
 
     local categories="hardening network secrets persistence all"
-    local formats="term json markdown html"
+    local formats="term json markdown html sarif"
     local compliance_frameworks="cis nist mitre all"
     local daemon_schedules="daily weekly monthly hourly on-login"
-    local all_flags="-h --help -v --version -c --category -f --format -l --lang -o --output -q --quiet --fix --generate-fix --no-color --compliance --daemon-install --daemon-uninstall --daemon-status --alert --skip-test --profile --no-profile"
+    local all_flags="-h --help -v --version -c --category -f --format -l --lang -o --output -q --quiet --fix --dry-run --undo --generate-fix --no-color --compliance --daemon-install --daemon-uninstall --daemon-status --alert --skip-test --profile --no-profile --diff --fail-on-regression --fail-on-warn --min-score"
 
     case "${prev}" in
         -l|--lang)
@@ -45,6 +45,14 @@ _macharden_completions() {
         --profile)
             if declare -F _filedir >/dev/null 2>&1; then
                 _filedir
+            else
+                COMPREPLY=( $(compgen -f -- "${cur}") )
+            fi
+            return 0
+            ;;
+        --diff)
+            if declare -F _filedir >/dev/null 2>&1; then
+                _filedir json
             else
                 COMPREPLY=( $(compgen -f -- "${cur}") )
             fi

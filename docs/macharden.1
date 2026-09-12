@@ -1,4 +1,4 @@
-.TH MACHARDEN 1 "2026-09-12" "macharden 1.2.0" "macOS Security Manual"
+.TH MACHARDEN 1 "2026-09-12" "macharden 1.3.0" "macOS Security Manual"
 .SH NAME
 macharden \- macOS Security Hardening & Audit Scanner
 .SH SYNOPSIS
@@ -9,6 +9,8 @@ macharden \- macOS Security Hardening & Audit Scanner
 [\fB\-f\fR | \fB\-\-format\fR \fIformat\fR]
 [\fB\-o\fR | \fB\-\-output\fR \fIfile\fR]
 [\fB\-q\fR | \fB\-\-quiet\fR]
+[\fB\-\-diff\fR \fIbaseline_file\fR]
+[\fB\-\-fail\-on\-regression\fR]
 [\fB\-\-fix\fR]
 [\fB\-\-generate\-fix\fR [\fIfile\fR]]
 [\fB\-\-no\-color\fR]
@@ -104,6 +106,12 @@ benchmark alignment matrices, and copy-pasteable remediation playbooks.
 Standalone, single-file HTML report featuring responsive CSS styling, score
 dashboard cards, filtering, and visual status badges suitable for management
 review and compliance archival.
+.TP
+.B sarif
+Machine-readable OASIS SARIF v2.1.0 (Static Analysis Results Interchange Format)
+JSON report. Includes rule descriptors, compliance tags (CIS, NIST, MITRE),
+severity levels, and vulnerability results for ingestion into GitHub Advanced
+Security, GitLab, DefectDojo, or CI/CD pipelines.
 .RE
 .TP
 .BR \-l ", " \-\-lang " " \fIlanguage\fR
@@ -127,6 +135,19 @@ automatically stripped to maintain clean plaintext formatting.
 .BR \-q ", " \-\-quiet
 Minimal output mode. Suppresses verbose per-check progress indicators and ASCII
 art banners, printing only the final executive summary and score.
+.TP
+.BR \-\-diff " " \fIbaseline_file\fR
+Compare current audit results against a previously saved JSON audit report
+(\fIbaseline_file\fR). Calculates drift metrics including score delta, newly
+introduced security regressions, remediated issues, and unchanged checks.
+Displays a baseline drift and trend report in the terminal or embeds drift
+telemetry into JSON/HTML reports.
+.TP
+.B \-\-fail\-on\-regression
+When used in conjunction with \fB\-\-diff\fR, terminates execution with
+exit code \fB2\fR if any new security regressions are detected (i.e. a check
+that previously passed has now failed or triggered a warning). Useful for
+CI/CD gates and pull request regression prevention.
 .TP
 .B \-\-fix
 Interactively step through each failed check or warning that provides an
@@ -265,7 +286,7 @@ Grade F (Critical Risk / Urgent Remediation Required)
 .TP
 .B 0
 Successful scan execution. All checks passed, or the Hardening Index meets the
-acceptable threshold without unhandled errors.
+acceptable threshold without unhandled errors or regressions.
 .TP
 .B 1
 Audit completed with critical security failures, hardening score below
@@ -273,7 +294,8 @@ acceptable threshold, invalid command-line invocation, or running on an
 unsupported operating system.
 .TP
 .B 2
-Insufficient permissions to execute certain checks or remediations, or
+Security regression detected (when running with \fB\-\-fail\-on\-regression\fR),
+insufficient permissions to execute certain checks or remediations, or
 operation interrupted by user (SIGINT/SIGTERM).
 .SH ENVIRONMENT
 .TP
@@ -370,6 +392,18 @@ Interactively review and apply remediation fixes for detected vulnerabilities:
 .RS
 .PP
 .B sudo macharden \-\-fix
+.RE
+.PP
+Compare current audit against previous baseline and fail if regressions exist:
+.RS
+.PP
+.B macharden \-\-diff baseline.json \-\-fail\-on\-regression
+.RE
+.PP
+Export audit findings in OASIS SARIF v2.1.0 format for GitHub Code Scanning:
+.RS
+.PP
+.B macharden \-f sarif \-o macharden-report.sarif
 .RE
 .SH SECURITY CONSIDERATIONS
 .B macharden

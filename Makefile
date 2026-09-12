@@ -127,7 +127,7 @@ uninstall:
 
 # Clean generated reports and temporary files
 clean:
-	@rm -f report.json report.md report.txt report_*.json report_*.md report_*.txt
+	@rm -f report.json report.md report.txt report.html report.sarif report_*.json report_*.md report_*.txt report_*.sarif macharden-report.sarif
 	@rm -f fix_hardening.sh macharden_remediation_*.sh test_fix.sh test_remediation.sh
 	@rm -rf .tmp .test_tmp .runtime tmp
 	@echo "Cleaned report and temporary files."

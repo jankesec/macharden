@@ -180,11 +180,11 @@ audit_shell_secrets() {
     if (( secret_count > 0 )); then
         res_status="FAIL"
         details="Plaintext secrets found in shell profiles (${secret_count}): ${found_secrets}"
-        remediation="Remove hardcoded API keys and store them in macOS Keychain or environment vault. Set file permissions: chmod 600 ~/.zshrc ~/.bashrc ~/.bash_profile ~/.zprofile ~/.zshenv 2>/dev/null"
+        remediation="[EXEC] chmod 600 ~/.zshrc ~/.bashrc ~/.bash_profile ~/.zprofile ~/.zshenv 2>/dev/null"
     elif (( readable_count > 0 )); then
         res_status="WARN"
         details="Shell startup files are world-readable (${world_readable_files}), exposing environment paths and configurations."
-        remediation="chmod 600 ~/.zshrc ~/.bashrc ~/.bash_profile ~/.zprofile ~/.zshenv 2>/dev/null"
+        remediation="[EXEC] chmod 600 ~/.zshrc ~/.bashrc ~/.bash_profile ~/.zprofile ~/.zshenv 2>/dev/null"
     else
         res_status="PASS"
         details="No plaintext API keys or secrets detected in shell profiles; permissions are protected."
@@ -258,12 +258,12 @@ audit_env_files() {
             fix_cmds="${fix_cmds:+$fix_cmds; }chmod 600 \"$env_path\""
             (( count_exposed++ ))
         fi
-    done <<< "$(find "${scan_dirs[@]}" -maxdepth 3 -type f -name ".env*" 2>/dev/null || true)"
+    done <<< "$(find "${scan_dirs[@]}" -maxdepth 3 -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/vendor/*' -not -path '*/.venv/*' -not -path '*/__pycache__/*' -type f -name ".env*" 2>/dev/null || true)"
 
     if (( count_exposed > 0 )); then
         res_status="WARN"
         details="World-readable .env secret files found (${count_exposed}): ${exposed_files}"
-        remediation="${fix_cmds:+$fix_cmds && }echo 'Ensure .env files are included in .gitignore'"
+        remediation="[EXEC] ${fix_cmds:+$fix_cmds && }echo 'Ensure .env files are included in .gitignore'"
     else
         res_status="PASS"
         details="No world-readable .env configuration files detected in common project directories."
@@ -299,7 +299,7 @@ audit_keychain_timeout() {
     if echo "$kc_out" | grep -qi "no-timeout"; then
         res_status="SUGG"
         details="Login keychain is configured with 'no-timeout'. Credentials remain permanently unlocked during idle sessions."
-        remediation="security set-keychain-settings -t 900 -l \"$HOME/Library/Keychains/login.keychain-db\""
+        remediation="[EXEC] security set-keychain-settings -t 900 -l \"$HOME/Library/Keychains/login.keychain-db\""
     elif echo "$kc_out" | grep -qiE "timeout=[0-9]+s|lock-on-sleep"; then
         res_status="PASS"
         local setting_info
@@ -309,7 +309,7 @@ audit_keychain_timeout() {
     else
         res_status="WARN"
         details="Keychain status check returned: $(echo "$kc_out" | head -n 1)"
-        remediation="security set-keychain-settings -t 900 -l \"$HOME/Library/Keychains/login.keychain-db\""
+        remediation="[EXEC] security set-keychain-settings -t 900 -l \"$HOME/Library/Keychains/login.keychain-db\""
     fi
 
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
@@ -322,7 +322,7 @@ audit_core_dumps() {
     local check_id="${1:-SEC-04}"
     local category="${2:-secrets}"
     local title="${3:-Kernel Core Dumps}"
-    local weight="${4:-4}"
+    local weight="${4:-5}"
 
     local res_status="PASS"
     local details=""
@@ -334,7 +334,7 @@ audit_core_dumps() {
     if [[ "$coredump" == "1" ]]; then
         res_status="SUGG"
         details="Kernel core dumps are enabled (kern.coredump=1). Crashed processes can write sensitive memory contents to disk."
-        remediation="sudo sysctl -w kern.coredump=0"
+        remediation="[EXEC] sudo sysctl -w kern.coredump=0"
     else
         res_status="PASS"
         details="Kernel core dumps are disabled (kern.coredump=0)."
@@ -415,7 +415,7 @@ audit_ssh_permissions() {
     if [[ -n "$issues" ]]; then
         res_status="WARN"
         details="Insecure SSH permissions detected: ${issues}"
-        remediation="${fix_cmds:-chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_* ~/.ssh/config 2>/dev/null}"
+        remediation="[EXEC] ${fix_cmds:-chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_* ~/.ssh/config 2>/dev/null}"
     else
         res_status="PASS"
         details="~/.ssh directory (700), private keys (600), and config file have secure permissions."
@@ -499,7 +499,7 @@ audit_unencrypted_ssh_keys() {
     if (( unencrypted_count > 0 )); then
         res_status="WARN"
         details="Unencrypted SSH private key(s) found (${unencrypted_count}): ${unencrypted_names}"
-        remediation="${fix_cmds}"
+        remediation="[EXEC] ${fix_cmds}"
     else
         res_status="PASS"
         details="No unencrypted SSH private keys found in ~/.ssh."
@@ -575,7 +575,7 @@ audit_shell_history_secrets() {
     if (( secret_count > 0 )); then
         res_status="WARN"
         details="Secrets found in shell history (${secret_count}): ${found_secrets}"
-        remediation="Remove matching lines from shell history files (do not truncate the entire history). Example: sed -i '' '/TOKEN/d' ~/.zsh_history"
+        remediation="[GUIDE] Remove matching lines from shell history files (do not truncate the entire history). Example: sed -i '' '/TOKEN/d' ~/.zsh_history"
     else
         res_status="PASS"
         details="No secrets detected in shell history files."
@@ -665,7 +665,7 @@ audit_sshd_hardening() {
     if (( config_ok == 0 )); then
         res_status="INFO"
         details="SSH is exposed but configuration is unreadable (sshd -T failed and /etc/ssh/sshd_config is not readable)."
-        remediation="Inspect /etc/ssh/sshd_config (PermitRootLogin no, MaxAuthTries 4, X11Forwarding no). Do not rewrite sshd_config automatically."
+        remediation="[GUIDE] Inspect /etc/ssh/sshd_config (PermitRootLogin no, MaxAuthTries 4, X11Forwarding no). Do not rewrite sshd_config automatically."
         record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
         return 0
     fi
@@ -694,7 +694,7 @@ audit_sshd_hardening() {
     if [[ -n "$weak" ]]; then
         res_status="WARN"
         details="SSH daemon exposed with weak settings: ${weak}"
-        remediation="Review /etc/ssh/sshd_config: set PermitRootLogin no, MaxAuthTries 4, X11Forwarding no. Do not rewrite sshd_config automatically."
+        remediation="[GUIDE] Review /etc/ssh/sshd_config: set PermitRootLogin no, MaxAuthTries 4, X11Forwarding no. Do not rewrite sshd_config automatically."
     else
         res_status="PASS"
         details="SSH daemon is exposed; no weak sshd options detected."
@@ -758,10 +758,148 @@ audit_suspicious_history_files() {
     if (( count > 0 )); then
         res_status="WARN"
         details="Suspicious shell history file type(s) (${count}): ${suspicious}"
-        remediation="Investigate redirected history files (symlinks can hide attacker activity). Replace with a regular file."
+        remediation="[GUIDE] Investigate redirected history files (symlinks can hide attacker activity). Replace with a regular file."
     else
         res_status="PASS"
         details="Shell history files are missing or regular files (~/.zsh_history, ~/.zhistory, ~/.bash_history)."
+        remediation=""
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
+# SEC-10: Insecure PATH Directory Permissions & Hijacking Risk
+# Checks directories in $PATH for world-writable permissions ('w' for others)
+# and checks if '.' (current directory) or empty entry is in $PATH (MITRE T1574.007).
+# FAIL/WARN if world-writable directory or '.' found; PASS if clean.
+audit_insecure_path_dirs() {
+    local check_id="${1:-SEC-10}"
+    local category="${2:-secrets}"
+    local title="${3:-Insecure PATH Directory Permissions}"
+    local weight="${4:-7}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    local has_dot=0
+    local ww_count=0
+    local ww_dirs=""
+    local fix_cmds=""
+    local perms=""
+
+    local -a raw_paths=()
+    if [[ -n "$ZSH_VERSION" ]]; then
+        raw_paths=("${(@s/:/)PATH}")
+    else
+        local saved_ifs="$IFS"
+        IFS=':'
+        raw_paths=($PATH)
+        IFS="$saved_ifs"
+    fi
+
+    local p
+    for p in "${raw_paths[@]}"; do
+        if [[ "$p" == "." || -z "$p" ]]; then
+            has_dot=1
+            continue
+        fi
+
+        if [[ -d "$p" ]]; then
+            perms=$(_get_octal_perms "$p")
+            if [[ -n "$perms" ]]; then
+                local last_digit="${perms: -1}"
+                if [[ "$last_digit" =~ [2367] ]]; then
+                    (( ww_count++ ))
+                    ww_dirs="${ww_dirs:+$ww_dirs, }${p} (${perms})"
+                    fix_cmds="${fix_cmds:+$fix_cmds; }chmod o-w \"$p\""
+                fi
+            fi
+        fi
+    done
+
+    if (( has_dot )) && (( ww_count > 0 )); then
+        res_status="FAIL"
+        details="Current directory ('.') is in \$PATH and world-writable directories found (${ww_count}): ${ww_dirs} (MITRE T1574.007)."
+        remediation="[EXEC] ${fix_cmds}"
+    elif (( has_dot )); then
+        res_status="FAIL"
+        details="Current directory ('.') or empty entry detected in \$PATH (privilege escalation risk via PATH hijacking / MITRE T1574.007)."
+        remediation="[GUIDE] Remove '.' and empty entries from PATH in shell profiles (~/.zshrc, ~/.bashrc) and /etc/paths."
+    elif (( ww_count > 0 )); then
+        res_status="WARN"
+        details="World-writable directory found in \$PATH (${ww_count}): ${ww_dirs} (MITRE T1574.007)."
+        remediation="[EXEC] ${fix_cmds}"
+    else
+        res_status="PASS"
+        details="All directories in \$PATH have secure permissions and current directory ('.') is not in \$PATH."
+        remediation=""
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
+# SEC-11: Cloud & Sensitive API Credentials File Permissions
+# Inspects permissions of sensitive files: ~/.aws/credentials, ~/.kube/config,
+# ~/.netrc, ~/.docker/config.json. If they exist and permissions are not 600 or 400
+# (world or group readable/writable), WARN/FAIL. PASS if clean or files do not exist.
+audit_cloud_credentials() {
+    local check_id="${1:-SEC-11}"
+    local category="${2:-secrets}"
+    local title="${3:-Cloud and API Credentials File Permissions}"
+    local weight="${4:-8}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    local -a check_files=(
+        "${HOME}/.aws/credentials"
+        "${HOME}/.kube/config"
+        "${HOME}/.netrc"
+        "${HOME}/.docker/config.json"
+    )
+
+    local insecure_count=0
+    local has_world_readable=0
+    local insecure_details=""
+    local fix_cmds=""
+    local perms=""
+
+    local f
+    for f in "${check_files[@]}"; do
+        if [[ -f "$f" ]]; then
+            perms=$(_get_octal_perms "$f")
+            if [[ ${#perms} -gt 3 ]]; then
+                perms="${perms: -3}"
+            fi
+
+            # Clean permissions are 600 or 400
+            if [[ "$perms" != "600" && "$perms" != "400" ]]; then
+                (( insecure_count++ ))
+                local display_path="~${f#$HOME}"
+                insecure_details="${insecure_details:+$insecure_details; }${display_path} (${perms}, expected 600 or 400)"
+                fix_cmds="${fix_cmds:+$fix_cmds; }chmod 600 \"$f\""
+
+                local last_digit="${perms: -1}"
+                if [[ "$last_digit" =~ [4567] ]]; then
+                    has_world_readable=1
+                fi
+            fi
+        fi
+    done
+
+    if (( insecure_count > 0 )); then
+        if (( has_world_readable )); then
+            res_status="FAIL"
+        else
+            res_status="WARN"
+        fi
+        details="Sensitive credential files have insecure permissions (${insecure_count}): ${insecure_details}."
+        remediation="[EXEC] ${fix_cmds}"
+    else
+        res_status="PASS"
+        details="Cloud and API credentials files (~/.aws/credentials, ~/.kube/config, ~/.netrc, ~/.docker/config.json) have secure permissions (600/400) or do not exist."
         remediation=""
     fi
 
@@ -778,6 +916,8 @@ audit_sec_06() { audit_unencrypted_ssh_keys "$@"; }
 audit_sec_07() { audit_shell_history_secrets "$@"; }
 audit_sec_08() { audit_sshd_hardening "$@"; }
 audit_sec_09() { audit_suspicious_history_files "$@"; }
+audit_sec_10() { audit_insecure_path_dirs "$@"; }
+audit_sec_11() { audit_cloud_credentials "$@"; }
 
 # Category Runner
 run_audit_secrets() {
@@ -790,6 +930,8 @@ run_audit_secrets() {
     audit_shell_history_secrets
     audit_sshd_hardening
     audit_suspicious_history_files
+    audit_insecure_path_dirs
+    audit_cloud_credentials
 }
 
 # Auto-registration with engine.sh
@@ -798,12 +940,14 @@ register_secrets_checks() {
         register_check "SEC-01" "secrets" "Plaintext API Keys in Shell Profiles" 9 audit_shell_secrets
         register_check "SEC-02" "secrets" "Exposed .env Configuration Files" 6 audit_env_files
         register_check "SEC-03" "secrets" "Keychain Auto-Lock Timeout" 5 audit_keychain_timeout
-        register_check "SEC-04" "secrets" "Kernel Core Dumps" 4 audit_core_dumps
+        register_check "SEC-04" "secrets" "Kernel Core Dumps" 5 audit_core_dumps
         register_check "SEC-05" "secrets" "SSH Keys and Config Permissions" 7 audit_ssh_permissions
         register_check "SEC-06" "secrets" "Unencrypted SSH Private Keys" 8 audit_unencrypted_ssh_keys
         register_check "SEC-07" "secrets" "Secrets in Shell History" 7 audit_shell_history_secrets
         register_check "SEC-08" "secrets" "SSH Daemon Hardening" 7 audit_sshd_hardening
         register_check "SEC-09" "secrets" "Suspicious Shell History Files" 5 audit_suspicious_history_files
+        register_check "SEC-10" "secrets" "Insecure PATH Directory Permissions" 7 audit_insecure_path_dirs
+        register_check "SEC-11" "secrets" "Cloud and API Credentials File Permissions" 8 audit_cloud_credentials
     fi
 }
 

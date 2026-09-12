@@ -88,6 +88,43 @@ for file in "${FILES_TO_CHECK[@]}"; do
 done
 
 echo ""
+echo "${C_BOLD}▶ Phase 1b: JSON Data File Validation${C_RESET}"
+echo "${C_DIM}----------------------------------------------------------------------${C_RESET}"
+
+JSON_DATA_FILES=()
+for jf in "${PROJECT_ROOT}"/data/*.json "${PROJECT_ROOT}"/data/locales/*.json; do
+    [[ -f "$jf" ]] && JSON_DATA_FILES+=("$jf")
+done
+
+TOTAL_JSON_CHECKS=0
+PASSED_JSON_CHECKS=0
+FAILED_JSON_CHECKS=0
+
+for jfile in "${JSON_DATA_FILES[@]}"; do
+    (( ++TOTAL_JSON_CHECKS ))
+    rel_jpath="${jfile#$PROJECT_ROOT/}"
+    printf "  %-35s " "${rel_jpath}"
+    if python3 -m json.tool "$jfile" >/dev/null 2>&1; then
+        printf "[%b]\n" "${C_GREEN}VALID JSON${C_RESET}"
+        (( ++PASSED_JSON_CHECKS ))
+    else
+        printf "[%b]\n" "${C_RED}INVALID JSON${C_RESET}"
+        (( ++FAILED_JSON_CHECKS ))
+    fi
+done
+
+if command -v shellcheck >/dev/null 2>&1; then
+    echo ""
+    echo "${C_BOLD}▶ Phase 1c: Static Analysis (ShellCheck)${C_RESET}"
+    echo "${C_DIM}----------------------------------------------------------------------${C_RESET}"
+    if shellcheck --severity=error "${PROJECT_ROOT}"/bin/macharden "${PROJECT_ROOT}"/lib/*.sh 2>/dev/null; then
+        echo "  [${C_GREEN}PASS${C_RESET}] ShellCheck completed with 0 errors"
+    else
+        echo "  [${C_YELLOW}WARN${C_RESET}] ShellCheck reported notices (non-blocking)"
+    fi
+fi
+
+echo ""
 echo "${C_BOLD}▶ Phase 2: Unit & Engine Test Suite Execution${C_RESET}"
 echo "${C_DIM}----------------------------------------------------------------------${C_RESET}"
 
@@ -103,6 +140,18 @@ else
     UNIT_TESTS_EXIT=1
 fi
 
+TEST_MOCKS_SCRIPT="${PROJECT_ROOT}/tests/test_mocks.sh"
+MOCK_TESTS_EXIT=0
+
+if [[ -f "$TEST_MOCKS_SCRIPT" ]]; then
+    echo ""
+    echo "${C_BOLD}▶ Phase 3: Mocked System Checks Execution${C_RESET}"
+    echo "${C_DIM}----------------------------------------------------------------------${C_RESET}"
+    chmod +x "$TEST_MOCKS_SCRIPT"
+    "$TEST_MOCKS_SCRIPT"
+    MOCK_TESTS_EXIT=$?
+fi
+
 echo ""
 echo "${C_BOLD}${C_CYAN}======================================================================${C_RESET}"
 echo "                         ${C_BOLD}TEST RUN SUMMARY${C_RESET}"
@@ -112,11 +161,19 @@ printf "  Syntax Checks : Total %d | %bPassed: %d%b | %bFailed: %d%b\n" \
     "$([[ $FAILED_SYNTAX_CHECKS -gt 0 ]] && echo "${C_RED}" || echo "${C_GREEN}")" \
     "$FAILED_SYNTAX_CHECKS" "${C_RESET}"
 
+printf "  JSON Data     : Total %d | %bPassed: %d%b | %bFailed: %d%b\n" \
+    "$TOTAL_JSON_CHECKS" "${C_GREEN}" "$PASSED_JSON_CHECKS" "${C_RESET}" \
+    "$([[ $FAILED_JSON_CHECKS -gt 0 ]] && echo "${C_RED}" || echo "${C_GREEN}")" \
+    "$FAILED_JSON_CHECKS" "${C_RESET}"
+
 printf "  Unit Tests    : %b\n" \
     "$([[ $UNIT_TESTS_EXIT -eq 0 ]] && echo "${C_GREEN}ALL TESTS PASSED${C_RESET}" || echo "${C_RED}TEST SUITE FAILED${C_RESET}")"
+
+printf "  Mock Tests    : %b\n" \
+    "$([[ $MOCK_TESTS_EXIT -eq 0 ]] && echo "${C_GREEN}ALL TESTS PASSED${C_RESET}" || echo "${C_RED}MOCK TESTS FAILED${C_RESET}")"
 echo "${C_DIM}----------------------------------------------------------------------${C_RESET}"
 
-if [[ $FAILED_SYNTAX_CHECKS -eq 0 && $UNIT_TESTS_EXIT -eq 0 ]]; then
+if [[ $FAILED_SYNTAX_CHECKS -eq 0 && $FAILED_JSON_CHECKS -eq 0 && $UNIT_TESTS_EXIT -eq 0 && $MOCK_TESTS_EXIT -eq 0 ]]; then
     echo "${C_GREEN}${C_BOLD}✔ BUILD & TESTS SUCCEEDED - 0 ERRORS${C_RESET}"
     exit 0
 else

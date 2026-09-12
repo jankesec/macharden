@@ -17,7 +17,7 @@ fi
 report_html() {
     local output_file="${1:-}"
     local lang="${2:-${MACHAR_LANG:-en}}"
-    local version="${MACHAR_VERSION:-1.2.0}"
+    local version="${MACHAR_VERSION:-1.3.0}"
     local _script_dir="${0:A:h}"
     local compliance_file="${_script_dir}/../data/compliance_mappings.json"
 
@@ -32,23 +32,31 @@ report_html() {
         json_data=$(report_json -)
     fi
 
+    # Retrieve diff metadata if available
+    local diff_json="${AUDIT_DIFF_JSON:-}"
+    if [[ -z "$diff_json" ]] && typeset -f diff_get_json >/dev/null 2>&1; then
+        diff_json=$(diff_get_json 2>/dev/null || true)
+    fi
+
     # Fallback to python3 environment check
     if ! command -v python3 >/dev/null 2>&1; then
         echo "Error: python3 is required for HTML report generation." >&2
         return 1
     fi
 
-    # Execute Python generator with JSON payload and compliance mappings
-    AUDIT_JSON="$json_data" AUDIT_OUTPUT_FILE="$output_file" COMPLIANCE_JSON_FILE="$compliance_file" AUDIT_VERSION="$version" AUDIT_LANG="$lang" python3 - << 'PYEOF'
+    # Execute Python generator with JSON payload, diff metadata, and compliance mappings
+    AUDIT_JSON="$json_data" AUDIT_DIFF_JSON="$diff_json" AUDIT_OUTPUT_FILE="$output_file" COMPLIANCE_JSON_FILE="$compliance_file" AUDIT_VERSION="$version" AUDIT_LANG="$lang" python3 - << 'PYEOF'
 import os
 import sys
 import json
 import html
+import re
 
 raw_json = os.environ.get('AUDIT_JSON', '{}')
+raw_diff = os.environ.get('AUDIT_DIFF_JSON', '').strip()
 output_file = os.environ.get('AUDIT_OUTPUT_FILE', '')
 comp_file = os.environ.get('COMPLIANCE_JSON_FILE', '')
-scanner_ver = os.environ.get('AUDIT_VERSION', '1.2.0')
+scanner_ver = os.environ.get('AUDIT_VERSION', '1.3.0')
 audit_lang = os.environ.get('AUDIT_LANG', os.environ.get('MACHAR_LANG', 'en')).strip().lower()
 if audit_lang not in ['en', 'tr']:
     audit_lang = 'en'
@@ -131,6 +139,16 @@ UI_STRINGS = {
     "toast_copied_cmd": "Copied fix command!",
     "toast_copied_script": "Copied full remediation shell script!",
     "toast_downloaded": "Downloaded fix_hardening.sh",
+    "toast_downloaded_sarif": "Downloaded macharden-report.sarif",
+    "btn_export_sarif": "Export SARIF",
+    "sec_drift_title": "Baseline Drift & Trend",
+    "drift_baseline_score": "Baseline Score",
+    "drift_current_score": "Current Score",
+    "drift_delta": "Score Delta",
+    "drift_regressions": "New Regressions",
+    "drift_remediated": "Remediated Items",
+    "drift_unchanged": "Unchanged Controls",
+    "drift_baseline_meta": "Baseline Snapshot",
     "badge_pass": "PASS",
     "badge_warn": "WARN",
     "badge_fail": "FAIL",
@@ -143,6 +161,16 @@ UI_STRINGS = {
     "btn_playbook": "Zafiyet İyileştirme Reçetesi",
     "btn_export_md": "Markdown İndir",
     "btn_export_json": "JSON",
+    "btn_export_sarif": "SARIF İndir",
+    "sec_drift_title": "Temel Çizgi Sapma ve Trend Analizi",
+    "drift_baseline_score": "Temel Hat Skoru",
+    "drift_current_score": "Güncel Skor",
+    "drift_delta": "Skor Farkı",
+    "drift_regressions": "Yeni Gerilemeler",
+    "drift_remediated": "İyileştirilen Maddeler",
+    "drift_unchanged": "Değişmeyen Kontroller",
+    "drift_baseline_meta": "Temel Hat Özeti",
+    "toast_downloaded_sarif": "macharden-report.sarif indirildi",
     "sec_hardening_score": "Sıkılaştırma Skoru",
     "score_earned_prefix": "Ağırlıklı puandan",
     "score_earned_of": "/",
@@ -432,6 +460,34 @@ CHECK_I18N = {
       "WARN": "Yeni USB aksesuarları otomatik olarak bağlanabiliyor."
     }
   },
+  "HARD-16": {
+    "title": {
+      "en": "Diagnostic & Telemetry Reporting",
+      "tr": "Tanılama ve Telemetri Bildirimi"
+    },
+    "desc": {
+      "en": "Verifies Apple diagnostic and crash telemetry reporting is disabled to prevent unnecessary background telemetry collection.",
+      "tr": "Gereksiz arka plan telemetri toplanmasını önlemek için Apple tanılama ve çökme bildirimi telemetrisinin devre dışı olduğunu doğrular."
+    },
+    "finding": {
+      "PASS": "Apple tanılama ve telemetri veri gönderimi kapalı.",
+      "WARN": "Apple tanılama veya çökme raporu telemetrisi açık; veri paylaşımı gerçekleşebilir."
+    }
+  },
+  "HARD-17": {
+    "title": {
+      "en": "AirDrop Discoverability Exposure",
+      "tr": "AirDrop Keşfedilebilirlik Koruması"
+    },
+    "desc": {
+      "en": "Ensures AirDrop discoverability mode is restricted to Contacts Only or Off to prevent wireless discovery and unauthorized file drops.",
+      "tr": "Kablosuz keşif ve yetkisiz dosya aktarımlarını önlemek için AirDrop keşfedilebilirlik modunun Yalnızca Kişiler veya Kapalı olduğunu doğrular."
+    },
+    "finding": {
+      "PASS": "AirDrop keşfedilebilirliği kapalı veya yalnızca kişilerle sınırlandırılmış.",
+      "WARN": "AirDrop 'Herkes' modunda açık! Çevredeki aygıtlar sistemi doğrudan keşfedebilir."
+    }
+  },
   "NET-01": {
     "title": {
       "en": "Application Firewall Status",
@@ -586,6 +642,20 @@ CHECK_I18N = {
       "FAIL": "Karmaşık modda ağ arayüzü tespit edildi! Paket yakalama araçları çalışıyor olabilir."
     }
   },
+  "NET-12": {
+    "title": {
+      "en": "Wi-Fi Auto-Join Open Networks",
+      "tr": "Açık Wi-Fi Ağlarına Otomatik Bağlantı"
+    },
+    "desc": {
+      "en": "Audits Wi-Fi network preferences to ensure automatically joining untrusted open networks is disabled.",
+      "tr": "Güvenilmeyen açık ağlara otomatik bağlanmanın devre dışı olduğunu doğrulamak için Wi-Fi tercihlerini denetler."
+    },
+    "finding": {
+      "PASS": "Açık Wi-Fi ağlarına otomatik bağlantı devre dışı.",
+      "WARN": "Açık Wi-Fi ağlarına otomatik katılım aktif! Güvensiz ağlara otomatik bağlanabilir."
+    }
+  },
   "PERS-01": {
     "title": {
       "en": "LaunchAgents Persistence Review",
@@ -710,6 +780,20 @@ CHECK_I18N = {
     "finding": {
       "PASS": "Sudo kimlik doğrulama süresi güvenli limitlerde (≤ 5 dakika).",
       "WARN": "Sudo yetki süresi uzun; oturum suistimaline yol açabilir."
+    }
+  },
+  "PERS-10": {
+    "title": {
+      "en": "Periodic Scripts Integrity",
+      "tr": "Periyodik Bakım Betikleri Bütünlüğü"
+    },
+    "desc": {
+      "en": "Inspects system periodic directories (/etc/periodic/daily, weekly, monthly) for unauthorized or custom executable scripts.",
+      "tr": "Yetkisiz veya özel çalıştırılabilir betikler için sistem periyodik dizinlerini (/etc/periodic) denetler."
+    },
+    "finding": {
+      "PASS": "Yalnızca standart macOS periyodik betikleri mevcut veya dizinler temiz.",
+      "WARN": "Periyodik dizinlerde (/etc/periodic) standart dışı betik(ler) tespit edildi!"
     }
   },
   "SEC-01": {
@@ -837,6 +921,36 @@ CHECK_I18N = {
       "PASS": "Kabuk geçmişi dosyaları normal ve güvenli.",
       "FAIL": "Şüpheli kabuk geçmişi dosyası veya sembolik bağ tespit edildi!"
     }
+  },
+  "SEC-10": {
+    "title": {
+      "en": "Insecure PATH Directory Permissions",
+      "tr": "Güvensiz PATH Dizin İzinleri"
+    },
+    "desc": {
+      "en": "Checks directories in $PATH to ensure no directories are world-writable and current directory ('.') is not included.",
+      "tr": "Tüm dizinlerin genel yazılabilir olmadığını ve geçerli dizinin ('.') bulunmadığını doğrulamak için $PATH dizinlerini denetler."
+    },
+    "finding": {
+      "PASS": "$PATH içerisindeki tüm dizin izinleri güvenli ve geçerli dizin ('.') bulunmuyor.",
+      "FAIL": "$PATH içerisinde genel yazılabilir dizin veya '.' tespit edildi! Yetki yükseltme riski.",
+      "WARN": "$PATH içerisinde genel yazılabilir dizin tespit edildi."
+    }
+  },
+  "SEC-11": {
+    "title": {
+      "en": "Cloud and API Credentials File Permissions",
+      "tr": "Bulut ve API Kimlik Bilgileri Dosya İzinleri"
+    },
+    "desc": {
+      "en": "Inspects file permissions of sensitive cloud credentials (~/.aws/credentials, ~/.kube/config, ~/.netrc, ~/.docker/config.json).",
+      "tr": "Hassas bulut ve API kimlik bilgilerinin dosya izinlerini denetler (~/.aws/credentials, ~/.kube/config, ~/.netrc, ~/.docker/config.json)."
+    },
+    "finding": {
+      "PASS": "Bulut ve API kimlik dosyası izinleri güvenli (600/400) veya dosya mevcut değil.",
+      "FAIL": "Bulut veya API kimlik dosyalarında genel okuma/yazma izinleri tespit edildi!",
+      "WARN": "Bulut veya API kimlik dosyalarında güvensiz izinler tespit edildi."
+    }
   }
 }
 
@@ -855,7 +969,7 @@ compliance_map = {}
 search_paths = [
     comp_file,
     os.path.join(os.getcwd(), 'data', 'compliance_mappings.json'),
-    '<project_root>/data/compliance_mappings.json'
+    os.environ.get('BASE_DIR', '') + '/data/compliance_mappings.json'
 ]
 for p in search_paths:
     if p and os.path.isfile(p):

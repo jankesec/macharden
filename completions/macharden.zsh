@@ -24,6 +24,7 @@ _macharden() {
         'json:Machine-readable structured JSON format'
         'markdown:GitHub-flavored Markdown report'
         'html:Interactive responsive HTML report with score dashboard'
+        'sarif:OASIS SARIF v2.1.0 JSON format for CI/CD and security scanners'
     )
 
     local -a compliance_frameworks
@@ -51,7 +52,13 @@ _macharden() {
         '(-l --lang)'{-l,--lang}'[Report and CLI interface language (en, tr)]:language:(en tr)' \
         '(-o --output)'{-o,--output}'[Save audit report to specified file path]:output file:_files' \
         '(-q --quiet)'{-q,--quiet}'[Minimal output, print only final executive summary]' \
+        '--diff[Compare current audit against baseline JSON report]:baseline report:_files -g "*.json"' \
+        '--fail-on-regression[Exit with code 2 if any security regressions are detected relative to baseline]' \
+        '--fail-on-warn[Exit with code 1 if any warnings are detected]' \
+        '--min-score[Exit with code 1 if Hardening Index is below threshold]:score threshold:' \
         '--fix[Interactively prompt and apply remediation fixes for failed checks]' \
+        '--dry-run[Preview remediation actions without applying changes]' \
+        '--undo[Undo the most recent remediation session from backup]' \
         '--generate-fix[Generate automated remediation shell script without applying]::remediation script output:_files -g "*.sh"' \
         '--no-color[Disable ANSI terminal color output]' \
         '--compliance[Filter or map audit checks against security compliance frameworks]:compliance framework:->compliance' \

@@ -52,7 +52,7 @@ generate_fix_script() {
 
     # Generate standalone fix script
     cat <<'EOF' > "$output_file"
-#!/bin/bash
+#!/bin/zsh
 # ==============================================================================
 # macharden - Automated Security Hardening Fix Script
 # ==============================================================================
@@ -98,7 +98,7 @@ EOF
     # Append metadata to script
     cat <<EOF >> "$output_file"
 # Scan Metadata
-# Scanner Version : macharden v${MACHAR_VERSION:-1.2.0}
+# Scanner Version : macharden v${MACHAR_VERSION:-1.3.0}
 # Generated On    : ${current_time}
 # Hostname        : ${hostname}
 # User            : ${current_user:-$user}
@@ -153,7 +153,28 @@ EOF
             local details="${RES_DETAILS[idx]}"
             local rem="${RES_REMEDIATIONS[idx]}"
 
-            cat <<EOF >> "$output_file"
+            if [[ "$rem" == \[GUIDE\]* ]]; then
+                local guide_text="${rem#\[GUIDE\] }"
+                cat <<EOF >> "$output_file"
+# ------------------------------------------------------------------------------
+# [Step ${step_num}/${total_fixes}] ID: ${id} | Category: ${cat}
+# Title  : ${title}
+# Status : ${st} (Weight: ${weight})
+# Finding: ${details}
+# ------------------------------------------------------------------------------
+# MANUAL ACTION REQUIRED:
+# ${guide_text}
+echo "\${C_BOLD}[${step_num}/${total_fixes}]\${C_RESET} \${C_CYAN}${id}\${C_RESET}: ${title}"
+echo "      \${C_DIM}Guidance: ${guide_text}\${C_RESET}"
+echo "      \${C_YELLOW}[INFO]\${C_RESET} Manual action required (Skipped in script)."
+echo ""
+
+EOF
+            else
+                if [[ "$rem" == \[EXEC\]* ]]; then
+                    rem="${rem#\[EXEC\] }"
+                fi
+                cat <<EOF >> "$output_file"
 # ------------------------------------------------------------------------------
 # [Step ${step_num}/${total_fixes}] ID: ${id} | Category: ${cat}
 # Title  : ${title}
@@ -174,6 +195,7 @@ fi
 echo ""
 
 EOF
+            fi
             (( ++step_num ))
         done
 
@@ -215,6 +237,136 @@ generate_remediation_script() {
 }
 
 # ==============================================================================
+# Backup & Rollback Helpers
+# ==============================================================================
+
+# Create a timestamped backup directory
+_create_backup_dir() {
+    local backup_dir="${HOME}/.macharden/backups/$(date +%Y%m%d_%H%M%S)"
+    mkdir -p "$backup_dir"
+    echo "$backup_dir"
+}
+
+# Save a backup entry for a remediation command before applying it
+_save_backup_entry() {
+    local backup_dir="$1"
+    local check_id="$2"
+    local rem="$3"
+    local undo_file="${backup_dir}/undo.sh"
+
+    # Initialize undo script if it doesn't exist
+    if [[ ! -f "$undo_file" ]]; then
+        cat <<'UNDOEOF' > "$undo_file"
+#!/bin/zsh
+# macharden - Undo Script (Rollback)
+# Generated automatically. Review before running.
+set -u
+echo "Rolling back macharden remediation changes..."
+echo ""
+UNDOEOF
+        chmod +x "$undo_file"
+    fi
+
+    # Try to capture current state and write reverse command
+    if [[ "$rem" == *"defaults write"* ]]; then
+        # Extract domain and key from defaults write command
+        local domain key
+        domain=$(echo "$rem" | grep -oE '/[^ ]+(\.plist)?' | head -1)
+        [[ -z "$domain" ]] && domain=$(echo "$rem" | sed -n 's/.*defaults write \([^ ]*\) .*/\1/p')
+        key=$(echo "$rem" | sed -n 's/.*defaults write [^ ]* \([^ ]*\) .*/\1/p')
+        if [[ -n "$domain" && -n "$key" ]]; then
+            local current_val
+            current_val=$(defaults read "$domain" "$key" 2>/dev/null)
+            if [[ -n "$current_val" ]]; then
+                echo "# Undo ${check_id}: restore ${key}" >> "$undo_file"
+                echo "defaults write ${domain} ${key} '${current_val}'" >> "$undo_file"
+            else
+                echo "# Undo ${check_id}: delete ${key} (was not set)" >> "$undo_file"
+                echo "defaults delete ${domain} ${key} 2>/dev/null" >> "$undo_file"
+            fi
+        fi
+    elif [[ "$rem" == *"chmod"* ]]; then
+        # Capture current permissions
+        local target_path
+        target_path=$(echo "$rem" | grep -oE '[^ ]+$')
+        if [[ -e "$target_path" ]]; then
+            local current_perms
+            current_perms=$(stat -f '%Lp' "$target_path" 2>/dev/null)
+            if [[ -n "$current_perms" ]]; then
+                echo "# Undo ${check_id}: restore permissions on ${target_path}" >> "$undo_file"
+                echo "chmod ${current_perms} '${target_path}'" >> "$undo_file"
+            fi
+        fi
+    elif [[ "$rem" == *"sysctl"* ]]; then
+        # Capture current sysctl value
+        local sysctl_key
+        sysctl_key=$(echo "$rem" | grep -oE '[a-z.]+=[0-9]+' | cut -d= -f1)
+        if [[ -n "$sysctl_key" ]]; then
+            local current_val
+            current_val=$(sysctl -n "$sysctl_key" 2>/dev/null)
+            if [[ -n "$current_val" ]]; then
+                echo "# Undo ${check_id}: restore ${sysctl_key}" >> "$undo_file"
+                echo "sudo sysctl -w ${sysctl_key}=${current_val}" >> "$undo_file"
+            fi
+        fi
+    else
+        echo "# Undo ${check_id}: manual rollback required for: ${rem}" >> "$undo_file"
+    fi
+    echo "" >> "$undo_file"
+}
+
+# ==============================================================================
+# Undo last remediation session
+# Usage: undo_last_remediation
+# ==============================================================================
+undo_last_remediation() {
+    local backups_dir="${HOME}/.macharden/backups"
+    if [[ ! -d "$backups_dir" ]]; then
+        ui_warn "No backup directory found at ${backups_dir}"
+        return 1
+    fi
+
+    # Find most recent backup
+    local latest
+    latest=$(ls -1td "${backups_dir}"/*/ 2>/dev/null | head -1)
+    if [[ -z "$latest" || ! -f "${latest}undo.sh" ]]; then
+        ui_warn "No undo script found in backups."
+        return 1
+    fi
+
+    echo ""
+    ui_info "Found undo script: ${latest}undo.sh"
+    echo "${COLOR_DIM}----------------------------------------------------------------------${COLOR_RESET}"
+    cat "${latest}undo.sh"
+    echo "${COLOR_DIM}----------------------------------------------------------------------${COLOR_RESET}"
+    echo ""
+
+    local response=""
+    printf "  ${COLOR_BOLD}Execute undo script? [y/N]: ${COLOR_RESET}"
+    if [[ -r /dev/tty ]]; then
+        read -r response </dev/tty
+    else
+        read -r response
+    fi
+
+    case "${response:l}" in
+        y|yes)
+            ui_info "Executing undo script..."
+            if zsh "${latest}undo.sh"; then
+                ui_success "Rollback completed successfully."
+            else
+                ui_error "Some rollback commands failed. Review output above."
+            fi
+            ;;
+        *)
+            ui_info "Undo cancelled."
+            ;;
+    esac
+
+    return 0
+}
+
+# ==============================================================================
 # Interactively prompt and apply remediation fixes one-by-one
 # Usage: apply_remediation_interactive
 # ==============================================================================
@@ -231,6 +383,7 @@ apply_remediation_interactive() {
     done
 
     local total_fixes=${#fixable_indices[@]}
+    local is_dry_run=${MACHAR_DRY_RUN:-0}
 
     if (( total_fixes == 0 )); then
         echo ""
@@ -240,12 +393,45 @@ apply_remediation_interactive() {
 
     echo ""
     echo "${COLOR_BOLD}${COLOR_BCYAN}======================================================================${COLOR_RESET}"
-    echo "          ${COLOR_BOLD}INTERACTIVE HARDENING REMEDIATION MODE${COLOR_RESET}"
+    if (( is_dry_run )); then
+        echo "        ${COLOR_BOLD}INTERACTIVE REMEDIATION — DRY RUN MODE${COLOR_RESET}"
+    else
+        echo "          ${COLOR_BOLD}INTERACTIVE HARDENING REMEDIATION MODE${COLOR_RESET}"
+    fi
     echo "${COLOR_BOLD}${COLOR_BCYAN}======================================================================${COLOR_RESET}"
     echo "Found ${COLOR_BOLD}${total_fixes}${COLOR_RESET} remediable security findings."
-    echo "Options: [${COLOR_BGREEN}y${COLOR_RESET}] Apply fix, [${COLOR_BYELLOW}n${COLOR_RESET}] Skip, [${COLOR_BCYAN}a${COLOR_RESET}] Apply all, [${COLOR_BRED}q${COLOR_RESET}] Quit."
+    if (( is_dry_run )); then
+        echo "${COLOR_BYELLOW}[DRY-RUN] No changes will be applied. Previewing remediation plan.${COLOR_RESET}"
+    else
+        echo "Options: [${COLOR_BGREEN}y${COLOR_RESET}] Apply fix, [${COLOR_BYELLOW}n${COLOR_RESET}] Skip, [${COLOR_BCYAN}a${COLOR_RESET}] Apply all, [${COLOR_BRED}q${COLOR_RESET}] Quit."
+    fi
     echo "${COLOR_DIM}----------------------------------------------------------------------${COLOR_RESET}"
     echo ""
+
+    # Sudo pre-flight: cache credentials if any remediation needs sudo
+    if (( ! is_dry_run )); then
+        local needs_sudo=0
+        for idx in "${fixable_indices[@]}"; do
+            local rem="${RES_REMEDIATIONS[idx]}"
+            if [[ "$rem" == *"sudo "* ]]; then
+                needs_sudo=1
+                break
+            fi
+        done
+        if (( needs_sudo )); then
+            ui_info "Some remediations require administrator privileges."
+            if ! sudo -v 2>/dev/null; then
+                ui_warn "Could not cache sudo credentials. Some fixes may fail or prompt individually."
+            fi
+            echo ""
+        fi
+    fi
+
+    # Create backup directory for rollback
+    local backup_dir=""
+    if (( ! is_dry_run )); then
+        backup_dir=$(_create_backup_dir)
+    fi
 
     local apply_all=0
     local applied_count=0
@@ -275,7 +461,31 @@ apply_remediation_interactive() {
         if [[ -n "$details" ]]; then
             printf "        ${COLOR_DIM}Finding : %s${COLOR_RESET}\n" "$details"
         fi
+
+        if [[ "$rem" == \[GUIDE\]* ]]; then
+            local guide_text="${rem#\[GUIDE\] }"
+            printf "        ${COLOR_BCYAN}Guidance: %s${COLOR_RESET}\n" "$guide_text"
+            printf "        ${COLOR_BYELLOW}[INFO] Manual action required (Skipped).${COLOR_RESET}\n"
+            (( ++skipped_count ))
+            echo ""
+            (( ++step_num ))
+            continue
+        fi
+
+        if [[ "$rem" == \[EXEC\]* ]]; then
+            rem="${rem#\[EXEC\] }"
+        fi
+
         printf "        ${COLOR_BCYAN}Command : %s${COLOR_RESET}\n" "$rem"
+
+        # Dry-run mode: show what would happen, skip execution
+        if (( is_dry_run )); then
+            printf "        ${COLOR_BYELLOW}[DRY-RUN]${COLOR_RESET} Would execute: ${COLOR_DIM}%s${COLOR_RESET}\n" "$rem"
+            (( ++applied_count ))
+            echo ""
+            (( ++step_num ))
+            continue
+        fi
 
         local do_apply=0
         if (( apply_all )); then
@@ -318,6 +528,10 @@ apply_remediation_interactive() {
         fi
 
         if (( do_apply )); then
+            # Save backup before applying
+            if [[ -n "$backup_dir" ]]; then
+                _save_backup_entry "$backup_dir" "$id" "$rem"
+            fi
             printf "        ${COLOR_DIM}Executing...${COLOR_RESET}\n"
             if eval "$rem"; then
                 printf "        ${COLOR_BGREEN}${COLOR_BOLD}✔ Remediation applied successfully.${COLOR_RESET}\n"
@@ -337,8 +551,17 @@ apply_remediation_interactive() {
     done
 
     echo "${COLOR_DIM}----------------------------------------------------------------------${COLOR_RESET}"
-    printf "  ${COLOR_BOLD}Remediation Summary:${COLOR_RESET} Applied: ${COLOR_BGREEN}%d${COLOR_RESET} | Skipped: ${COLOR_BYELLOW}%d${COLOR_RESET} | Failed: ${COLOR_BRED}%d${COLOR_RESET}\n" \
-        "$applied_count" "$skipped_count" "$failed_count"
+    if (( is_dry_run )); then
+        printf "  ${COLOR_BOLD}Dry Run Summary:${COLOR_RESET} ${COLOR_BYELLOW}%d${COLOR_RESET} commands would be applied | ${COLOR_BYELLOW}%d${COLOR_RESET} manual guidance items\n" \
+            "$applied_count" "$skipped_count"
+    else
+        printf "  ${COLOR_BOLD}Remediation Summary:${COLOR_RESET} Applied: ${COLOR_BGREEN}%d${COLOR_RESET} | Skipped: ${COLOR_BYELLOW}%d${COLOR_RESET} | Failed: ${COLOR_BRED}%d${COLOR_RESET}\n" \
+            "$applied_count" "$skipped_count" "$failed_count"
+        if [[ -n "$backup_dir" && -f "${backup_dir}/undo.sh" ]]; then
+            ui_info "Rollback script saved: ${backup_dir}/undo.sh"
+            ui_info "To undo changes: macharden --undo"
+        fi
+    fi
     echo ""
 
     return 0

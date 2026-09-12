@@ -20,7 +20,7 @@ audit_firewall() {
     local check_id="${1:-NET-01}"
     local category="${2:-network}"
     local title="${3:-Application Firewall Status}"
-    local weight="${4:-9}"
+    local weight="${4:-8}"
 
     local res_status="FAIL"
     local details=""
@@ -43,7 +43,7 @@ audit_firewall() {
     else
         res_status="FAIL"
         details="macOS Application Firewall is disabled! The system does not filter uninvited inbound connections."
-        remediation="sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on"
+        remediation="[EXEC] sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on"
     fi
 
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
@@ -80,7 +80,7 @@ audit_firewall_stealth() {
     else
         res_status="SUGG"
         details="Firewall Stealth Mode is off. The host responds to ICMP pings and port discovery scans."
-        remediation="sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on"
+        remediation="[EXEC] sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on"
     fi
 
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
@@ -143,7 +143,7 @@ audit_firewall_exceptions() {
             [[ -z "$app_path" ]] && continue
             block_cmds="${block_cmds:+$block_cmds; }sudo /usr/libexec/ApplicationFirewall/socketfilterfw --blockapp \"$app_path\""
         done <<< "$flagged_apps"
-        remediation="$block_cmds"
+        remediation="[EXEC] $block_cmds"
     else
         res_status="PASS"
         details="No dangerous scripting interpreters or raw networking tools allowed incoming connections."
@@ -211,7 +211,7 @@ audit_bpf_sniffing() {
     if (( is_vulnerable == 1 )); then
         res_status="WARN"
         details="Non-root packet sniffing permitted: ${reasons}. Unprivileged users or compromised processes can capture network traffic."
-        remediation="sudo dseditgroup -o edit -d $(whoami) -t user access_bpf 2>/dev/null; sudo chmod 600 /dev/bpf*"
+        remediation="[EXEC] sudo dseditgroup -o edit -d $(whoami) -t user access_bpf 2>/dev/null; sudo chmod 600 /dev/bpf*"
     else
         res_status="PASS"
         details="Berkeley Packet Filter (/dev/bpf*) devices are strictly restricted to root."
@@ -228,7 +228,7 @@ audit_hosts_integrity() {
     local check_id="${1:-NET-05}"
     local category="${2:-network}"
     local title="${3:-/etc/hosts Loopback Integrity}"
-    local weight="${4:-8}"
+    local weight="${4:-9}"
 
     local res_status="PASS"
     local details=""
@@ -239,7 +239,7 @@ audit_hosts_integrity() {
     if [[ ! -f "$hosts_file" ]]; then
         res_status="FAIL"
         details="/etc/hosts file is completely missing! System hostname and loopback resolution is broken."
-        remediation="sudo sh -c 'printf \"127.0.0.1\tlocalhost\n::1\tlocalhost\n255.255.255.255\tbroadcasthost\n\" > /etc/hosts'"
+        remediation="[EXEC] sudo sh -c 'printf \"127.0.0.1\tlocalhost\n::1\tlocalhost\n255.255.255.255\tbroadcasthost\n\" > /etc/hosts'"
         record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
         return 0
     fi
@@ -262,11 +262,11 @@ audit_hosts_integrity() {
         [[ -z "$ipv4_match" ]] && missing="IPv4 127.0.0.1"
         [[ -z "$ipv6_match" ]] && missing="${missing:+$missing, }IPv6 ::1"
         details="Localhost loopback resolution missing or commented out in /etc/hosts (${missing})."
-        remediation="sudo sh -c 'printf \"127.0.0.1\tlocalhost\n::1\tlocalhost\n\" >> /etc/hosts'"
+        remediation="[EXEC] sudo sh -c 'printf \"127.0.0.1\tlocalhost\n::1\tlocalhost\n\" >> /etc/hosts'"
     elif [[ -n "$commented_loopback" ]]; then
         res_status="WARN"
         details="Commented loopback entries detected in /etc/hosts alongside active mappings."
-        remediation="sudo sed -i '' '/^#[[:space:]]*127\.0\.0\.1[[:space:]].*localhost/d' /etc/hosts"
+        remediation="[EXEC] sudo sed -i '' '/^#[[:space:]]*127\.0\.0\.1[[:space:]].*localhost/d' /etc/hosts"
     else
         res_status="PASS"
         details="IPv4 and IPv6 localhost loopback mappings in /etc/hosts are valid and active."
@@ -346,7 +346,7 @@ audit_listening_wildcards() {
     if (( count_exposed > 0 )); then
         res_status="WARN"
         details="Non-system services listening on external/wildcard interface (${count_exposed}): ${exposed_services}"
-        remediation="Reconfigure exposed services to bind specifically to 127.0.0.1 (localhost) instead of 0.0.0.0 or *"
+        remediation="[GUIDE] Reconfigure exposed services to bind specifically to 127.0.0.1 (localhost) instead of 0.0.0.0 or *"
     else
         res_status="PASS"
         details="No unauthorized third-party services listening on wildcard (0.0.0.0 / *) interfaces."
@@ -383,7 +383,7 @@ audit_airdrop() {
         if [[ -n "$awdl_out" ]] && echo "$awdl_out" | grep -qiE '<[^>]*(UP|RUNNING)[^>]*>'; then
             res_status="WARN"
             details="AirDrop is not disabled and awdl0 is UP/RUNNING. Nearby devices can discover this Mac over AWDL."
-            remediation="defaults write com.apple.NetworkBrowser DisableAirDrop -bool true"
+            remediation="[EXEC] defaults write com.apple.NetworkBrowser DisableAirDrop -bool true"
         else
             # awdl0 absent or down; prefer PASS even if DisableAirDrop is unset
             res_status="PASS"
@@ -414,7 +414,7 @@ audit_internet_sharing() {
     if echo "$nat_out" | grep -qE 'Enabled[[:space:]]*[=:][[:space:]]*1([^0-9]|$)'; then
         res_status="FAIL"
         details="Internet Sharing (NAT) is enabled. This Mac is acting as a network gateway for other devices."
-        remediation="Disable Internet Sharing in System Settings > General > Sharing. sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.nat NAT -dict Enabled -int 0"
+        remediation="[EXEC] sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.nat NAT -dict Enabled -int 0"
     else
         res_status="PASS"
         details="Internet Sharing (NAT) is disabled or not configured."
@@ -454,7 +454,7 @@ audit_firewall_logging() {
     else
         res_status="SUGG"
         details="Firewall logging is off. Connection allow/deny events are not recorded."
-        remediation="sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setloggingmode on"
+        remediation="[EXEC] sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setloggingmode on"
     fi
 
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
@@ -492,11 +492,11 @@ audit_ip_forwarding() {
         if [[ -n "$ipv6_fwd" ]]; then
             details="${details} IPv6 forwarding is ${ipv6_fwd}."
         fi
-        remediation="sudo sysctl -w net.inet.ip.forwarding=0"
+        remediation="[EXEC] sudo sysctl -w net.inet.ip.forwarding=0"
     elif [[ -n "$ipv6_fwd" && "$ipv6_fwd" != "0" ]]; then
         res_status="WARN"
         details="IPv4 forwarding is disabled (net.inet.ip.forwarding=0), but IPv6 forwarding is enabled (net.inet6.ip6.forwarding=${ipv6_fwd})."
-        remediation="sudo sysctl -w net.inet6.ip6.forwarding=0"
+        remediation="[EXEC] sudo sysctl -w net.inet6.ip6.forwarding=0"
     else
         res_status="PASS"
         if [[ -z "$ipv6_fwd" ]]; then
@@ -557,10 +557,48 @@ audit_promiscuous_interfaces() {
     if (( count_promisc > 0 )); then
         res_status="WARN"
         details="Non-loopback interface(s) in promiscuous mode (${count_promisc}): ${promisc_ifs}. Packet capture tools may be running."
-        remediation="Review packet-capture tools; ${rem_cmds}"
+        remediation="[GUIDE] Review packet-capture tools; ${rem_cmds}"
     else
         res_status="PASS"
         details="No non-loopback interfaces are in promiscuous mode."
+        remediation=""
+    fi
+
+    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+}
+
+# NET-12: Wi-Fi Auto-Join Open Networks
+# Audits Wi-Fi network preferences for AutoJoinIsOpenNetwork.
+# Warn if AutoJoinIsOpenNetwork is set to 1. PASS if 0 or unset.
+audit_wifi_autojoin_open() {
+    local check_id="${1:-NET-12}"
+    local category="${2:-network}"
+    local title="${3:-Wi-Fi Auto-Join Open Networks}"
+    local weight="${4:-6}"
+
+    local res_status="PASS"
+    local details=""
+    local remediation=""
+
+    local autojoin_open=""
+    local airport_plist="/Library/Preferences/SystemConfiguration/com.apple.airport.preferences.plist"
+
+    if [[ -f "$airport_plist" ]]; then
+        autojoin_open=$(defaults read "$airport_plist" AutoJoinIsOpenNetwork 2>/dev/null || echo "")
+        if [[ -z "$autojoin_open" ]]; then
+            if defaults read "$airport_plist" 2>/dev/null | grep -iE 'AutoJoinIsOpenNetwork[[:space:]]*=[[:space:]]*1' >/dev/null 2>&1; then
+                autojoin_open="1"
+            fi
+        fi
+    fi
+
+    if echo "$autojoin_open" | grep -qiE '^[[:space:]]*(1|true)[[:space:]]*$'; then
+        res_status="WARN"
+        details="Wi-Fi is configured to automatically join open networks (AutoJoinIsOpenNetwork = 1; MITRE T1040)."
+        remediation="[EXEC] sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.airport.preferences.plist AutoJoinIsOpenNetwork -bool false"
+    else
+        res_status="PASS"
+        details="Wi-Fi does not automatically join open unsecured networks (AutoJoinIsOpenNetwork is 0 or unset)."
         remediation=""
     fi
 
@@ -579,6 +617,7 @@ audit_net_08() { audit_internet_sharing "$@"; }
 audit_net_09() { audit_firewall_logging "$@"; }
 audit_net_10() { audit_ip_forwarding "$@"; }
 audit_net_11() { audit_promiscuous_interfaces "$@"; }
+audit_net_12() { audit_wifi_autojoin_open "$@"; }
 
 # Category Runner
 run_audit_network() {
@@ -593,22 +632,24 @@ run_audit_network() {
     audit_firewall_logging
     audit_ip_forwarding
     audit_promiscuous_interfaces
+    audit_wifi_autojoin_open
 }
 
 # Auto-registration with engine.sh
 register_network_checks() {
     if command -v register_check >/dev/null 2>&1 || typeset -f register_check >/dev/null 2>&1; then
-        register_check "NET-01" "network" "Application Firewall Status" 9 audit_firewall
+        register_check "NET-01" "network" "Application Firewall Status" 8 audit_firewall
         register_check "NET-02" "network" "Firewall Stealth Mode" 5 audit_firewall_stealth
         register_check "NET-03" "network" "Firewall Permissive Exceptions" 8 audit_firewall_exceptions
         register_check "NET-04" "network" "BPF Packet Capture Permissions" 7 audit_bpf_sniffing
-        register_check "NET-05" "network" "/etc/hosts Loopback Integrity" 8 audit_hosts_integrity
+        register_check "NET-05" "network" "/etc/hosts Loopback Integrity" 9 audit_hosts_integrity
         register_check "NET-06" "network" "Wildcard Exposed TCP Listeners" 6 audit_listening_wildcards
         register_check "NET-07" "network" "AirDrop" 6 audit_airdrop
         register_check "NET-08" "network" "Internet Sharing" 7 audit_internet_sharing
         register_check "NET-09" "network" "Firewall Logging" 4 audit_firewall_logging
         register_check "NET-10" "network" "IP Forwarding" 7 audit_ip_forwarding
         register_check "NET-11" "network" "Promiscuous Interfaces" 6 audit_promiscuous_interfaces
+        register_check "NET-12" "network" "Wi-Fi Auto-Join Open Networks" 6 audit_wifi_autojoin_open
     fi
 }
 

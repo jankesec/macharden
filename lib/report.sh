@@ -153,7 +153,15 @@ report_terminal() {
         echo "${COLOR_BOLD}${COLOR_BCYAN}▶ Category Posture Breakdown:${COLOR_RESET}"
     fi
     echo "${COLOR_DIM}----------------------------------------------------------------------${COLOR_RESET}"
-    local categories=("Hardening" "Network" "Secrets" "Persistence")
+    local -a categories=()
+    local -A seen_cats=()
+    for cat in "${REG_CATEGORIES[@]}"; do
+        local cat_key="${cat:l}"
+        if [[ -z "${seen_cats[$cat_key]:-}" ]]; then
+            seen_cats[$cat_key]=1
+            categories+=("${(C)cat}")
+        fi
+    done
     local cat_name
     for cat_name in "${categories[@]}"; do
         local cat_lower="${cat_name:l}"
@@ -335,7 +343,7 @@ report_terminal() {
 # Generate GitHub-flavored Markdown report
 report_markdown() {
     local output_file="${1:-}"
-    local version="${MACHAR_VERSION:-1.2.0}"
+    local version="${MACHAR_VERSION:-1.3.0}"
     local os_product os_version os_build arch current_time current_user hostname kernel_rel rating
 
     os_product=$(sw_vers -productName 2>/dev/null || echo "macOS")
@@ -370,7 +378,15 @@ report_markdown() {
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 "
     fi
-    local categories=("Hardening" "Network" "Secrets" "Persistence")
+    local -a categories=()
+    local -A seen_cats=()
+    for cat in "${REG_CATEGORIES[@]}"; do
+        local cat_key="${cat:l}"
+        if [[ -z "${seen_cats[$cat_key]:-}" ]]; then
+            seen_cats[$cat_key]=1
+            categories+=("${(C)cat}")
+        fi
+    done
     local cat_name
     for cat_name in "${categories[@]}"; do
         local cat_lower="${cat_name:l}"
@@ -875,7 +891,7 @@ ${ref_md}
 # Generate structured JSON document
 report_json() {
     local output_file="${1:-}"
-    local version="${MACHAR_VERSION:-1.2.0}"
+    local version="${MACHAR_VERSION:-1.3.0}"
     local os_product os_version os_build arch current_time current_user hostname kernel_rel rating
 
     os_product=$(sw_vers -productName 2>/dev/null || echo "macOS")
@@ -887,6 +903,11 @@ report_json() {
     current_user=$(id -un 2>/dev/null || whoami)
     hostname=$(hostname -s 2>/dev/null || hostname)
     rating=$(_get_rating_text "$HARDENING_INDEX")
+
+    local diff_payload=""
+    if [[ -n "${BASELINE_FILE:-}" ]] && typeset -f diff_get_json >/dev/null 2>&1; then
+        diff_payload=$(diff_get_json)
+    fi
 
     # Build checks array via python3 if available for 100% strict JSON conformity
     if command -v python3 >/dev/null 2>&1; then
@@ -907,7 +928,7 @@ details = sys.argv[idx : idx + n]; idx += n
 remediations = sys.argv[idx : idx + n]; idx += n
 
 comp_map = {}
-for p in ['data/compliance_mappings.json', '../data/compliance_mappings.json', '<project_root>/data/compliance_mappings.json']:
+for p in ['data/compliance_mappings.json', '../data/compliance_mappings.json', os.environ.get('BASE_DIR', '') + '/data/compliance_mappings.json']:
     if os.path.isfile(p):
         try:
             with open(p, 'r', encoding='utf-8') as f:
@@ -966,6 +987,12 @@ data = {
     'checks': checks
 }
 
+if len(sys.argv) > idx + 19 and sys.argv[idx + 19]:
+    try:
+        data['diff'] = json.loads(sys.argv[idx + 19])
+    except Exception:
+        pass
+
 print(json.dumps(data, indent=2))
 " \
             "$n" \
@@ -994,7 +1021,8 @@ print(json.dumps(data, indent=2))
             "$COUNT_INFO" \
             "$COUNT_SUGG" \
             "$EARNED_POINTS" \
-            "$TOTAL_POSSIBLE_POINTS"
+            "$TOTAL_POSSIBLE_POINTS" \
+            "$diff_payload"
         )
     else
         # Pure shell fallback
@@ -1041,10 +1069,8 @@ print(json.dumps(data, indent=2))
             json_doc+="      \"status\": \"${RES_STATUSES[i]}\",\n"
             json_doc+="      \"weight\": ${RES_WEIGHTS[i]:-5},\n"
             json_doc+="      \"details\": \"${d}\",\n"
-            json_doc+="      "remediation": "",
-"
-            json_doc+="      "references": []
-"
+            json_doc+="      \"remediation\": \"${r}\",\n"
+            json_doc+="      \"references\": []\n"
             if (( i < n )); then
                 json_doc+="    },\n"
             else
@@ -1070,4 +1096,14 @@ print(json.dumps(data, indent=2))
 # Source HTML report engine if available
 if [[ -f "${0:A:h}/report_html.sh" ]]; then
     source "${0:A:h}/report_html.sh"
+fi
+
+# Source diff engine if available
+if [[ -f "${0:A:h}/diff.sh" ]]; then
+    source "${0:A:h}/diff.sh"
+fi
+
+# Source SARIF report engine if available
+if [[ -f "${0:A:h}/report_sarif.sh" ]]; then
+    source "${0:A:h}/report_sarif.sh"
 fi
