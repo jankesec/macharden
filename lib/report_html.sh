@@ -2777,6 +2777,8 @@ kbd.nav-kbd {
   padding: 2px 6px;
   border-radius: 4px;
   flex-shrink: 0;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
 }
 
 .check-title-text {

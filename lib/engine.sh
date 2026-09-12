@@ -27,11 +27,44 @@ MACHAR_CHECK_TIMEOUT=${MACHAR_CHECK_TIMEOUT:-30}
 # Skip-test list (Lynis-style skip-test=ID). INFO results; excluded from score.
 typeset -ga MACHAR_SKIP_IDS=()
 
+# Filter-check list (target specific checks, comma-separated)
+typeset -ga MACHAR_FILTER_CHECK_IDS=()
+
+# Add one or more check IDs to the filter list (e.g. HARD-18,HARD-20)
+add_filter_check() {
+    local raw="${1:-}"
+    local piece id
+    raw="${raw//‑/-}"
+    raw="${raw// /}"
+    [[ -z "$raw" ]] && return 0
+    for piece in ${(s:,:)raw}; do
+        id="${piece:u}"
+        [[ -z "$id" ]] && continue
+        MACHAR_FILTER_CHECK_IDS+=("$id")
+    done
+}
+
+is_check_filtered() {
+    local id="${1:u}"
+    id="${id//‑/-}"
+    if (( ${#MACHAR_FILTER_CHECK_IDS[@]} == 0 )); then
+        return 0
+    fi
+    local f
+    for f in "${MACHAR_FILTER_CHECK_IDS[@]}"; do
+        if [[ "$f" == "$id" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Add one or more check IDs to the skip list (comma-separated, case-insensitive)
 # Usage: add_skip_test "HARD-08,NET-07"
 add_skip_test() {
     local raw="${1:-}"
     local piece id
+    raw="${raw//‑/-}"
     raw="${raw// /}"
     [[ -z "$raw" ]] && return 0
     for piece in ${(s:,:)raw}; do
@@ -250,6 +283,11 @@ run_audit() {
 
         # Category filter check
         if [[ "$filter_cat" != "all" && "$cat_lower" != "$filter_cat" ]]; then
+            continue
+        fi
+
+        # Specific check ID filter check
+        if ! is_check_filtered "$id"; then
             continue
         fi
 

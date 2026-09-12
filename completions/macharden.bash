@@ -19,7 +19,7 @@ _macharden_completions() {
     local formats="term json markdown html sarif"
     local compliance_frameworks="cis nist mitre all"
     local daemon_schedules="daily weekly monthly hourly on-login"
-    local all_flags="-h --help -v --version -c --category -f --format -l --lang -o --output -q --quiet --fix --dry-run --undo --generate-fix --no-color --compliance --daemon-install --daemon-uninstall --daemon-status --alert --skip-test --profile --no-profile --diff --fail-on-regression --fail-on-warn --min-score"
+    local all_flags="-h --help -v --version -c --category -t --check -f --format -l --lang -o --output -q --quiet --fix --dry-run --undo --generate-fix --no-color --compliance --daemon-install --daemon-uninstall --daemon-status --alert --skip-test --profile --no-profile --diff --fail-on-regression --fail-on-warn --min-score"
 
     case "${prev}" in
         -l|--lang)

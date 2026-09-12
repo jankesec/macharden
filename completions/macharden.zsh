@@ -48,6 +48,7 @@ _macharden() {
         '(-h --help)'{-h,--help}'[Display help message and exit]' \
         '(-v --version)'{-v,--version}'[Print version information and exit]' \
         '(-c --category)'{-c,--category}'[Run specific category of audit checks]:category:->categories' \
+        '(-t --check)'{-t,--check}'[Target specific check IDs only (comma-separated, e.g. HARD-18,HARD-20)]:check id:' \
         '(-f --format)'{-f,--format}'[Output report format]:format:->formats' \
         '(-l --lang)'{-l,--lang}'[Report and CLI interface language (en, tr)]:language:(en tr)' \
         '(-o --output)'{-o,--output}'[Save audit report to specified file path]:output file:_files' \

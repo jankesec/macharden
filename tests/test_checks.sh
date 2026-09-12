@@ -984,6 +984,37 @@ then
 else
     log_test "FAIL" "CLI --skip-test HARD-08 records INFO skipped in JSON"
 fi
+
+# Targeted single/multi-check filtering (-t, --check) and non-breaking hyphen test
+reset_engine
+MACHAR_FILTER_CHECK_IDS=()
+add_filter_check "HARD-20,NET-01"
+if is_check_filtered "HARD-20" && is_check_filtered "NET-01" && ! is_check_filtered "SEC-01"; then
+    log_test "PASS" "add_filter_check parses comma-separated check IDs correctly"
+else
+    log_test "FAIL" "add_filter_check parses comma-separated check IDs correctly"
+fi
+
+# Test non-breaking hyphen normalization in filter
+if is_check_filtered "HARD‑20"; then
+    log_test "PASS" "is_check_filtered normalizes Unicode non-breaking hyphens"
+else
+    log_test "FAIL" "is_check_filtered normalizes Unicode non-breaking hyphens"
+fi
+
+CLI_CHECK_OUT=$("${PROJECT_ROOT}/bin/macharden" --check HARD-20 -q -f json -o "${TEST_TMP_DIR}/check_test.json" 2>&1) || true
+if python3 - "$TEST_TMP_DIR/check_test.json" << 'PY'
+import json, sys
+data=json.load(open(sys.argv[1]))
+checks = data.get("checks", [])
+assert len(checks) == 1, f"Expected 1 check, got {len(checks)}"
+assert checks[0]["id"] == "HARD-20", f"Expected HARD-20, got {checks[0]['id']}"
+PY
+then
+    log_test "PASS" "CLI --check HARD-20 executes exclusively targeted check"
+else
+    log_test "FAIL" "CLI --check HARD-20 executes exclusively targeted check"
+fi
 # ==============================================================================
 # Suite 11: Baseline Drift & Security Diff Engine (lib/diff.sh)
 # ==============================================================================

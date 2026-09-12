@@ -84,6 +84,11 @@ privileged helper tools, user/system crontabs, and Login Items.
 Execute all audit checks across every category (default behavior).
 .RE
 .TP
+.BR \-t ", " \-\-check " " \fIid\fR[\fI,id...\fR]
+Target specific check IDs only. Multiple check IDs can be specified as a
+comma-separated list or by repeating the option (e.g. \fB-t HARD-18,HARD-20\fR).
+Supports non-breaking hyphens automatically.
+.TP
 .BR \-f ", " \-\-format " " \fIformat\fR
 Select the output report presentation format. Supported values:
 .RS

@@ -26,6 +26,7 @@ MACHAR_COMPLIANCE=""
 MACHAR_PROFILE=""
 MACHAR_NO_PROFILE=0
 typeset -ga MACHAR_SKIP_CLI=()
+typeset -ga MACHAR_FILTER_CLI=()
 MACHAR_LANG="${MACHAR_LANG:-en}"
 MACHAR_DIFF_FILE=""
 MACHAR_FAIL_ON_REGRESSION=0
@@ -47,6 +48,7 @@ Options:
   -v, --version              Print version information and exit
   -c, --category <name>      Run specific category of audit checks
                              Categories: hardening, network, secrets, persistence, all (default: all)
+  -t, --check <id>[,id...]   Target specific check IDs only (repeatable, e.g. HARD-18,HARD-20)
   -f, --format <format>      Output report format: term, markdown, json, html, sarif (default: term)
   -l, --lang <en|tr>         Output report language: en, tr (default: en)
   -o, --output <file>        Save audit report to the specified file path
@@ -209,6 +211,14 @@ while [[ $# -gt 0 ]]; do
         --alert)
             MACHAR_ALERT=1
             ;;
+        -t|--check)
+            shift
+            if [[ $# -eq 0 || -z "$1" || "$1" == -* ]]; then
+                echo "Error: -t/--check requires a check ID (e.g. HARD-18 or HARD-18,HARD-20)" >&2
+                exit 1
+            fi
+            MACHAR_FILTER_CLI+=("$1")
+            ;;
         --skip-test)
             shift
             if [[ $# -eq 0 || -z "$1" || "$1" == -* ]]; then
@@ -323,6 +333,9 @@ if [[ -n "$MACHAR_PROFILE" ]]; then
 fi
 for _skip in "${MACHAR_SKIP_CLI[@]}"; do
     add_skip_test "$_skip"
+done
+for _filt in "${MACHAR_FILTER_CLI[@]}"; do
+    add_filter_check "$_filt"
 done
 
 # Load all available audit modules dynamically

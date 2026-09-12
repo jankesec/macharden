@@ -266,74 +266,74 @@ Filtering & Continuous Monitoring:
 `macharden` evaluates **54 security controls** mapped to authoritative benchmarks:
 
 ### 1. 🛡️ System Hardening (`hardening` - 21 Controls)
-| Check ID | Control Title | CIS Benchmark | NIST 800-53 | MITRE ATT&CK | Weight |
+| &nbsp;&nbsp;&nbsp;&nbsp;Check&nbsp;ID&nbsp;&nbsp;&nbsp;&nbsp; | Control Title | CIS Benchmark | NIST 800-53 | MITRE ATT&CK | Weight |
 |:---|:---|:---:|:---:|:---:|:---:|
-| `HARD-01` | System Integrity Protection (SIP) | CIS 5.1.2 | SI-7 | T1562.001 | 10 |
-| `HARD-02` | FileVault 2 Full Disk Encryption | CIS 2.5.1 | SC-28 | T1552.001 | 10 |
-| `HARD-03` | Gatekeeper Code Assessment Verification | CIS 5.2.1 | CM-6 | T1204.002 | 10 |
-| `HARD-04` | Screen Saver Lock & Delay | CIS 2.3.1 | AC-11 | T1056.002 | 7 |
-| `HARD-05` | Guest Account Status | CIS 5.7 | AC-2 | T1078.003 | 6 |
-| `HARD-06` | Automatic Software Updates | CIS 1.2 | SI-2 | T1190 | 6 |
-| `HARD-07` | Remote Sharing Services Attack Surface | CIS 2.2.1 | AC-3 | T1021.002 | 7 |
-| `HARD-08` | Firmware Password / Recovery Lock | CIS 2.5.2 | IA-2 | T1542.001 | 8 |
-| `HARD-09` | Secure Boot & Authenticated Root | CIS 5.1.1 | SI-7 | T1542.001 | 8 |
-| `HARD-10` | Automatic Login Disabled | CIS 5.8 | IA-2 | T1078.003 | 6 |
-| `HARD-11` | Bluetooth File Sharing Exposure | CIS 2.1.2 | AC-18 | T1011 | 5 |
-| `HARD-12` | Home Directory Permissions (`$HOME` 700) | CIS 5.1.4 | AC-6 | T1083 | 6 |
-| `HARD-13` | Network Time Synchronization (NTP) | CIS 1.1 | AU-8 | T1070.006 | 5 |
-| `HARD-14` | Built-in Malware Protection (XProtect/MRT) | CIS 2.4.1 | SI-3 | T1562.001 | 6 |
-| `HARD-15` | USB Restricted Mode | CIS 2.4.4 | MP-7 | T1091 | 5 |
-| `HARD-16` | Apple Diagnostic & Telemetry Sharing | CIS 2.6.1 | AU-12 | T1020 | 4 |
-| `HARD-17` | AirDrop Discoverability Exposure | CIS 2.1.1 | AC-18 | T1011 | 6 |
-| `HARD-18` | OpenBSM Security Auditing Daemon Status | CIS 3.1 | AU-12 | T1562.001 | 8 |
-| `HARD-19` | Audit Control Configuration Ownership & Permissions | CIS 3.2 | AU-9 | T1565.001 | 7 |
-| `HARD-20` | Audit Log Files & Directory ACL Immutability | CIS 3.5 | AU-9 | T1070 | 9 |
-| `HARD-21` | Audit Trail Event Flags & Retention Policy | CIS 3.4 | AU-11 | T1562.001 | 6 |
+| <code>HARD&#8209;01</code> | System Integrity Protection (SIP) | CIS 5.1.2 | SI-7 | T1562.001 | 10 |
+| <code>HARD&#8209;02</code> | FileVault 2 Full Disk Encryption | CIS 2.5.1 | SC-28 | T1552.001 | 10 |
+| <code>HARD&#8209;03</code> | Gatekeeper Code Assessment Verification | CIS 5.2.1 | CM-6 | T1204.002 | 10 |
+| <code>HARD&#8209;04</code> | Screen Saver Lock & Delay | CIS 2.3.1 | AC-11 | T1056.002 | 7 |
+| <code>HARD&#8209;05</code> | Guest Account Status | CIS 5.7 | AC-2 | T1078.003 | 6 |
+| <code>HARD&#8209;06</code> | Automatic Software Updates | CIS 1.2 | SI-2 | T1190 | 6 |
+| <code>HARD&#8209;07</code> | Remote Sharing Services Attack Surface | CIS 2.2.1 | AC-3 | T1021.002 | 7 |
+| <code>HARD&#8209;08</code> | Firmware Password / Recovery Lock | CIS 2.5.2 | IA-2 | T1542.001 | 8 |
+| <code>HARD&#8209;09</code> | Secure Boot & Authenticated Root | CIS 5.1.1 | SI-7 | T1542.001 | 8 |
+| <code>HARD&#8209;10</code> | Automatic Login Disabled | CIS 5.8 | IA-2 | T1078.003 | 6 |
+| <code>HARD&#8209;11</code> | Bluetooth File Sharing Exposure | CIS 2.1.2 | AC-18 | T1011 | 5 |
+| <code>HARD&#8209;12</code> | Home Directory Permissions (`$HOME` 700) | CIS 5.1.4 | AC-6 | T1083 | 6 |
+| <code>HARD&#8209;13</code> | Network Time Synchronization (NTP) | CIS 1.1 | AU-8 | T1070.006 | 5 |
+| <code>HARD&#8209;14</code> | Built-in Malware Protection (XProtect/MRT) | CIS 2.4.1 | SI-3 | T1562.001 | 6 |
+| <code>HARD&#8209;15</code> | USB Restricted Mode | CIS 2.4.4 | MP-7 | T1091 | 5 |
+| <code>HARD&#8209;16</code> | Apple Diagnostic & Telemetry Sharing | CIS 2.6.1 | AU-12 | T1020 | 4 |
+| <code>HARD&#8209;17</code> | AirDrop Discoverability Exposure | CIS 2.1.1 | AC-18 | T1011 | 6 |
+| <code>HARD&#8209;18</code> | OpenBSM Security Auditing Daemon Status | CIS 3.1 | AU-12 | T1562.001 | 8 |
+| <code>HARD&#8209;19</code> | Audit Control Configuration Ownership & Permissions | CIS 3.2 | AU-9 | T1565.001 | 7 |
+| <code>HARD&#8209;20</code> | Audit Log Files & Directory ACL Immutability | CIS 3.5 | AU-9 | T1070 | 9 |
+| <code>HARD&#8209;21</code> | Audit Trail Event Flags & Retention Policy | CIS 3.4 | AU-11 | T1562.001 | 6 |
 
 ### 2. 🌐 Network & Perimeter Security (`network` - 12 Controls)
-| Check ID | Control Title | CIS Benchmark | NIST 800-53 | MITRE ATT&CK | Weight |
+| &nbsp;&nbsp;&nbsp;&nbsp;Check&nbsp;ID&nbsp;&nbsp;&nbsp;&nbsp; | Control Title | CIS Benchmark | NIST 800-53 | MITRE ATT&CK | Weight |
 |:---|:---|:---:|:---:|:---:|:---:|
-| `NET-01` | Application Firewall Global State | CIS 2.4.2 | SC-7 | T1562.004 | 8 |
-| `NET-02` | Firewall Stealth Mode | CIS 2.4.3 | SC-7 | T1046 | 5 |
-| `NET-03` | Dangerous Firewall Interpreter Exceptions | CIS 2.4.2 | CM-7 | T1059.006 | 8 |
-| `NET-04` | BPF Packet Capture Permissions (`/dev/bpf*`) | CIS 5.1.5 | AC-6 | T1040 | 7 |
-| `NET-05` | `/etc/hosts` Loopback Integrity | CIS 5.1.3 | SC-20 | T1565.001 | 9 |
-| `NET-06` | Listening Wildcard TCP Services (`0.0.0.0`) | CIS 2.2.2 | SC-7 | T1043 | 6 |
-| `NET-07` | AirDrop Radio Service State | CIS 2.1.1 | AC-18 | T1011 | 6 |
-| `NET-08` | Internet Sharing & NAT Daemons | CIS 2.2.3 | AC-4 | T1090 | 7 |
-| `NET-09` | Application Firewall Logging Mode | CIS 2.4.2 | AU-2 | T1562.004 | 4 |
-| `NET-10` | IP Forwarding Routing Subsystem | CIS 2.2.4 | SC-7 | T1090 | 7 |
-| `NET-11` | Promiscuous Network Interfaces | CIS 2.4.5 | AU-12 | T1040 | 6 |
-| `NET-12` | Wi-Fi Open Network Auto-Join | CIS 2.1.3 | AC-18 | T1040 | 6 |
+| <code>NET&#8209;01</code> | Application Firewall Global State | CIS 2.4.2 | SC-7 | T1562.004 | 8 |
+| <code>NET&#8209;02</code> | Firewall Stealth Mode | CIS 2.4.3 | SC-7 | T1046 | 5 |
+| <code>NET&#8209;03</code> | Dangerous Firewall Interpreter Exceptions | CIS 2.4.2 | CM-7 | T1059.006 | 8 |
+| <code>NET&#8209;04</code> | BPF Packet Capture Permissions (`/dev/bpf*`) | CIS 5.1.5 | AC-6 | T1040 | 7 |
+| <code>NET&#8209;05</code> | `/etc/hosts` Loopback Integrity | CIS 5.1.3 | SC-20 | T1565.001 | 9 |
+| <code>NET&#8209;06</code> | Listening Wildcard TCP Services (`0.0.0.0`) | CIS 2.2.2 | SC-7 | T1043 | 6 |
+| <code>NET&#8209;07</code> | AirDrop Radio Service State | CIS 2.1.1 | AC-18 | T1011 | 6 |
+| <code>NET&#8209;08</code> | Internet Sharing & NAT Daemons | CIS 2.2.3 | AC-4 | T1090 | 7 |
+| <code>NET&#8209;09</code> | Application Firewall Logging Mode | CIS 2.4.2 | AU-2 | T1562.004 | 4 |
+| <code>NET&#8209;10</code> | IP Forwarding Routing Subsystem | CIS 2.2.4 | SC-7 | T1090 | 7 |
+| <code>NET&#8209;11</code> | Promiscuous Network Interfaces | CIS 2.4.5 | AU-12 | T1040 | 6 |
+| <code>NET&#8209;12</code> | Wi-Fi Open Network Auto-Join | CIS 2.1.3 | AC-18 | T1040 | 6 |
 
 ### 3. 🔑 Secrets, Keys & Credentials (`secrets` - 11 Controls)
-| Check ID | Control Title | CIS Benchmark | NIST 800-53 | MITRE ATT&CK | Weight |
+| &nbsp;&nbsp;&nbsp;&nbsp;Check&nbsp;ID&nbsp;&nbsp;&nbsp;&nbsp; | Control Title | CIS Benchmark | NIST 800-53 | MITRE ATT&CK | Weight |
 |:---|:---|:---:|:---:|:---:|:---:|
-| `SEC-01` | Plaintext API Keys in Shell Profiles | CIS 5.1.6 | IA-5 | T1552.001 | 9 |
-| `SEC-02` | Exposed World-Readable `.env` Files | CIS 5.1.7 | SC-28 | T1552.001 | 6 |
-| `SEC-03` | Keychain Inactivity Lock Timeout | CIS 2.3.2 | AC-11 | T1555.001 | 5 |
-| `SEC-04` | Kernel Crash Core Dumps (`kern.coredump`) | CIS 5.5 | SC-28 | T1005 | 5 |
-| `SEC-05` | SSH Keys and Config File Permissions | CIS 5.1.8 | AC-6 | T1552.004 | 7 |
-| `SEC-06` | Unencrypted SSH Private Keys | CIS 5.1.9 | IA-5 | T1552.004 | 8 |
-| `SEC-07` | Secrets Leaked in Shell History Files | CIS 5.1.10 | IA-5 | T1552.003 | 7 |
-| `SEC-08` | SSH Daemon Configuration Hardening | CIS 5.2.2 | AC-3 | T1021.004 | 7 |
-| `SEC-09` | Suspicious Shell History Symlink Targets | CIS 5.1.11 | SI-4 | T1070.003 | 5 |
-| `SEC-10` | Insecure & World-Writable `$PATH` Directories | CIS 5.1.12 | CM-6 | T1574.007 | 7 |
-| `SEC-11` | Cloud & API Credentials Permissions (`.aws`, `.kube`, `.docker`) | CIS 5.1.13 | AC-6 | T1552.001 | 8 |
+| <code>SEC&#8209;01</code> | Plaintext API Keys in Shell Profiles | CIS 5.1.6 | IA-5 | T1552.001 | 9 |
+| <code>SEC&#8209;02</code> | Exposed World-Readable `.env` Files | CIS 5.1.7 | SC-28 | T1552.001 | 6 |
+| <code>SEC&#8209;03</code> | Keychain Inactivity Lock Timeout | CIS 2.3.2 | AC-11 | T1555.001 | 5 |
+| <code>SEC&#8209;04</code> | Kernel Crash Core Dumps (`kern.coredump`) | CIS 5.5 | SC-28 | T1005 | 5 |
+| <code>SEC&#8209;05</code> | SSH Keys and Config File Permissions | CIS 5.1.8 | AC-6 | T1552.004 | 7 |
+| <code>SEC&#8209;06</code> | Unencrypted SSH Private Keys | CIS 5.1.9 | IA-5 | T1552.004 | 8 |
+| <code>SEC&#8209;07</code> | Secrets Leaked in Shell History Files | CIS 5.1.10 | IA-5 | T1552.003 | 7 |
+| <code>SEC&#8209;08</code> | SSH Daemon Configuration Hardening | CIS 5.2.2 | AC-3 | T1021.004 | 7 |
+| <code>SEC&#8209;09</code> | Suspicious Shell History Symlink Targets | CIS 5.1.11 | SI-4 | T1070.003 | 5 |
+| <code>SEC&#8209;10</code> | Insecure & World-Writable `$PATH` Directories | CIS 5.1.12 | CM-6 | T1574.007 | 7 |
+| <code>SEC&#8209;11</code> | Cloud & API Credentials Permissions (`.aws`, `.kube`, `.docker`) | CIS 5.1.13 | AC-6 | T1552.001 | 8 |
 
 ### 4. ⚙️ Persistence & Daemons (`persistence` - 10 Controls)
-| Check ID | Control Title | CIS Benchmark | NIST 800-53 | MITRE ATT&CK | Weight |
+| &nbsp;&nbsp;&nbsp;&nbsp;Check&nbsp;ID&nbsp;&nbsp;&nbsp;&nbsp; | Control Title | CIS Benchmark | NIST 800-53 | MITRE ATT&CK | Weight |
 |:---|:---|:---:|:---:|:---:|:---:|
-| `PERS-01` | User & System LaunchAgents Integrity | CIS 5.3.1 | CM-6 | T1543.001 | 7 |
-| `PERS-02` | System LaunchDaemons Review & Signature | CIS 5.3.2 | CM-6 | T1543.004 | 7 |
-| `PERS-03` | Scheduled Cron Jobs Inspection | CIS 5.3.3 | CM-6 | T1053.003 | 6 |
-| `PERS-04` | macOS Login Items Persistence | CIS 5.3.4 | CM-6 | T1547.015 | 5 |
-| `PERS-05` | SSH `authorized_keys` Backdoor Audit | CIS 5.3.5 | AC-3 | T1098.004 | 7 |
-| `PERS-06` | Sudoers `NOPASSWD` Privilege Escalation | CIS 5.4 | AC-6 | T1548.003 | 8 |
-| `PERS-07` | Privileged Helper Tools Integrity | CIS 5.3.6 | SI-7 | T1543.004 | 6 |
-| `PERS-08` | CUPS Printer Sharing Remote Vector | CIS 2.2.5 | CM-7 | T1021 | 5 |
-| `PERS-09` | Sudo Authentication Ticket Timeout | CIS 5.4.1 | AC-11 | T1548.003 | 5 |
-| `PERS-10` | Periodic Maintenance Scripts (`/etc/periodic`) | CIS 5.3.7 | SI-4 | T1053.003 | 7 |
+| <code>PERS&#8209;01</code> | User & System LaunchAgents Integrity | CIS 5.3.1 | CM-6 | T1543.001 | 7 |
+| <code>PERS&#8209;02</code> | System LaunchDaemons Review & Signature | CIS 5.3.2 | CM-6 | T1543.004 | 7 |
+| <code>PERS&#8209;03</code> | Scheduled Cron Jobs Inspection | CIS 5.3.3 | CM-6 | T1053.003 | 6 |
+| <code>PERS&#8209;04</code> | macOS Login Items Persistence | CIS 5.3.4 | CM-6 | T1547.015 | 5 |
+| <code>PERS&#8209;05</code> | SSH `authorized_keys` Backdoor Audit | CIS 5.3.5 | AC-3 | T1098.004 | 7 |
+| <code>PERS&#8209;06</code> | Sudoers `NOPASSWD` Privilege Escalation | CIS 5.4 | AC-6 | T1548.003 | 8 |
+| <code>PERS&#8209;07</code> | Privileged Helper Tools Integrity | CIS 5.3.6 | SI-7 | T1543.004 | 6 |
+| <code>PERS&#8209;08</code> | CUPS Printer Sharing Remote Vector | CIS 2.2.5 | CM-7 | T1021 | 5 |
+| <code>PERS&#8209;09</code> | Sudo Authentication Ticket Timeout | CIS 5.4.1 | AC-11 | T1548.003 | 5 |
+| <code>PERS&#8209;10</code> | Periodic Maintenance Scripts (`/etc/periodic`) | CIS 5.3.7 | SI-4 | T1053.003 | 7 |
 
 ---
 
