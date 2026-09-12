@@ -253,11 +253,23 @@ audit_login_items() {
     local remediation=""
 
     local login_items=""
-    login_items=$(osascript -e 'tell application "System Events" to get name of every login item' 2>/dev/null || true)
+    # In headless / CI test runners, skip GUI/BTM calls to prevent runner hang
+    if [[ -z "${CI:-}" && -z "${GITHUB_ACTIONS:-}" ]]; then
+        if command -v osascript >/dev/null 2>&1; then
+            login_items=$(osascript -e 'tell application "System Events" to get name of every login item' 2>/dev/null || true)
+        fi
 
-    # Fallback to sfltool if osascript returned empty
-    if [[ -z "$login_items" ]] && command -v sfltool >/dev/null 2>&1; then
-        login_items=$(sfltool dumpbtm 2>/dev/null | grep -E '^[[:space:]]+Name:' | sed 's/^[[:space:]]*Name:[[:space:]]*//' | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g' || true)
+        # Fallback to sfltool with a strict 2-second watchdog if osascript returned empty
+        if [[ -z "$login_items" ]] && command -v sfltool >/dev/null 2>&1; then
+            login_items=$(python3 -c "
+import subprocess, sys
+try:
+    p = subprocess.run(['sfltool', 'dumpbtm'], capture_output=True, text=True, timeout=2)
+    print(p.stdout)
+except Exception:
+    sys.exit(0)
+" 2>/dev/null | grep -E '^[[:space:]]+Name:' | sed 's/^[[:space:]]*Name:[[:space:]]*//' | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g' || true)
+        fi
     fi
 
     if [[ -n "$login_items" ]]; then

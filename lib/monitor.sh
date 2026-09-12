@@ -138,10 +138,12 @@ daemon_install() {
 
     # Unload currently registered service if loaded in launchd
     local uid_val="$(id -u 2>/dev/null || echo 501)"
-    if launchctl list 2>/dev/null | grep -q "${MACHAR_DAEMON_LABEL}"; then
-        launchctl bootout "gui/${uid_val}/${MACHAR_DAEMON_LABEL}" 2>/dev/null || \
-        launchctl bootout "gui/${uid_val}" "$target_plist" 2>/dev/null || \
-        launchctl unload -w "$target_plist" 2>/dev/null || true
+    if [[ -z "${MACHAR_LAUNCHAGENTS_DIR:-}" && -z "${CI:-}" && -z "${GITHUB_ACTIONS:-}" ]]; then
+        if launchctl list 2>/dev/null | grep -q "${MACHAR_DAEMON_LABEL}"; then
+            launchctl bootout "gui/${uid_val}/${MACHAR_DAEMON_LABEL}" 2>/dev/null || \
+            launchctl bootout "gui/${uid_val}" "$target_plist" 2>/dev/null || \
+            launchctl unload -w "$target_plist" 2>/dev/null || true
+        fi
     fi
 
     # Prepare schedule XML snippet
@@ -227,12 +229,14 @@ daemon_install() {
         fi
     fi
 
-    # Load LaunchAgent with launchctl
+    # Load LaunchAgent with launchctl if not in sandbox or CI environment
     local loaded=0
-    if launchctl bootstrap "gui/${uid_val}" "$target_plist" 2>/dev/null; then
-        loaded=1
-    elif launchctl load -w "$target_plist" 2>/dev/null; then
-        loaded=1
+    if [[ -z "${MACHAR_LAUNCHAGENTS_DIR:-}" && -z "${CI:-}" && -z "${GITHUB_ACTIONS:-}" ]]; then
+        if launchctl bootstrap "gui/${uid_val}" "$target_plist" 2>/dev/null; then
+            loaded=1
+        elif launchctl load -w "$target_plist" 2>/dev/null; then
+            loaded=1
+        fi
     fi
 
     ui_success "macharden background daemon successfully installed."
@@ -260,11 +264,13 @@ daemon_uninstall() {
     local removed=0
 
     # Unload from launchd
-    if launchctl list 2>/dev/null | grep -q "${MACHAR_DAEMON_LABEL}"; then
-        removed=1
-        launchctl bootout "gui/${uid_val}/${MACHAR_DAEMON_LABEL}" 2>/dev/null || \
-        launchctl bootout "gui/${uid_val}" "$target_plist" 2>/dev/null || \
-        launchctl unload -w "$target_plist" 2>/dev/null || true
+    if [[ -z "${MACHAR_LAUNCHAGENTS_DIR:-}" && -z "${CI:-}" && -z "${GITHUB_ACTIONS:-}" ]]; then
+        if launchctl list 2>/dev/null | grep -q "${MACHAR_DAEMON_LABEL}"; then
+            removed=1
+            launchctl bootout "gui/${uid_val}/${MACHAR_DAEMON_LABEL}" 2>/dev/null || \
+            launchctl bootout "gui/${uid_val}" "$target_plist" 2>/dev/null || \
+            launchctl unload -w "$target_plist" 2>/dev/null || true
+        fi
     fi
 
     # Remove plist file
@@ -509,7 +515,8 @@ send_alert() {
     local osa_cmd="display notification \"$safe_message\" with title \"$safe_title\" subtitle \"$safe_subtitle\" sound name \"$sound_name\""
 
     local sent=0
-    if command -v osascript >/dev/null 2>&1; then
+    # In headless / CI test runners, skip GUI osascript to prevent runner hang
+    if [[ -z "${CI:-}" && -z "${GITHUB_ACTIONS:-}" ]] && command -v osascript >/dev/null 2>&1; then
         if osascript -e "$osa_cmd" 2>/dev/null; then
             sent=1
         fi
