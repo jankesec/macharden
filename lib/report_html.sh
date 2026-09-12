@@ -149,6 +149,9 @@ UI_STRINGS = {
     "drift_remediated": "Remediated Items",
     "drift_unchanged": "Unchanged Controls",
     "drift_baseline_meta": "Baseline Snapshot",
+    "no_results_title": "No controls match your filter criteria",
+    "no_results_desc": "Try clearing search terms or selecting a different category, status, or framework filter.",
+    "btn_reset_filters": "Reset All Filters",
     "badge_pass": "PASS",
     "badge_warn": "WARN",
     "badge_fail": "FAIL",
@@ -241,6 +244,9 @@ UI_STRINGS = {
     "toast_copied_cmd": "Düzeltme komutu kopyalandı!",
     "toast_copied_script": "Tüm iyileştirme betiği kopyalandı!",
     "toast_downloaded": "fix_hardening.sh indirildi",
+    "no_results_title": "Filtre kriterlerine uygun denetim bulunamadı",
+    "no_results_desc": "Arama terimlerini temizlemeyi veya farklı bir kategori, durum ya da çerçeve filtresi seçmeyi deneyin.",
+    "btn_reset_filters": "Tüm Filtreleri Sıfırla",
     "badge_pass": "BAŞARILI",
     "badge_warn": "UYARI",
     "badge_fail": "BAŞARISIZ",
@@ -2559,6 +2565,79 @@ kbd.nav-kbd {
   background: var(--bg-subtle);
 }
 
+.filtered-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+}
+
+.no-results-box {
+  display: none;
+  text-align: center;
+  padding: 48px 24px;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-lg);
+  margin: 16px 0 24px 0;
+}
+
+.no-results-icon {
+  font-size: 2.2rem;
+  margin-bottom: 12px;
+  opacity: 0.85;
+}
+
+.no-results-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-title);
+  margin-bottom: 6px;
+}
+
+.no-results-desc {
+  font-size: 0.86rem;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.5;
+}
+
+.btn-reset-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-body);
+  padding: 7px 16px;
+  border-radius: 18px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-reset-filters:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-hover);
+  color: var(--text-title);
+}
+
+.btn-reset-filters svg {
+  width: 14px;
+  height: 14px;
+}
+
 /* Accordion Check Items */
 .checks-container {
   display: flex;
@@ -3298,22 +3377,22 @@ doc.append(f"""
         {t('sec_audit_stats')}
       </div>
       <div class="stats-row">
-        <div class="stat-box box-total active" onclick="filterStatus('all')" title="Filter all controls">
+        <div class="stat-box box-total active" onclick="filterStatus('all', true)" title="Filter all controls">
           <div class="stat-box-label" data-i18n="kpi_total_controls">{t('kpi_total_controls')}</div>
           <div class="stat-box-val">{total_checks}</div>
           <div class="stat-box-sub" data-i18n="kpi_total_sub">{t('kpi_total_sub')}</div>
         </div>
-        <div class="stat-box box-pass" onclick="filterStatus('PASS')" title="Filter passed controls">
+        <div class="stat-box box-pass" onclick="filterStatus('PASS', true)" title="Filter passed controls">
           <div class="stat-box-label" data-i18n="kpi_passed">{t('kpi_passed')}</div>
           <div class="stat-box-val">{passed_checks}</div>
           <div class="stat-box-sub"><span id="passPctVal">{pass_pct}%</span> <span data-i18n="kpi_passed_sub">{t('kpi_passed_sub')}</span></div>
         </div>
-        <div class="stat-box box-warn" onclick="filterStatus('WARN')" title="Filter warning controls">
+        <div class="stat-box box-warn" onclick="filterStatus('WARN', true)" title="Filter warning controls">
           <div class="stat-box-label" data-i18n="kpi_warnings">{t('kpi_warnings')}</div>
           <div class="stat-box-val">{warn_checks}</div>
           <div class="stat-box-sub" data-i18n="kpi_warnings_sub">{t('kpi_warnings_sub')}</div>
         </div>
-        <div class="stat-box box-fail" onclick="filterStatus('FAIL')" title="Filter failed controls">
+        <div class="stat-box box-fail" onclick="filterStatus('FAIL', true)" title="Filter failed controls">
           <div class="stat-box-label" data-i18n="kpi_failed">{t('kpi_failed')}</div>
           <div class="stat-box-val">{fail_checks}</div>
           <div class="stat-box-sub" data-i18n="kpi_failed_sub">{t('kpi_failed_sub')}</div>
@@ -3405,7 +3484,7 @@ for cat_id in core_categories:
 
     cat_label = t(f"cat_{cat_id}")
     doc.append(f"""
-    <div class="cat-card" data-category-card="{cat_id}" onclick="filterCategory('{cat_id}')" title="Click to filter controls by {cat_label}">
+    <div class="cat-card" data-category-card="{cat_id}" onclick="filterCategory('{cat_id}', true)" title="Click to filter controls by {cat_label}">
       <div class="cat-card-top">
         <div class="cat-card-header">
           <div class="cat-card-icon">{c_icon}</div>
@@ -3454,7 +3533,7 @@ for s_key, s_default_label, s_weight, s_obj in sev_levels:
     total = s_obj["total"]
     s_label = t(f"sev_{s_key.lower()}")
     doc.append(f"""
-    <div class="sev-card sev-card-{s_key.lower()}" data-severity-card="{s_key}" onclick="filterSeverity('{s_key}')" title="Click to filter {s_label} severity controls">
+    <div class="sev-card sev-card-{s_key.lower()}" data-severity-card="{s_key}" onclick="filterSeverity('{s_key}', true)" title="Click to filter {s_label} severity controls">
       <div class="sev-card-left">
         <div class="sev-card-title" data-sev-title="{s_key}">{s_label}</div>
         <div class="sev-card-desc"><span class="sev-f-cnt">{fails}</span> <span data-i18n="cnt_fail_label">{t('cnt_fail_label')}</span> · <span class="sev-w-cnt">{warns}</span> <span data-i18n="cnt_warn_label">{t('cnt_warn_label')}</span></div>
@@ -3546,6 +3625,7 @@ doc.append(f"""
       </div>
 
       <div class="view-actions">
+        <span class="filtered-badge" id="filteredCountBadge" title="Controls matching active filters">{total_checks} / {total_checks}</span>
         <button class="btn-toggle-all" id="toggleAllBtn" onclick="toggleAllCards()" data-i18n="btn_expand_all">{t('btn_expand_all')}</button>
       </div>
     </div>
@@ -3553,7 +3633,17 @@ doc.append(f"""
 """)
 
 
-doc.append("<div class=\"checks-container\" id=\"checksContainer\">")
+doc.append(f"""<div class="checks-container" id="checksContainer">
+  <div id="noResultsBox" class="no-results-box" style="display: none;">
+    <div class="no-results-icon">🔍</div>
+    <div class="no-results-title" data-i18n="no_results_title">{t('no_results_title')}</div>
+    <div class="no-results-desc" data-i18n="no_results_desc">{t('no_results_desc')}</div>
+    <button class="btn-reset-filters" onclick="resetAllFilters()">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      <span data-i18n="btn_reset_filters">{t('btn_reset_filters')}</span>
+    </button>
+  </div>
+""")
 
 for c in checks:
     cid = html.escape(str(c.get('id', '')))
@@ -3985,8 +4075,15 @@ function toggleAllCards() {
 }
 
 // Category Filter
-function filterCategory(cat) {
-  const c = cat.toLowerCase();
+function scrollToControls() {
+  const panel = document.querySelector('.toolbar-panel');
+  if (panel) {
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function filterCategory(cat, scroll = false) {
+  const c = (cat || 'all').toLowerCase();
   if (currentCategory === c && c !== 'all') {
     currentCategory = 'all';
   } else {
@@ -3994,24 +4091,27 @@ function filterCategory(cat) {
   }
 
   document.querySelectorAll('.cat-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.getAttribute('data-category') === currentCategory);
+    btn.classList.toggle('active', (btn.getAttribute('data-category') || '').toLowerCase() === currentCategory);
   });
   document.querySelectorAll('.cat-card').forEach(card => {
-    card.classList.toggle('active', card.getAttribute('data-category-card') === currentCategory);
+    card.classList.toggle('active', (card.getAttribute('data-category-card') || '').toLowerCase() === currentCategory);
   });
   applyFilters();
+  if (scroll) scrollToControls();
 }
 
 // Status Filter
-function filterStatus(st) {
-  if (currentStatus === st && st !== 'all') {
+function filterStatus(st, scroll = false) {
+  const norm = (st || 'all').toUpperCase() === 'ALL' ? 'all' : (st || 'all').toUpperCase();
+  if (currentStatus === norm && norm !== 'all') {
     currentStatus = 'all';
   } else {
-    currentStatus = st;
+    currentStatus = norm;
   }
 
   document.querySelectorAll('.status-pill').forEach(pill => {
-    pill.classList.toggle('active', pill.getAttribute('data-status') === currentStatus);
+    const pSt = (pill.getAttribute('data-status') || '').toUpperCase();
+    pill.classList.toggle('active', pSt === currentStatus);
   });
   document.querySelectorAll('.stat-box').forEach(box => {
     const isTotal = currentStatus === 'all' && box.classList.contains('box-total');
@@ -4021,11 +4121,12 @@ function filterStatus(st) {
     box.classList.toggle('active', isTotal || isPass || isWarn || isFail);
   });
   applyFilters();
+  if (scroll) scrollToControls();
 }
 
 // Framework Filter (CIS / NIST / MITRE)
 function filterFramework(fw) {
-  const f = fw.toLowerCase();
+  const f = (fw || 'all').toLowerCase();
   if (currentFramework === f && f !== 'all') {
     currentFramework = 'all';
   } else {
@@ -4033,29 +4134,31 @@ function filterFramework(fw) {
   }
 
   document.querySelectorAll('.fw-pill').forEach(pill => {
-    pill.classList.toggle('active', pill.getAttribute('data-framework') === currentFramework);
+    pill.classList.toggle('active', (pill.getAttribute('data-framework') || '').toLowerCase() === currentFramework);
   });
   applyFilters();
 }
 
 // Severity Filter (CRITICAL / HIGH / MEDIUM / LOW)
-function filterSeverity(sev) {
-  const s = sev.toUpperCase();
-  if (currentSeverity === s && s !== 'all') {
+function filterSeverity(sev, scroll = false) {
+  const s = (sev || 'all').toUpperCase();
+  if (currentSeverity === s && s !== 'ALL') {
     currentSeverity = 'all';
   } else {
-    currentSeverity = s;
+    currentSeverity = s === 'ALL' ? 'all' : s;
   }
 
   document.querySelectorAll('.sev-card').forEach(card => {
-    card.classList.toggle('active', card.getAttribute('data-severity-card') === currentSeverity);
+    const cardSev = (card.getAttribute('data-severity-card') || '').toUpperCase();
+    card.classList.toggle('active', cardSev === currentSeverity);
   });
   applyFilters();
+  if (scroll) scrollToControls();
 }
 
 // Search Field Handlers
 function onSearchInput(val) {
-  searchQuery = val.trim().toLowerCase();
+  searchQuery = (val || '').trim().toLowerCase();
   const clearBtn = document.getElementById('searchClearBtn');
   if (clearBtn) clearBtn.style.display = searchQuery ? 'block' : 'none';
   applyFilters();
@@ -4067,9 +4170,46 @@ function clearSearch() {
   onSearchInput('');
 }
 
+// Reset All Filters
+function resetAllFilters() {
+  currentCategory = 'all';
+  currentStatus = 'all';
+  currentFramework = 'all';
+  currentSeverity = 'all';
+  searchQuery = '';
+  
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) searchInput.value = '';
+  const clearBtn = document.getElementById('searchClearBtn');
+  if (clearBtn) clearBtn.style.display = 'none';
+
+  document.querySelectorAll('.cat-btn').forEach(btn => {
+    btn.classList.toggle('active', (btn.getAttribute('data-category') || '').toLowerCase() === 'all');
+  });
+  document.querySelectorAll('.cat-card').forEach(card => {
+    card.classList.remove('active');
+  });
+  document.querySelectorAll('.status-pill').forEach(pill => {
+    pill.classList.toggle('active', (pill.getAttribute('data-status') || '').toUpperCase() === 'ALL');
+  });
+  document.querySelectorAll('.stat-box').forEach(box => {
+    box.classList.toggle('active', box.classList.contains('box-total'));
+  });
+  document.querySelectorAll('.fw-pill').forEach(pill => {
+    pill.classList.toggle('active', (pill.getAttribute('data-framework') || '').toLowerCase() === 'all');
+  });
+  document.querySelectorAll('.sev-card').forEach(card => {
+    card.classList.remove('active');
+  });
+
+  applyFilters();
+}
+
 // Unified Multi-Dimension Filter Engine
 function applyFilters() {
   const cards = document.querySelectorAll('.check-item');
+  let visibleCount = 0;
+
   cards.forEach(card => {
     const cardCat = (card.getAttribute('data-category') || '').toLowerCase();
     const cardStatus = (card.getAttribute('data-status') || '').toUpperCase();
@@ -4093,10 +4233,21 @@ function applyFilters() {
 
     if (matchesCat && matchesStatus && matchesSeverity && matchesFramework && matchesSearch) {
       card.style.display = '';
+      visibleCount++;
     } else {
       card.style.display = 'none';
     }
   });
+
+  const noResults = document.getElementById('noResultsBox');
+  if (noResults) {
+    noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+  }
+
+  const badge = document.getElementById('filteredCountBadge');
+  if (badge) {
+    badge.textContent = visibleCount + ' / ' + cards.length;
+  }
 }
 
 // Remediation Playbook Drawer / Modal Handlers
@@ -4161,58 +4312,81 @@ function exportMarkdownReport() {
   const scan = d.scanner || {};
   const checks = d.checks || [];
 
-  let md = '# macOS Security Hardening Audit Report\n\n';
-  md += '> **Automated Security & Compliance Scan**  \n';
-  md += '> Generated by **macharden** v' + (scan.version || '1.2.0') + ' on `' + (scan.timestamp || new Date().toISOString()) + '`\n\n';
-  md += '---\n\n';
-  md += '## 1. System Metadata\n\n';
-  md += '| Attribute | System Information |\n';
-  md += '| :--- | :--- |\n';
-  md += '| **Target Hostname** | `' + (sys.hostname || 'macOS') + '` |\n';
-  md += '| **Audit User** | `' + (sys.user || 'unknown') + '` |\n';
-  md += '| **Operating System** | ' + (sys.os_product || 'macOS') + ' ' + (sys.os_version || '') + ' (Build `' + (sys.os_build || '') + '`) |\n';
-  md += '| **Architecture** | `' + (sys.arch || 'arm64') + '` |\n';
-  md += '| **Kernel Release** | `' + (sys.kernel || 'Darwin') + '` |\n\n';
-  md += '---\n\n';
-  md += '## 2. Executive Summary\n\n';
-  md += '### Hardening Index: **' + (sum.hardening_index || 0) + '%** — *' + (sum.rating || 'UNKNOWN') + '*\n\n';
-  md += '| Metric | Count / Value | Status |\n';
-  md += '| :--- | :---: | :---: |\n';
-  md += '| **Hardening Score** | **' + (sum.hardening_index || 0) + '%** | ' + (sum.rating || '') + ' |\n';
-  md += '| **Total Checks Audited** | **' + (sum.total_checks || checks.length) + '** | - |\n';
-  md += '| **Passed Checks** | **' + (sum.passed || 0) + '** | 🟢 PASS |\n';
-  md += '| **Warnings** | **' + (sum.warnings || 0) + '** | 🟡 WARN |\n';
-  md += '| **Failed Checks** | **' + (sum.failed || 0) + '** | 🔴 FAIL |\n';
-  md += '| **Points Earned** | ' + (sum.earned_points || 0) + ' / ' + (sum.total_possible_points || 0) + ' | - |\n\n';
-  md += '---\n\n';
-  md += '## 3. Audit Results by Category\n\n';
+  const lines = [
+    '# macOS Security Hardening Audit Report',
+    '',
+    '> **Automated Security & Compliance Scan**  ',
+    '> Generated by **macharden** v' + (scan.version || '1.3.0') + ' on ' + (scan.timestamp || new Date().toISOString()),
+    '',
+    '---',
+    '',
+    '## 1. System Metadata',
+    '',
+    '| Attribute | System Information |',
+    '| :--- | :--- |',
+    '| **Target Hostname** | ' + (sys.hostname || 'macOS') + ' |',
+    '| **Audit User** | ' + (sys.user || 'unknown') + ' |',
+    '| **Operating System** | ' + (sys.os_product || 'macOS') + ' ' + (sys.os_version || '') + ' (Build ' + (sys.os_build || '') + ') |',
+    '| **Architecture** | ' + (sys.arch || 'arm64') + ' |',
+    '| **Kernel Release** | ' + (sys.kernel || 'Darwin') + ' |',
+    '',
+    '---',
+    '',
+    '## 2. Executive Summary',
+    '',
+    '### Hardening Index: **' + (sum.hardening_index || 0) + '%** — *' + (sum.rating || 'UNKNOWN') + '*',
+    '',
+    '| Metric | Count / Value | Status |',
+    '| :--- | :---: | :---: |',
+    '| **Hardening Score** | **' + (sum.hardening_index || 0) + '%** | ' + (sum.rating || '') + ' |',
+    '| **Total Checks Audited** | **' + (sum.total_checks || checks.length) + '** | - |',
+    '| **Passed Checks** | **' + (sum.passed || 0) + '** | 🟢 PASS |',
+    '| **Warnings** | **' + (sum.warnings || 0) + '** | 🟡 WARN |',
+    '| **Failed Checks** | **' + (sum.failed || 0) + '** | 🔴 FAIL |',
+    '| **Points Earned** | ' + (sum.earned_points || 0) + ' / ' + (sum.total_possible_points || 0) + ' | - |',
+    '',
+    '---',
+    '',
+    '## 3. Audit Results by Category',
+    ''
+  ];
 
   const categories = ['hardening', 'network', 'secrets', 'persistence'];
   categories.forEach(cat => {
     const catChecks = checks.filter(c => (c.category || '').toLowerCase() === cat);
     if (catChecks.length === 0) return;
-    md += '### ' + cat.charAt(0).toUpperCase() + cat.slice(1) + ' (' + catChecks.length + ' controls)\n\n';
-    md += '| Status | ID | Check Name | Weight |\n';
-    md += '| :---: | :--- | :--- | :---: |\n';
+    lines.push('### ' + cat.charAt(0).toUpperCase() + cat.slice(1) + ' (' + catChecks.length + ' controls)');
+    lines.push('');
+    lines.push('| Status | ID | Check Name | Weight |');
+    lines.push('| :---: | :--- | :--- | :---: |');
     catChecks.forEach(c => {
       const stIcon = c.status === 'PASS' ? '🟢 PASS' : c.status === 'WARN' ? '🟡 WARN' : c.status === 'FAIL' ? '🔴 FAIL' : 'ℹ️ INFO';
-      md += '| ' + stIcon + ' | `' + c.id + '` | ' + c.title + ' | ' + (c.weight || 5) + ' |\n';
+      lines.push('| ' + stIcon + ' | ' + c.id + ' | ' + c.title + ' | ' + (c.weight || 5) + ' |');
     });
-    md += '\n';
+    lines.push('');
   });
 
   const remediations = checks.filter(c => (c.status === 'FAIL' || c.status === 'WARN') && c.remediation);
   if (remediations.length > 0) {
-    md += '---\n\n';
-    md += '## 4. Actionable Remediation Commands\n\n';
-    md += '```bash\n#!/bin/zsh\n# macharden remediation playbook\nset -euo pipefail\n\n';
+    lines.push('---');
+    lines.push('');
+    lines.push('## 4. Actionable Remediation Commands');
+    lines.push('');
+    lines.push('```bash');
+    lines.push('#!/bin/zsh');
+    lines.push('# macharden remediation playbook');
+    lines.push('set -euo pipefail');
+    lines.push('');
     remediations.forEach(c => {
-      md += '# ' + c.id + ': ' + c.title + '\n';
-      md += c.remediation + '\n\n';
+      lines.push('# ' + c.id + ': ' + c.title);
+      lines.push(c.remediation);
+      lines.push('');
     });
-    md += '```\n';
+    lines.push('```');
+    lines.push('');
   }
 
+  const md = lines.join(String.fromCharCode(10));
   const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

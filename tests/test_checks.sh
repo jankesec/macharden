@@ -536,6 +536,30 @@ CLI_TR_CONTENT=$(cat "$CLI_TR_REPORT")
 assert_match '<html[^>]*lang="tr"' "$CLI_TR_CONTENT" "CLI --lang tr output has lang='tr'"
 assert_match "Sıkılaştırma Skoru" "$CLI_TR_CONTENT" "CLI --lang tr output has Turkish UI strings"
 
+# Interactive filters and JS syntax validation
+assert_match 'filterCategory' "$HTML_CONTENT" "HTML contains filterCategory function"
+assert_match 'filterStatus' "$HTML_CONTENT" "HTML contains filterStatus function"
+assert_match 'filterFramework' "$HTML_CONTENT" "HTML contains filterFramework function"
+assert_match 'filterSeverity' "$HTML_CONTENT" "HTML contains filterSeverity function"
+assert_match 'resetAllFilters' "$HTML_CONTENT" "HTML contains resetAllFilters function"
+assert_match 'filteredCountBadge' "$HTML_CONTENT" "HTML contains filtered count badge"
+assert_match 'noResultsBox' "$HTML_CONTENT" "HTML contains empty state box"
+
+if command -v node >/dev/null 2>&1; then
+    NODE_ERR=$(python3 -c "
+import re, subprocess, sys
+content = open('$HTML_REPORT').read()
+scripts = re.findall(r'<script>(.*?)</script>', content, re.DOTALL)
+for i, s in enumerate(scripts):
+    res = subprocess.run(['node', '-c'], input=s, text=True, capture_output=True)
+    if res.returncode != 0:
+        print(f'Script {i} syntax error: {res.stderr.strip()}')
+        sys.exit(1)
+print('OK')
+" 2>&1)
+    assert_eq "OK" "$NODE_ERR" "HTML embedded JavaScript passes node -c syntax check without errors"
+fi
+
 # ==============================================================================
 # Suite 8: Continuous Background Monitoring & Daemon Management
 # ==============================================================================
