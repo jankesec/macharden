@@ -62,23 +62,57 @@ demo_terminal() {
     record_result "HARD-02" "hardening" "FileVault Full Disk Encryption" "PASS" 10 \
         "FileVault protects the startup and data volumes at rest." ""
     demo_pause
-    record_result "HARD-18" "hardening" "OpenBSM Audit Daemon" "WARN" 8 \
+    record_result "HARD-04" "hardening" "Gatekeeper Notarization & App Evaluation" "PASS" 9 \
+        "Gatekeeper is active and enforcing signed developer notarization." ""
+    demo_pause
+    record_result "HARD-18" "hardening" "OpenBSM Audit Daemon & Trail Immutability" "WARN" 8 \
         "The demo baseline requires review of the audit daemon policy." \
         "[GUIDE] Review the organization-approved OpenBSM profile before applying changes."
     demo_pause
 
     ui_section "Network Audit Checks"
-    record_result "NET-01" "network" "Application Firewall" "PASS" 8 \
-        "The application firewall is enabled." ""
+    record_result "NET-01" "network" "Application Firewall Status" "PASS" 8 \
+        "The application firewall is enabled in block-all incoming mode." ""
     demo_pause
-    record_result "NET-10" "network" "IP Forwarding" "FAIL" 7 \
+    record_result "NET-02" "network" "Firewall Stealth Mode" "PASS" 6 \
+        "Stealth mode prevents response to ICMP ping queries." ""
+    demo_pause
+    record_result "NET-10" "network" "IPv4 Forwarding Routing Flag" "FAIL" 7 \
         "The synthetic demo host is configured to forward IPv4 traffic." \
         "[EXEC] sudo sysctl -w net.inet.ip.forwarding=0"
     demo_pause
+    record_result "NET-11" "network" "BPF Packet Sniffing Access Permissions" "PASS" 8 \
+        "/dev/bpf access restricted to root and access_bpf group." ""
+    demo_pause
 
     ui_section "Secrets Audit Checks"
-    record_result "SEC-03" "secrets" "Keychain Lock Policy" "SUGG" 5 \
-        "No organization-defined value is selected in this demo profile." ""
+    record_result "SEC-01" "secrets" "Plaintext Secrets in Shell Profiles" "PASS" 9 \
+        "No hardcoded API tokens or credentials found in ~/.zshrc or ~/.bashrc." ""
+    demo_pause
+    record_result "SEC-03" "secrets" "Keychain Auto-Lock Inactivity Policy" "SUGG" 5 \
+        "No organization-defined lock timeout is selected in this demo profile." ""
+    demo_pause
+    record_result "SEC-07" "secrets" "Plaintext Secrets in Shell History" "PASS" 8 \
+        "Zero API keys, private tokens or bearer strings found in shell history." ""
+    demo_pause
+    record_result "SEC-11" "secrets" "Cloud & Container Credentials Permissions" "PASS" 8 \
+        "Permissions on ~/.aws, ~/.kube, and ~/.docker securely restricted." ""
+    demo_pause
+
+    ui_section "Persistence Audit Checks"
+    record_result "PERS-01" "persistence" "User & System LaunchAgents Integrity" "PASS" 7 \
+        "All LaunchAgent plists and target binaries match valid code signatures." ""
+    demo_pause
+    record_result "PERS-03" "persistence" "Scheduled Cron Jobs Inspection" "WARN" 6 \
+        "Synthetic finding: unapproved cron entry detected in demo crontab." \
+        "[GUIDE] Review and prune unapproved periodic cron triggers."
+    demo_pause
+    record_result "PERS-05" "persistence" "SSH authorized_keys Backdoor Audit" "PASS" 7 \
+        "All authorized_keys files strictly hardened with no unauthorized keys." ""
+    demo_pause
+    record_result "PERS-06" "persistence" "Sudoers NOPASSWD Privilege Escalation" "FAIL" 8 \
+        "Synthetic finding: NOPASSWD directive present in /etc/sudoers.d/demo." \
+        "[EXEC] sudo visudo -f /etc/sudoers.d/demo"
     demo_pause
 
     calculate_hardening_index
@@ -138,12 +172,43 @@ demo_html() {
     report_html "$output_file" "en"
 }
 
-case "${1:-terminal}" in
-    html)
-        [[ $# -ge 2 ]] || { print -u2 "Usage: $0 html <output-file>"; exit 2; }
-        demo_html "$2"
-        ;;
-    *)
-        demo_terminal
-        ;;
-esac
+demo_diff() {
+    print "\033[1;36m======================================================================\033[0m"
+    print "\033[1;37m                  BASELINE DRIFT & SECURITY DIFF                      \033[0m"
+    print "\033[1;36m======================================================================\033[0m"
+    print "  Baseline Scan : 2026-09-01 10:00:00 UTC (Host: demo-mac)"
+    print "  Current Scan  : 2026-09-15 14:00:00 UTC (Host: demo-mac)"
+    print "  Baseline Score: 87.5% (A-)"
+    print "  Current Score : 81.5% (B+)"
+    print "  Score Drift   : \033[1;33m-6.0% [▼ POSTURE DRIFT DETECTED]\033[0m\n"
+    print "  Regressions   : 2 new failing/warning check(s)"
+    print "  Remediations  : 1 previously failed check(s) resolved\n"
+    print "\033[1;31m▶ Security Regressions (Action Required):\033[0m"
+    print "  \033[1;31m[✖ FAIL]\033[0m  PERS-06  Sudoers NOPASSWD Privilege Escalation (was PASS)"
+    print "  \033[1;33m[▲ WARN]\033[0m  PERS-03  Scheduled Cron Jobs Inspection (was PASS)\n"
+    print "\033[1;32m▶ Remediated Checks (Resolved):\033[0m"
+    print "  \033[1;32m[✔ PASS]\033[0m  SEC-01   Plaintext Secrets in Shell Profiles (was FAIL)"
+}
+
+demo_html_cli() {
+    local outfile="${1:-report.html}"
+    print "\033[1;36m╭──────────────────────────────────────────────────────────────────────────────────────────╮\033[0m"
+    print "\033[1;36m│\033[0m  \033[1;37mMACHARDEN / macOS Security Posture / v1.4.0\033[0m                                             \033[1;36m│\033[0m"
+    print "\033[1;36m╰──────────────────────────────────────────────────────────────────────────────────────────╯\033[0m\n"
+    print "  \033[1;32m[✔]\033[0m 54 enterprise security controls audited in \033[1m48ms\033[0m"
+    print "  \033[1;32m[✔]\033[0m Liquid Glass HTML5 security dashboard written to: \033[1;34m${outfile}\033[0m"
+    print "  \033[1;32m[✔]\033[0m Standalone single-file (486 KB) • Zero external CDN dependencies • 100% Air-Gapped"
+    print "  \033[1;32m[✔]\033[0m Bilingual (English ⇄ Turkish) • Dark Glass & Light Modes • Playbook Drawer"
+}
+
+if [[ "$*" == *"--diff"* ]]; then
+    demo_diff
+elif [[ "$*" == *"-f html"* || "$*" == *"--format html"* || "$*" == *"report.html"* ]]; then
+    demo_html_cli "report.html"
+elif [[ "${1:-}" == "html" ]]; then
+    [[ $# -ge 2 ]] || { print -u2 "Usage: $0 html <output-file>"; exit 2; }
+    demo_html "$2"
+else
+    demo_terminal
+fi
+
