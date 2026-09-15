@@ -111,7 +111,13 @@ macharden -f html -o report.html && open report.html
 
 ## 🚀 Quick Start
 
-### 1. One-Liner Quick Scan (Direct Execution)
+### 1. Install via Homebrew (Recommended)
+
+```bash
+brew install jankesec/tap/macharden
+```
+
+### 2. Zero-Install Instant Audit
 
 Run an immediate, read-only security audit in your terminal without cloning:
 
@@ -119,7 +125,7 @@ Run an immediate, read-only security audit in your terminal without cloning:
 curl -fsSL https://raw.githubusercontent.com/jankesec/macharden/main/bin/macharden | zsh
 ```
 
-### 2. Clone & Run
+### 3. Clone & Run
 
 ```bash
 # Clone repository
@@ -130,7 +136,7 @@ cd macharden
 ./bin/macharden
 ```
 
-### 3. System-Wide Installation
+### 4. System-Wide Installation (via Make)
 
 ```bash
 # Install binary, shell autocompletions (Zsh & Bash), and UNIX man page
@@ -143,7 +149,7 @@ make install-man           # UNIX manual page (man macharden)
 
 *(Installs binary to `/usr/local/bin` or `~/.local/bin`, completions to Zsh/Bash site-functions, and manual page to `share/man/man1/macharden.1`)*
 
-### 4. Tailor a Baseline
+### 5. Tailor a Baseline
 
 Copy `examples/macharden.prf` and select values that match the Mac's role and threat model:
 
