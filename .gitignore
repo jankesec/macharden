@@ -31,4 +31,5 @@ tmp/
 *.swo
 *~
 *.html
+!scripts/social_preview.html
 .playwright-mcp/
