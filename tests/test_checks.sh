@@ -1493,6 +1493,27 @@ else
 fi
 
 # ==============================================================================
+# Suite 20: python3 handling (MACHAR_NO_PYTHON=1 pretends python3 is not installed)
+# ==============================================================================
+echo "\n\033[1m[Suite 20] python3 handling\033[0m"
+
+for NOPY_CASE in "html|-f html" "sarif|-f sarif" "diff|--diff ${TEST_TMP_DIR}/baseline-does-not-exist.json" "html-by-extension|-o ${TEST_TMP_DIR}/nopy.html"; do
+    NOPY_NAME="${NOPY_CASE%%|*}"
+    NOPY_ARGS="${NOPY_CASE#*|}"
+    NOPY_EC=0
+    NOPY_OUT=$(MACHAR_NO_PYTHON=1 "${PROJECT_ROOT}/bin/macharden" -c hardening -t HARD-01 --no-profile ${=NOPY_ARGS} 2>&1) || NOPY_EC=$?
+    assert_eq "1" "$NOPY_EC" "without python3, ${NOPY_NAME} output exits 1"
+    assert_match "python3 is required" "$NOPY_OUT" "without python3, ${NOPY_NAME} output explains what is missing"
+done
+
+NOPY_TERM_OUT=$(MACHAR_NO_PYTHON=1 "${PROJECT_ROOT}/bin/macharden" -c hardening -t HARD-01 --no-profile -q 2>&1) || true
+assert_match "EXECUTIVE AUDIT SUMMARY" "$NOPY_TERM_OUT" "the terminal audit does not require python3"
+assert_not_match "python3 is required" "$NOPY_TERM_OUT" "the terminal audit does not mention python3"
+
+( MACHAR_NO_PYTHON=1; _have_python3 ); assert_eq "1" "$?" "_have_python3 honors MACHAR_NO_PYTHON=1"
+( unset MACHAR_NO_PYTHON; _have_python3 ); assert_eq "0" "$?" "_have_python3 finds the python3 that runs this suite"
+
+# ==============================================================================
 # Final Test Summary
 # ==============================================================================
 echo ""
