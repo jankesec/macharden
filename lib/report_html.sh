@@ -1870,6 +1870,10 @@ kbd.nav-kbd {
   background: #18181c;
 }
 
+:root[data-theme="light"] .stat-box.active {
+  background: #ffffff;
+}
+
 .stat-box-label {
   font-size: 0.7rem;
   font-weight: 700;
@@ -2049,6 +2053,10 @@ kbd.nav-kbd {
   background: #18181b;
   border-radius: 3px;
   overflow: hidden;
+}
+
+:root[data-theme="light"] .cat-card-bar-track {
+  background: #e4e4e7;
 }
 
 .cat-card-bar-fill {
@@ -3540,7 +3548,7 @@ for cat_id in core_categories:
     if c_score >= 85:
         c_color = "#10b981"; c_grad = "#10b981"
     elif c_score >= 70:
-        c_color = "#e4e4e7"; c_grad = "#e4e4e7"
+        c_color = "var(--text-title)"; c_grad = "var(--text-title)"
     elif c_score >= 50:
         c_color = "#f59e0b"; c_grad = "#f59e0b"
     else:
