@@ -2067,6 +2067,7 @@ kbd.nav-kbd {
 
 .cat-card-counts {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   font-size: 0.72rem;

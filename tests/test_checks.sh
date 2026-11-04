@@ -1598,9 +1598,9 @@ assert_match "Current Scan:[[:space:]]+2026-09-15 14:00:00 UTC \(Host: demo-mac\
 assert_match "New Regressions : 4" "$FX_DIFF" "the drift demo reports four regressions"
 
 # ==============================================================================
-# Suite 22: Dashboard light theme keeps text readable
+# Suite 22: Dashboard light theme and category cards stay readable
 # ==============================================================================
-echo "\n\033[1m[Suite 22] Dashboard light theme\033[0m"
+echo "\n\033[1m[Suite 22] Dashboard theme and layout\033[0m"
 
 reset_engine
 record_result "LT-01" "hardening" "Light theme probe A" "PASS" 10 "ok" ""
@@ -1613,6 +1613,10 @@ assert_match ':root\[data-theme="light"\] \.stat-box\.active' "$LT_CONTENT" "lig
 assert_match ':root\[data-theme="light"\] \.cat-card-bar-track' "$LT_CONTENT" "light theme restyles the category bar track"
 assert_match 'class="cat-card-score" style="color: var\(--text-title\)"' "$LT_CONTENT" "mid-range category scores follow the theme's title color"
 assert_not_match 'class="cat-card-score" style="color: #e4e4e7' "$LT_CONTENT" "category scores never use a fixed light gray"
+# Regression: the Turkish count badges (for example "0 başarısız") were wider than a quarter of a
+# 1200 px window, so the fourth category card stuck out of the page. The badge row now wraps.
+LT_COUNTS_RULE=$(print -r -- "$LT_CONTENT" | python3 -c 'import re, sys; m = re.search(r"\.cat-card-counts \{([^}]*)\}", sys.stdin.read()); print(m.group(1) if m else "")')
+assert_match 'flex-wrap: wrap;' "$LT_COUNTS_RULE" "category count badges wrap instead of widening the grid"
 reset_engine
 
 # ==============================================================================
