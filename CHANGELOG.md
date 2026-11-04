@@ -3,6 +3,23 @@
 All notable changes to macharden are documented here. Releases follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- `make install` links work: `bin/macharden` resolves its real location through symlinks.
+- Piping `bin/macharden` into a shell no longer derives `lib/` from the working
+  directory; it stops and lists the supported install methods. Missing support files
+  get the same message.
+- `--min-score` and `--fail-on-warn` are accepted by the parser; they were documented
+  but rejected as unknown options.
+- JSON output without `python3` is valid JSON again.
+- HTML, SARIF and `--diff` stop with a clear message when `python3` is unavailable.
+- Terminal layout stays aligned when macharden runs without a UTF-8 locale (launchd,
+  cron, minimal containers).
+- The test suite no longer depends on the shell's locale or on zsh `echo` rewriting
+  escape sequences.
+
 ## [1.4.0] - 2026-09-12
 
 ### Added

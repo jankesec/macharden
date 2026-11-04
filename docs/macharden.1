@@ -300,9 +300,10 @@ Successful scan execution. All checks passed, or the Hardening Index meets the
 acceptable threshold without unhandled errors or regressions.
 .TP
 .B 1
-Audit completed with critical security failures, hardening score below
-acceptable threshold, invalid command-line invocation, or running on an
-unsupported operating system.
+At least one check failed; a warning was found with \fB\-\-fail\-on\-warn\fR;
+the Hardening Index is below the \fB\-\-min\-score\fR threshold; the command
+line was invalid; macharden's support files or python3 (for HTML, SARIF or
+\fB\-\-diff\fR) were not found; or the operating system is unsupported.
 .TP
 .B 2
 Security regression detected (when running with \fB\-\-fail\-on\-regression\fR),
@@ -320,6 +321,11 @@ When set to 1, forces monochrome terminal mode.
 .B MACHAR_QUIET
 When set to 1, suppresses detailed check output and displays only summary
 results.
+.TP
+.B MACHAR_NO_PYTHON
+When set to 1, macharden behaves as if python3 were not installed. HTML, SARIF
+and \fB\-\-diff\fR then stop with an error; terminal, Markdown and JSON output
+keep working.
 .SH FILES
 .TP
 .I /usr/local/bin/macharden
