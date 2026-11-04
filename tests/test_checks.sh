@@ -67,10 +67,22 @@ assert_match() {
     local pattern="$1"
     local string="$2"
     local desc="$3"
-    if echo "$string" | grep -Eq "$pattern"; then
+    # print -r, not echo: echo rewrites backslash escapes in the data under test.
+    if print -r -- "$string" | grep -Eq -e "$pattern"; then
         log_test "PASS" "$desc"
     else
         log_test "FAIL" "$desc" "String did not match pattern '$pattern'"
+    fi
+}
+
+assert_not_match() {
+    local pattern="$1"
+    local string="$2"
+    local desc="$3"
+    if print -r -- "$string" | grep -Eq -e "$pattern"; then
+        log_test "FAIL" "$desc" "String unexpectedly matched pattern '$pattern'"
+    else
+        log_test "PASS" "$desc"
     fi
 }
 
@@ -92,6 +104,21 @@ assert_dir_exists() {
     else
         log_test "FAIL" "$desc" "Directory not found: $dirpath"
     fi
+}
+
+# Print UI_STRINGS[<lang>][<key>] from a generated dashboard. The dictionary is embedded as
+# JSON, so non-ASCII text appears there as \uXXXX escapes, never literally.
+# Usage: html_ui_string <html-file> <lang> <key>
+html_ui_string() {
+    python3 - "$1" "$2" "$3" <<'PY'
+import json, re, sys
+sys.stdout.reconfigure(encoding="utf-8")
+path, lang, key = sys.argv[1:4]
+with open(path, encoding="utf-8") as handle:
+    page = handle.read()
+match = re.search(r"const UI_STRINGS = (\{.*\});", page)
+print(json.loads(match.group(1))[lang][key])
+PY
 }
 
 # Reset engine state between test suites
@@ -284,7 +311,7 @@ assert_match "enabling filevault" "$FIX_CONTENT" "Fix script contains FAIL check
 assert_match "enabling stealth mode" "$FIX_CONTENT" "Fix script contains WARN check remediation command"
 
 # Verify that PASS check is NOT in the fix commands
-if echo "$FIX_CONTENT" | grep -q "FIX-03"; then
+if print -r -- "$FIX_CONTENT" | grep -q "FIX-03"; then
     log_test "FAIL" "PASS check should not be included in fix script"
 else
     log_test "PASS" "PASS check is excluded from fix script"
@@ -487,7 +514,7 @@ assert_match "id=\"searchInput\"" "$HTML_CONTENT" "HTML contains search input el
 assert_match "Copy Fix Command" "$HTML_CONTENT" "HTML contains Copy Fix Command button"
 assert_match "@media print" "$HTML_CONTENT" "HTML contains @media print styling"
 assert_match "sudo network_fix" "$HTML_CONTENT" "HTML executable playbook includes typed [EXEC] action"
-if echo "$HTML_CONTENT" | grep -q 'lines.push(c.remediation);'; then
+if print -r -- "$HTML_CONTENT" | grep -q 'lines.push(c.remediation);'; then
     log_test "FAIL" "HTML export does not copy untyped remediation text into executable blocks"
 else
     log_test "PASS" "HTML export does not copy untyped remediation text into executable blocks"
@@ -543,7 +570,7 @@ assert_match "Hedef Sistem Adı" "$TR_CONTENT" "Turkish HTML contains translated
 assert_match "Sistem Bilgileri" "$TR_CONTENT" "Turkish HTML contains translated System Metadata"
 assert_match "Toplam Kontroller" "$TR_CONTENT" "Turkish HTML contains translated Total Controls counter"
 assert_match "Zafiyet İyileştirme Reçetesi" "$TR_CONTENT" "Turkish HTML contains translated Remediation Playbook"
-assert_match "Düzeltme Komutunu Kopyala" "$TR_CONTENT" "Turkish HTML contains translated Copy Fix Command button"
+assert_eq "Düzeltme Komutunu Kopyala" "$(html_ui_string "$TR_REPORT" tr btn_copy_fix)" "Turkish HTML dictionary translates the Copy Fix Command button"
 assert_match "Sistem Bütünlüğü Koruması" "$TR_CONTENT" "Turkish HTML contains translated check title for HARD-01"
 
 # Validate zero external links in Turkish HTML report
@@ -807,7 +834,7 @@ TAGS_MITRE=$(get_compliance_tags "HARD-01" "mitre" 2>&1 || true)
 assert_match "T1562.001" "$TAGS_MITRE" "get_compliance_tags 'mitre' returns MITRE technique"
 
 TAGS_JSON=$(get_compliance_tags "HARD-01" "json" 2>&1 || true)
-if echo "$TAGS_JSON" | python3 -m json.tool >/dev/null 2>&1; then
+if print -r -- "$TAGS_JSON" | python3 -m json.tool >/dev/null 2>&1; then
     log_test "PASS" "get_compliance_tags 'json' returns valid JSON"
 else
     log_test "FAIL" "get_compliance_tags 'json' returned invalid JSON"
@@ -1138,7 +1165,7 @@ assert_match "Regressions" "$DIFF_TERM_OUT" "diff_report_terminal outputs regres
 
 # JSON diff serialization
 DIFF_JSON_OUT=$(diff_get_json)
-if echo "$DIFF_JSON_OUT" | python3 -c "import json, sys; d = json.load(sys.stdin); assert d['delta']['has_regressions'] == True; assert d['delta']['regressions_count'] == 1" 2>/dev/null; then
+if print -r -- "$DIFF_JSON_OUT" | python3 -c "import json, sys; d = json.load(sys.stdin); assert d['delta']['has_regressions'] == True; assert d['delta']['regressions_count'] == 1" 2>/dev/null; then
     log_test "PASS" "diff_get_json outputs valid JSON with drift metadata"
 else
     log_test "FAIL" "diff_get_json outputs valid JSON with drift metadata"
@@ -1278,7 +1305,7 @@ record_result "REM-03" "hardening" "Untagged Item" "FAIL" 10 "Unsafe legacy acti
 UNTAGGED_SCRIPT="${TEST_TMP_DIR}/untagged-remediation.sh"
 generate_fix_script "$UNTAGGED_SCRIPT"
 UNTAGGED_CONTENT=$(cat "$UNTAGGED_SCRIPT")
-if echo "$UNTAGGED_CONTENT" | grep -q "must-not-run"; then
+if print -r -- "$UNTAGGED_CONTENT" | grep -q "must-not-run"; then
     log_test "FAIL" "untagged remediation is excluded from executable fix scripts"
 else
     log_test "PASS" "untagged remediation is excluded from executable fix scripts"
@@ -1385,6 +1412,17 @@ check_weight "HARD-18" "8"
 check_weight "HARD-19" "7"
 check_weight "HARD-20" "9"
 check_weight "HARD-21" "6"
+
+# ==============================================================================
+# Suite 17: Test-suite hygiene (locale independence)
+# ==============================================================================
+echo "\n\033[1m[Suite 17] Test-suite hygiene\033[0m"
+
+# zsh's builtin echo rewrites backslash escapes (\uXXXX, \n, ...) in the data under test
+# and, without a UTF-8 locale, aborts with "character not in range". Data goes through
+# print -r -- instead.
+ECHO_PIPES=$(grep -nE 'echo "\$[A-Za-z_{}]+" *\| *(grep|python3)' "${SCRIPT_DIR}/test_checks.sh" "${SCRIPT_DIR}/test_mocks.sh" 2>/dev/null || true)
+assert_eq "" "$ECHO_PIPES" "tests never pipe data through zsh echo (use print -r --)"
 
 # ==============================================================================
 # Final Test Summary
