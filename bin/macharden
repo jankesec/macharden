@@ -343,6 +343,16 @@ if [[ -n "$MACHAR_DAEMON_CMD" ]]; then
     esac
 fi
 
+# Features that need the system Python 3 (standard library only) stop early with a clear
+# message instead of failing halfway through the audit.
+case "$MACHAR_FORMAT" in
+    html)  require_python3 "HTML reports (-f html)" ;;
+    sarif) require_python3 "SARIF reports (-f sarif)" ;;
+esac
+if [[ -n "$MACHAR_DIFF_FILE" ]]; then
+    require_python3 "baseline comparison (--diff)"
+fi
+
 # Load skip-test profile (defaults, then --profile, then CLI --skip-test)
 if (( ! MACHAR_NO_PROFILE )); then
     [[ -f "$HOME/.macharden/profile" ]] && load_skip_profile "$HOME/.macharden/profile"

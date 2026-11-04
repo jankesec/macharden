@@ -35,6 +35,37 @@ typeset -g MACHAR_MACHINE_ROLE="${MACHAR_MACHINE_ROLE:-}"
 typeset -g MACHAR_KEYCHAIN_TIMEOUT_SECONDS="${MACHAR_KEYCHAIN_TIMEOUT_SECONDS:-}"
 typeset -g MACHAR_KEYCHAIN_LOCK_ON_SLEEP="${MACHAR_KEYCHAIN_LOCK_ON_SLEEP:-}"
 
+# ------------------------------------------------------------------------------
+# Optional dependency: python3 (standard library only). HTML reports, SARIF output,
+# --diff and compliance tags use it. MACHAR_NO_PYTHON=1 makes macharden behave as if
+# python3 were not installed (test hook).
+# ------------------------------------------------------------------------------
+_have_python3() {
+    [[ "${MACHAR_NO_PYTHON:-0}" == "1" ]] && return 1
+    local python_path
+    python_path="$(command -v python3 2>/dev/null)" || return 1
+    # Until the Xcode Command Line Tools are installed, /usr/bin/python3 is only a stub that
+    # opens the installer; running it would not run Python.
+    if [[ "$(uname -s 2>/dev/null)" == "Darwin" && "$python_path" == "/usr/bin/python3" ]] \
+        && ! xcode-select -p >/dev/null 2>&1; then
+        return 1
+    fi
+    return 0
+}
+
+# Stop with a clear message when a feature that needs python3 is requested without it.
+# Usage: require_python3 "<what needs it>"
+require_python3() {
+    _have_python3 && return 0
+    echo "Error: python3 is required for $1 but was not found." >&2
+    if [[ "$(uname -s 2>/dev/null)" == "Darwin" ]]; then
+        echo "Install the Xcode Command Line Tools (xcode-select --install) or Homebrew Python (brew install python)." >&2
+    else
+        echo "Install Python 3 and make sure python3 is on your PATH." >&2
+    fi
+    exit 1
+}
+
 # Filter-check list (target specific checks, comma-separated)
 typeset -ga MACHAR_FILTER_CHECK_IDS=()
 
