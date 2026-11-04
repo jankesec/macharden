@@ -5,6 +5,23 @@ All notable changes to macharden are documented here. Releases follow
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-04
+
+### Added
+
+- `docs/CHECKS.md`, generated from `data/compliance_mappings.json` and the check
+  registry (`make docs`); a unit test keeps it current.
+- `make demo` regenerates `assets/demo.gif`, `assets/dashboard.png` and
+  `assets/social-preview.png` from one synthetic data set.
+
+### Changed
+
+- The README is shorter and states only what is verified: install paths that work, the
+  Python 3 requirement of the HTML, SARIF and `--diff` features, and the dashboard's real
+  exports. The hand-written check tables moved to the generated reference.
+- The demo fixture builds its 54 results from the real registry and renderers, and the
+  drift demo no longer prints the real host name or clock.
+
 ### Fixed
 
 - `make install` links work: `bin/macharden` resolves its real location through symlinks.
@@ -24,21 +41,6 @@ All notable changes to macharden are documented here. Releases follow
   1200 px window instead of running past its edge.
 - The user guide and the man page describe the exit codes the command really returns
   (`2` is used only by `--fail-on-regression`).
-
-### Added
-
-- `docs/CHECKS.md`, generated from `data/compliance_mappings.json` and the check
-  registry (`make docs`); a unit test keeps it current.
-- `make demo` regenerates `assets/demo.gif`, `assets/dashboard.png` and
-  `assets/social-preview.png` from one synthetic data set.
-
-### Changed
-
-- The README is shorter and states only what is verified: install paths that work, the
-  Python 3 requirement of the HTML, SARIF and `--diff` features, and the dashboard's real
-  exports. The hand-written check tables moved to the generated reference.
-- The demo fixture builds its 54 results from the real registry and renderers, and the
-  drift demo no longer prints the real host name or clock.
 
 ## [1.4.0] - 2026-09-12
 
@@ -68,4 +70,6 @@ All notable changes to macharden are documented here. Releases follow
 - Documentation now identifies report metadata that operators should sanitize
   before public sharing.
 
+[Unreleased]: https://github.com/jankesec/macharden/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/jankesec/macharden/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/jankesec/macharden/compare/v1.3.0...v1.4.0

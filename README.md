@@ -38,8 +38,8 @@ macharden
 **Release tarball** (no git needed)
 
 ```bash
-curl -fsSL https://github.com/jankesec/macharden/archive/refs/tags/v1.4.0.tar.gz | tar xz
-cd macharden-1.4.0 && ./bin/macharden
+curl -fsSL https://github.com/jankesec/macharden/archive/refs/tags/v1.5.0.tar.gz | tar xz
+cd macharden-1.5.0 && ./bin/macharden
 ```
 
 **Clone**
@@ -154,7 +154,7 @@ jobs:
     steps:
       - name: Install macharden
         run: |
-          git clone --depth 1 --branch v1.4.0 https://github.com/jankesec/macharden.git ~/.macharden-tool
+          git clone --depth 1 --branch v1.5.0 https://github.com/jankesec/macharden.git ~/.macharden-tool
           echo "$HOME/.macharden-tool/bin" >> "$GITHUB_PATH"
       - name: Audit
         run: macharden -f sarif -o macharden-results.sarif -q || true

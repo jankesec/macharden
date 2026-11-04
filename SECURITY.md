@@ -21,8 +21,8 @@ Security fixes land on `main` and the latest tagged release.
 
 | Version | Supported |
 |:---:|:---:|
-| 1.4.x | :white_check_mark: |
-| < 1.4.0 | :x: |
+| 1.5.x | :white_check_mark: |
+| < 1.5.0 | :x: |
 
 ## Authorized-Use Policy
 
