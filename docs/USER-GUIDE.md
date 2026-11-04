@@ -190,9 +190,10 @@ A run exits `1` when any check fails, when `--fail-on-warn` is set and any check
 warns, or when `--min-score N` is set and the Hardening Index is below `N`.
 Relevant exit codes are:
 
-- `0`: command completed and the configured gate passed;
-- `1`: findings, threshold failure, or invalid invocation;
-- `2`: regression, permission/remediation failure, or interruption.
+- `0`: no check failed and every configured gate passed;
+- `1`: a failed check, a missed `--fail-on-warn` or `--min-score` gate, or an invalid
+  invocation;
+- `2`: `--diff` with `--fail-on-regression` found a regression against the baseline.
 
 ## Scheduled audits
 

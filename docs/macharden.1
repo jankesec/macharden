@@ -296,8 +296,9 @@ Grade F (Critical Risk / Urgent Remediation Required)
 .SH EXIT CODES
 .TP
 .B 0
-Successful scan execution. All checks passed, or the Hardening Index meets the
-acceptable threshold without unhandled errors or regressions.
+The command completed, no check failed, and every requested gate
+(\fB\-\-fail\-on\-warn\fR, \fB\-\-min\-score\fR, \fB\-\-fail\-on\-regression\fR)
+passed.
 .TP
 .B 1
 At least one check failed; a warning was found with \fB\-\-fail\-on\-warn\fR;
@@ -306,9 +307,8 @@ line was invalid; macharden's support files or python3 (for HTML, SARIF or
 \fB\-\-diff\fR) were not found; or the operating system is unsupported.
 .TP
 .B 2
-Security regression detected (when running with \fB\-\-fail\-on\-regression\fR),
-insufficient permissions to execute certain checks or remediations, or
-operation interrupted by user (SIGINT/SIGTERM).
+A security regression against the baseline was detected when running with
+\fB\-\-diff\fR and \fB\-\-fail\-on\-regression\fR.
 .SH ENVIRONMENT
 .TP
 .B NO_COLOR
