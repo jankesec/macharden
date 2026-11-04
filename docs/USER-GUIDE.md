@@ -14,12 +14,15 @@ state and should be reviewed before use.
 
 - macOS 12 or later
 - Zsh
-- Python 3 only when generating the interactive HTML report
+- Python 3 (standard library only) for the interactive HTML report, SARIF output,
+  `--diff` baseline comparison, and compliance tags. It ships with the Xcode
+  Command Line Tools (`xcode-select --install`).
 - administrator access only for remediations that require `sudo`
 
-The terminal, Markdown, JSON, and SARIF audit workflows use native shell and
-macOS tools. If a protected setting cannot be read, macharden should return a
-neutral or review result rather than requesting a password during a normal scan.
+The terminal and Markdown reports use native shell and macOS tools only. JSON output
+also works without Python 3; it then leaves out the per-check reference links. If a
+protected setting cannot be read, macharden should return a neutral or review
+result rather than requesting a password during a normal scan.
 
 ## Install
 
@@ -41,6 +44,10 @@ man macharden
 
 When `/usr/local` is not writable, the Makefile uses the corresponding paths
 under `~/.local`. Ensure `~/.local/bin` is in `PATH` when using that layout.
+
+macharden needs the `lib/` and `data/` directories that sit next to `bin/`. Run it
+from a checkout, a release tarball, or a Homebrew install; it cannot be piped from
+`curl` into a shell and stops with install instructions if its files are missing.
 
 ## Run the first audit
 
@@ -179,6 +186,8 @@ CI gates can also require a minimum score or reject warnings:
 ./bin/macharden --fail-on-warn
 ```
 
+A run exits `1` when any check fails, when `--fail-on-warn` is set and any check
+warns, or when `--min-score N` is set and the Hardening Index is below `N`.
 Relevant exit codes are:
 
 - `0`: command completed and the configured gate passed;
@@ -228,15 +237,17 @@ keychain-lock-on-sleep=no
 The `SEC-03` check is advisory without an explicit policy and will not apply a
 Keychain change automatically.
 
-### HTML generation fails
+### HTML, SARIF, or `--diff` fails
 
-Confirm that Python 3 is available:
+These features need Python 3. macharden stops with `python3 is required for ...`
+when it is missing. Confirm that Python 3 is available:
 
 ```bash
 python3 --version
 ```
 
-Use Markdown or JSON when Python 3 is unavailable.
+Install the Xcode Command Line Tools with `xcode-select --install`. Until then, use
+the terminal, Markdown, or JSON output, which work without Python 3.
 
 ### Verify the checkout
 
@@ -259,4 +270,3 @@ make uninstall
 
 This does not remove saved reports, profiles, logs, or remediation backups.
 Review and remove those user-owned files separately if they are no longer needed.
-history. Review those files separately before deleting them.
