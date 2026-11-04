@@ -1561,6 +1561,43 @@ assert_eq "0" "$?" "macharden -f json without python3 writes valid JSON"
 reset_engine
 
 # ==============================================================================
+# Suite 21: Demo fixture (scripts/demo_fixture.sh) stays truthful and consistent
+# ==============================================================================
+echo "\n\033[1m[Suite 21] Demo fixture\033[0m"
+
+FIXTURE="${PROJECT_ROOT}/scripts/demo_fixture.sh"
+
+# Regression: a path that contains "report.html" used to be mistaken for a CLI flag, so the
+# dashboard was never written and scripts/generate_demo_gif.py failed.
+FX_HTML="${TEST_TMP_DIR}/demo_report.html"
+"$FIXTURE" html "$FX_HTML" >/dev/null 2>&1 || true
+assert_file_exists "$FX_HTML" "fixture writes the dashboard to a path that contains 'report.html'"
+
+FX_CLI_DIR="${TEST_TMP_DIR}/fixture_cli"
+mkdir -p "$FX_CLI_DIR"
+FX_CLI_OUT=$(cd "$FX_CLI_DIR" && "$FIXTURE" -f html -o report.html 2>&1)
+assert_file_exists "${FX_CLI_DIR}/report.html" "fixture -f html -o report.html writes the dashboard"
+assert_match "Modern HTML report generated: report.html" "$FX_CLI_OUT" "fixture prints the message of the real HTML renderer"
+
+FX_TERM=$("$FIXTURE" 2>&1)
+assert_match "54 total" "$FX_TERM" "the terminal demo covers all 54 registered checks"
+FX_ID_CHECK=$(print -r -- "$FX_TERM" | grep -oE '(HARD|NET|SEC|PERS)-[0-9]{2}' | sort -u | python3 -c '
+import json, sys
+ids = {line.strip() for line in sys.stdin if line.strip()}
+mapped = set(json.load(open(sys.argv[1], encoding="utf-8"))["mappings"])
+print("ok" if ids == mapped else "mismatch: %s" % sorted(ids ^ mapped))
+' "${PROJECT_ROOT}/data/compliance_mappings.json")
+assert_eq "ok" "$FX_ID_CHECK" "the terminal demo shows exactly the registered check IDs"
+FX_SCORE=$(print -r -- "$FX_TERM" | sed -nE 's/.*Hardening Index: \[[^]]*\] +([0-9]+\.[0-9])%.*/\1/p' | head -1)
+FX_HTML_SCORE=$(grep -oE '"hardening_index": [0-9.]+' "$FX_HTML" | head -1 | sed -E 's/.*: //')
+assert_eq "$FX_SCORE" "$FX_HTML_SCORE" "terminal and dashboard show the same Hardening Index"
+assert_eq "54" "$(grep -oE '"total_checks": [0-9]+' "$FX_HTML" | head -1 | sed -E 's/.*: //')" "the dashboard covers 54 checks"
+
+FX_DIFF=$("$FIXTURE" --diff 2>&1)
+assert_match "Current Scan:[[:space:]]+2026-09-15 14:00:00 UTC \(Host: demo-mac\)" "$FX_DIFF" "the drift demo uses the fixture's clock and host name"
+assert_match "New Regressions : 4" "$FX_DIFF" "the drift demo reports four regressions"
+
+# ==============================================================================
 # Final Test Summary
 # ==============================================================================
 echo ""

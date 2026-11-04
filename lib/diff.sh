@@ -554,10 +554,10 @@ print(json.dumps(diff_doc, indent=2))
         "$BASELINE_FAIL" \
         "$BASELINE_INFO" \
         "$BASELINE_SUGG" \
-        "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
-        "$(hostname -s 2>/dev/null || hostname)" \
-        "$(id -un 2>/dev/null || whoami)" \
-        "macOS $(sw_vers -productVersion 2>/dev/null || echo '')" \
+        "${MACHAR_AUDIT_TIME_ISO:-$(date -u +"%Y-%m-%dT%H:%M:%SZ")}" \
+        "${MACHAR_HOSTNAME:-$(hostname -s 2>/dev/null || hostname)}" \
+        "${MACHAR_USER:-$(id -un 2>/dev/null || whoami)}" \
+        "macOS ${MACHAR_OS_VERSION:-$(sw_vers -productVersion 2>/dev/null || echo '')}" \
         "${HARDENING_INDEX:-0.0}" \
         "$(_get_rating_text "${HARDENING_INDEX:-0.0}")" \
         "${COUNT_TOTAL:-0}" \
@@ -718,10 +718,8 @@ diff_report_terminal() {
     echo "${COLOR_BOLD}${COLOR_BCYAN}======================================================================${COLOR_RESET}"
     echo ""
 
-    local cur_time
-    cur_time=$(date "+%Y-%m-%d %H:%M:%S %Z")
-    local cur_host
-    cur_host=$(hostname -s 2>/dev/null || hostname)
+    local cur_time="${MACHAR_AUDIT_TIME:-$(date "+%Y-%m-%d %H:%M:%S %Z")}"
+    local cur_host="${MACHAR_HOSTNAME:-$(hostname -s 2>/dev/null || hostname)}"
 
     local b_ts="${BASELINE_TIMESTAMP:-Unknown}"
     local b_host="${BASELINE_HOSTNAME:-Unknown}"
