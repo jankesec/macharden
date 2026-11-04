@@ -1598,6 +1598,24 @@ assert_match "Current Scan:[[:space:]]+2026-09-15 14:00:00 UTC \(Host: demo-mac\
 assert_match "New Regressions : 4" "$FX_DIFF" "the drift demo reports four regressions"
 
 # ==============================================================================
+# Suite 22: Dashboard light theme keeps text readable
+# ==============================================================================
+echo "\n\033[1m[Suite 22] Dashboard light theme\033[0m"
+
+reset_engine
+record_result "LT-01" "hardening" "Light theme probe A" "PASS" 10 "ok" ""
+record_result "LT-02" "hardening" "Light theme probe B" "WARN" 10 "needs review" ""
+calculate_hardening_index
+LT_HTML="${TEST_TMP_DIR}/light_theme.html"
+report_html "$LT_HTML" >/dev/null 2>&1
+LT_CONTENT=$(cat "$LT_HTML")
+assert_match ':root\[data-theme="light"\] \.stat-box\.active' "$LT_CONTENT" "light theme restyles the active stat box"
+assert_match ':root\[data-theme="light"\] \.cat-card-bar-track' "$LT_CONTENT" "light theme restyles the category bar track"
+assert_match 'class="cat-card-score" style="color: var\(--text-title\)"' "$LT_CONTENT" "mid-range category scores follow the theme's title color"
+assert_not_match 'class="cat-card-score" style="color: #e4e4e7' "$LT_CONTENT" "category scores never use a fixed light gray"
+reset_engine
+
+# ==============================================================================
 # Final Test Summary
 # ==============================================================================
 echo ""
