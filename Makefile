@@ -23,11 +23,12 @@ USER_BASH_COMP_DIR ?= $(USER_PREFIX)/share/bash-completion/completions
 # Default target
 all: test
 
-# Regenerate the public demo assets from the synthetic fixture: assets/demo.gif
-# (needs vhs, ffmpeg, Google Chrome and Pillow)
+# Regenerate every public demo asset from the synthetic fixture: assets/demo.gif,
+# assets/dashboard.png and assets/social-preview.png (needs vhs, ffmpeg, Google Chrome and Pillow)
 demo:
 	@chmod +x scripts/demo_fixture.sh
 	@python3 scripts/generate_demo_gif.py
+	@python3 scripts/generate_static_assets.py
 
 
 # Run full test runner (syntax verification and unit test suite)
