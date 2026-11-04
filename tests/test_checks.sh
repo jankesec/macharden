@@ -1617,6 +1617,9 @@ assert_not_match 'class="cat-card-score" style="color: #e4e4e7' "$LT_CONTENT" "c
 # 1200 px window, so the fourth category card stuck out of the page. The badge row now wraps.
 LT_COUNTS_RULE=$(print -r -- "$LT_CONTENT" | python3 -c 'import re, sys; m = re.search(r"\.cat-card-counts \{([^}]*)\}", sys.stdin.read()); print(m.group(1) if m else "")')
 assert_match 'flex-wrap: wrap;' "$LT_COUNTS_RULE" "category count badges wrap instead of widening the grid"
+# Regression: "Sistem Sıkılaştırma" and its score touched each other in the Turkish dashboard.
+LT_TOP_RULE=$(print -r -- "$LT_CONTENT" | python3 -c 'import re, sys; m = re.search(r"\.cat-card-top \{([^}]*)\}", sys.stdin.read()); print(m.group(1) if m else "")')
+assert_match 'gap: [0-9]+px;' "$LT_TOP_RULE" "a long category name keeps a gap to the category score"
 reset_engine
 
 # ==============================================================================
