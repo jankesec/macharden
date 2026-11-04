@@ -23,9 +23,10 @@ USER_BASH_COMP_DIR ?= $(USER_PREFIX)/share/bash-completion/completions
 # Default target
 all: test
 
-# Generate animated demo recording (combines enriched terminal CLI and HTML5 dashboard)
+# Regenerate the public demo assets from the synthetic fixture: assets/demo.gif
+# (needs vhs, ffmpeg, Google Chrome and Pillow)
 demo:
-	@chmod +x scripts/demo_fixture.sh scripts/generate_demo_gif.py
+	@chmod +x scripts/demo_fixture.sh
 	@python3 scripts/generate_demo_gif.py
 
 
