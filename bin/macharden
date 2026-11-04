@@ -35,6 +35,21 @@ MACHAR_MIN_SCORE=""
 MACHAR_DRY_RUN=0
 MACHAR_UNDO=0
 
+# Printed when macharden cannot locate its support files: piped into a shell, copied without
+# lib/, or an incomplete download. Always exits with status 1.
+macharden_missing_files_error() {
+    cat >&2 <<EOF
+Error: $1
+macharden consists of bin/macharden plus the lib/ and data/ directories next to it, so it
+cannot be run as a single downloaded file or piped into a shell. Install it with one of:
+
+  brew install jankesec/tap/macharden
+  git clone https://github.com/jankesec/macharden.git && ./macharden/bin/macharden
+  curl -fsSL https://github.com/jankesec/macharden/archive/refs/tags/v${MACHAR_VERSION}.tar.gz | tar xz
+EOF
+    exit 1
+}
+
 # CLI Help and Usage
 show_help() {
     cat <<EOF
@@ -270,10 +285,16 @@ if [[ -n "$MACHAR_OUTPUT" && "$MACHAR_FORMAT" == "term" ]]; then
     esac
 fi
 
-# Resolve paths
-SCRIPT_PATH="${(%):-%x}" 2>/dev/null || SCRIPT_PATH="$0"
-SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
-BASE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Resolve paths. ':A' makes the script path absolute and follows symlinks, so a link
+# installed by 'make install' still finds the lib/ directory of the real checkout.
+SCRIPT_PATH="${${(%):-%x}:A}"
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+    # Piped into a shell (curl ... | zsh): there is no file to locate lib/ from, and guessing
+    # from the working directory would load code from an arbitrary place.
+    macharden_missing_files_error "macharden cannot run from standard input."
+fi
+SCRIPT_DIR="${SCRIPT_PATH:h}"
+BASE_DIR="${SCRIPT_DIR:h}"
 LIB_DIR="$BASE_DIR/lib"
 
 # Ensure operating system is macOS (Darwin) for audit execution
@@ -282,14 +303,13 @@ if [[ "$(uname -s)" != "Darwin" && "${MACHAR_ALLOW_NON_DARWIN:-0}" -ne 1 ]]; the
     exit 1
 fi
 
-# Load Core Modules
-for mod in i18n.sh ui.sh engine.sh report.sh report_html.sh remediate.sh monitor.sh compliance.sh diff.sh report_sarif.sh; do
-    if [[ -f "$LIB_DIR/$mod" ]]; then
-        source "$LIB_DIR/$mod"
-    else
-        echo "Error: Required engine module '$mod' not found in $LIB_DIR" >&2
-        exit 1
-    fi
+# Load Core Modules (verify that every module exists before sourcing any of them)
+MACHAR_CORE_MODULES=(i18n.sh ui.sh engine.sh report.sh report_html.sh remediate.sh monitor.sh compliance.sh diff.sh report_sarif.sh)
+for mod in "${MACHAR_CORE_MODULES[@]}"; do
+    [[ -f "$LIB_DIR/$mod" ]] || macharden_missing_files_error "required module '$mod' not found in $LIB_DIR."
+done
+for mod in "${MACHAR_CORE_MODULES[@]}"; do
+    source "$LIB_DIR/$mod"
 done
 
 # Use a UTF-8 character set even when started without a locale (launchd, cron)
