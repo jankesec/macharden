@@ -326,6 +326,23 @@ calculate_hardening_index() {
     fi
 }
 
+# Decide the process exit status from the audit results (0 = pass, 1 = fail).
+# Reads: COUNT_FAIL, COUNT_WARN, HARDENING_INDEX, MACHAR_FAIL_ON_WARN, MACHAR_MIN_SCORE.
+# Any FAIL result fails the run; --fail-on-warn also fails on WARN; --min-score N also fails
+# when the Hardening Index is below N. (--fail-on-regression is handled by the caller.)
+resolve_exit_status() {
+    if (( ${COUNT_FAIL:-0} > 0 )); then
+        return 1
+    fi
+    if (( ${MACHAR_FAIL_ON_WARN:-0} )) && (( ${COUNT_WARN:-0} > 0 )); then
+        return 1
+    fi
+    if [[ -n "${MACHAR_MIN_SCORE:-}" ]] && (( ${HARDENING_INDEX:-0} < MACHAR_MIN_SCORE )); then
+        return 1
+    fi
+    return 0
+}
+
 # Run the audit suite, optionally filtered by category
 # Usage: run_audit [category]
 run_audit() {
