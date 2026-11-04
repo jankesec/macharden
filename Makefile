@@ -18,7 +18,7 @@ USER_ZSH_COMP_DIR ?= $(USER_PREFIX)/share/zsh/site-functions
 BASH_COMP_DIR ?= $(PREFIX)/share/bash-completion/completions
 USER_BASH_COMP_DIR ?= $(USER_PREFIX)/share/bash-completion/completions
 
-.PHONY: all test lint scan demo install install-bin install-completions install-man uninstall clean help
+.PHONY: all test lint scan demo docs docs-check install install-bin install-completions install-man uninstall clean help
 
 # Default target
 all: test
@@ -30,6 +30,13 @@ demo:
 	@python3 scripts/generate_demo_gif.py
 	@python3 scripts/generate_static_assets.py
 
+# Regenerate docs/CHECKS.md from data/compliance_mappings.json and lib/audit_*.sh
+docs:
+	@python3 scripts/generate_checks_doc.py
+
+# Fail when docs/CHECKS.md is out of date
+docs-check:
+	@python3 scripts/generate_checks_doc.py --check
 
 # Run full test runner (syntax verification and unit test suite)
 test:
@@ -145,6 +152,8 @@ help:
 	@echo "macharden Makefile targets:"
 	@echo "  make test                - Run automated unit test suite and shell syntax checks"
 	@echo "  make lint                - Run ShellCheck and syntax validation"
+	@echo "  make docs                - Regenerate docs/CHECKS.md from the registry and mapping data"
+	@echo "  make demo                - Regenerate the demo GIF and images (needs vhs, ffmpeg, Chrome, Pillow)"
 	@echo "  make scan                - Run macharden security audit on local macOS host"
 	@echo "  make install             - Install binary, shell completions, and man page"
 	@echo "  make install-bin         - Install symlink to $(PREFIX)/bin or $(USER_PREFIX)/bin"

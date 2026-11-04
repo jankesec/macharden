@@ -1623,6 +1623,18 @@ assert_match 'gap: [0-9]+px;' "$LT_TOP_RULE" "a long category name keeps a gap t
 reset_engine
 
 # ==============================================================================
+# Suite 23: docs/CHECKS.md is generated from the registry and the mapping data
+# ==============================================================================
+echo "\n\033[1m[Suite 23] Security checks reference\033[0m"
+
+CHECKS_GEN="${PROJECT_ROOT}/scripts/generate_checks_doc.py"
+assert_eq "54 21 12 11 10" "$(python3 "$CHECKS_GEN" --summary 2>&1)" "check counts: 54 in total (21 hardening, 12 network, 11 secrets, 10 persistence)"
+CHECKS_EC=0
+python3 "$CHECKS_GEN" --check >/dev/null 2>&1 || CHECKS_EC=$?
+assert_eq "0" "$CHECKS_EC" "docs/CHECKS.md is up to date (run 'make docs' to refresh it)"
+assert_eq "54" "$(grep -c '^| <code>' "${PROJECT_ROOT}/docs/CHECKS.md" 2>/dev/null)" "docs/CHECKS.md lists 54 checks"
+
+# ==============================================================================
 # Final Test Summary
 # ==============================================================================
 echo ""
