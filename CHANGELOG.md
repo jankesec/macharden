@@ -5,7 +5,7 @@ All notable changes to macharden are documented here. Releases follow
 
 ## [Unreleased]
 
-## [1.5.0] - 2026-11-04
+## [1.5.0] - 2026-11-05
 
 ### Added
 
