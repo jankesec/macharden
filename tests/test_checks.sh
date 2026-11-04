@@ -1455,6 +1455,44 @@ else
 fi
 
 # ==============================================================================
+# Suite 19: Startup (symlinked installs, piped execution, missing support files)
+# ==============================================================================
+echo "\n\033[1m[Suite 19] Startup\033[0m"
+
+# make install links bin/macharden into a PATH directory
+LINK_DIR="${TEST_TMP_DIR}/linked/bin"
+mkdir -p "$LINK_DIR"
+ln -s "${PROJECT_ROOT}/bin/macharden" "${LINK_DIR}/macharden"
+LINK_OUT=$("${LINK_DIR}/macharden" -c hardening -t HARD-01 -q --no-profile 2>&1) || true
+assert_match "EXECUTIVE AUDIT SUMMARY" "$LINK_OUT" "bin/macharden finds lib/ when started through a symlink (make install)"
+
+# A lone copy of the script has no lib/ next to it
+LONE_DIR="${TEST_TMP_DIR}/lone/bin"
+mkdir -p "$LONE_DIR"
+cp "${PROJECT_ROOT}/bin/macharden" "${LONE_DIR}/macharden"
+LONE_EC=0
+LONE_OUT=$("${LONE_DIR}/macharden" -q 2>&1) || LONE_EC=$?
+assert_eq "1" "$LONE_EC" "a lone copy of bin/macharden exits 1"
+assert_match "required module 'i18n.sh' not found" "$LONE_OUT" "a lone copy names the missing module"
+assert_match "brew install jankesec/tap/macharden" "$LONE_OUT" "a lone copy explains how to install macharden"
+
+# Piped into a shell there is no file to locate lib/ from. A decoy lib/ in the parent of the
+# working directory must never be loaded.
+DECOY_ROOT="${TEST_TMP_DIR}/decoy"
+mkdir -p "${DECOY_ROOT}/lib" "${DECOY_ROOT}/work"
+print -r -- 'touch "$MACHAR_DECOY_MARKER"' > "${DECOY_ROOT}/lib/i18n.sh"
+PIPE_EC=0
+PIPE_OUT=$(cd "${DECOY_ROOT}/work" && MACHAR_DECOY_MARKER="${DECOY_ROOT}/marker" zsh < "${PROJECT_ROOT}/bin/macharden" 2>&1) || PIPE_EC=$?
+assert_eq "1" "$PIPE_EC" "bin/macharden piped into a shell exits 1"
+assert_match "cannot run from standard input" "$PIPE_OUT" "piped execution explains why it stops"
+assert_match "brew install jankesec/tap/macharden" "$PIPE_OUT" "piped execution lists the supported install methods"
+if [[ -e "${DECOY_ROOT}/marker" ]]; then
+    log_test "FAIL" "piped execution must not load code from the working directory's parent"
+else
+    log_test "PASS" "piped execution does not load code from the working directory's parent"
+fi
+
+# ==============================================================================
 # Final Test Summary
 # ==============================================================================
 echo ""
