@@ -17,7 +17,7 @@ Set CursorBlink true
 
 # Hidden setup: tidy prompt, a scratch working directory, and `macharden` pointed at the fixture.
 Hide
-Type `export PS1='%F{green}security@macbook-pro%f %F{cyan}~/macharden%f %# '; F="$PWD/scripts/demo_fixture.sh"; cd "$(mktemp -d)"; alias macharden="$F"; clear`
+Type `export PS1='%F{green}audit-demo@demo-mac%f %F{cyan}~/macharden%f %# '; F="$PWD/scripts/demo_fixture.sh"; cd "$(mktemp -d)"; alias macharden="$F"; clear`
 Enter
 Sleep 500ms
 Show

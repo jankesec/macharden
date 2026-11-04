@@ -101,9 +101,11 @@ def screenshot(chrome, html_path, out_png, width, height, script="", scale=1):
     if script:
         with open(html_path, encoding="utf-8") as handle:
             page = handle.read()
-        # The empty timer keeps Chrome's virtual clock running, so CSS transitions started by the
-        # script (theme switch, modal fade) have finished when the screenshot is taken.
-        hook = ("<script>window.addEventListener('DOMContentLoaded', function () {"
+        # Transitions are switched off so that a state change (theme, language, modal) is captured in its
+        # final state instead of halfway through a fade; the headless clock does not make that reliable.
+        # The empty timer keeps Chrome's virtual clock running until the script's changes are painted.
+        hook = ("<style>*, *::before, *::after { transition: none !important; }</style>"
+                "<script>window.addEventListener('DOMContentLoaded', function () {"
                 "setTimeout(function () {" + script + "}, 300); setTimeout(function () {}, 1800); });</script>")
         page_path = out_png[:-4] + ".html"
         with open(page_path, "w", encoding="utf-8") as handle:
