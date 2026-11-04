@@ -1425,6 +1425,36 @@ ECHO_PIPES=$(grep -nE 'echo "\$[A-Za-z_{}]+" *\| *(grep|python3)' "${SCRIPT_DIR}
 assert_eq "" "$ECHO_PIPES" "tests never pipe data through zsh echo (use print -r --)"
 
 # ==============================================================================
+# Suite 18: UTF-8 locale normalization (launchd and cron start without LANG)
+# ==============================================================================
+echo "\n\033[1m[Suite 18] UTF-8 locale normalization\033[0m"
+
+LOCALE_PROBE='cd "$1" && source lib/ui.sh && ui_ensure_utf8_locale && print -r -- "ctype=${LC_CTYPE:-} all=${LC_ALL:-} lang=${LANG:-}"'
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    LOC_NONE=$(env -u LANG -u LC_ALL -u LC_CTYPE zsh -c "$LOCALE_PROBE" _ "$PROJECT_ROOT" 2>&1)
+    assert_match "ctype=en_US.UTF-8 all= lang=$" "$LOC_NONE" "no locale: LC_CTYPE becomes en_US.UTF-8, LC_ALL and LANG stay unset"
+    LOC_C=$(env -u LANG -u LC_CTYPE LC_ALL=C zsh -c "$LOCALE_PROBE" _ "$PROJECT_ROOT" 2>&1)
+    assert_match "all=en_US.UTF-8" "$LOC_C" "LC_ALL=C is replaced by en_US.UTF-8"
+    LOC_UTF=$(env -u LC_ALL -u LC_CTYPE LANG=tr_TR.UTF-8 zsh -c "$LOCALE_PROBE" _ "$PROJECT_ROOT" 2>&1)
+    assert_match "ctype= all= lang=tr_TR.UTF-8" "$LOC_UTF" "an existing UTF-8 locale is left untouched"
+
+    BANNER_ENV=(NO_COLOR=1 MACHAR_TERM_WIDTH=92 MACHAR_HOSTNAME=demo MACHAR_USER=demo MACHAR_OS_PRODUCT=macOS
+                MACHAR_OS_VERSION=26.0 MACHAR_OS_BUILD=25A354 MACHAR_ARCH=arm64 "MACHAR_AUDIT_TIME=2026-09-01 10:00:00 UTC")
+    BANNER_PY='import sys; print(sorted({len(l) for l in sys.stdin.buffer.read().decode("utf-8").splitlines() if l}))'
+    BANNER_WIDTHS=$(env -u LANG -u LC_ALL -u LC_CTYPE "${BANNER_ENV[@]}" \
+        zsh -c 'cd "$1" && source lib/ui.sh && ui_ensure_utf8_locale && ui_init_colors && ui_banner' _ "$PROJECT_ROOT" 2>&1 \
+        | python3 -c "$BANNER_PY")
+    assert_eq "[92]" "$BANNER_WIDTHS" "banner rows share one width when the caller has no locale"
+
+    CLI_BANNER_WIDTHS=$(env -u LANG -u LC_ALL -u LC_CTYPE "${BANNER_ENV[@]}" \
+        "${PROJECT_ROOT}/bin/macharden" -c hardening -t HARD-01 --no-profile 2>&1 | head -6 | python3 -c "$BANNER_PY")
+    assert_eq "[92]" "$CLI_BANNER_WIDTHS" "bin/macharden prints an aligned banner without a locale"
+else
+    LOC_OTHER=$(env -u LANG -u LC_ALL -u LC_CTYPE zsh -c "$LOCALE_PROBE" _ "$PROJECT_ROOT" 2>&1)
+    assert_match "ctype= all= lang=$" "$LOC_OTHER" "outside Darwin the locale is left untouched"
+fi
+
+# ==============================================================================
 # Final Test Summary
 # ==============================================================================
 echo ""
