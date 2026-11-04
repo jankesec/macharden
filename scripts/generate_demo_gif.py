@@ -12,7 +12,7 @@ import shutil
 import sys
 import tempfile
 
-from PIL import Image
+from PIL import Image, ImageStat
 
 from demo_lib import (ADDRESS, CANVAS_H, CANVAS_W, CONTENT_H, REPO_ROOT, browser_frame, chrome_binary,
                       ease_in_out, fail, make_dashboard_html, page_metrics, require_tools, run,
@@ -20,10 +20,15 @@ from demo_lib import (ADDRESS, CANVAS_H, CANVAS_W, CONTENT_H, REPO_ROOT, browser
 
 TAPE = os.path.join(REPO_ROOT, "assets", "demo.tape")
 OUT_GIF = os.path.join(REPO_ROOT, "assets", "demo.gif")
-FPS = 8
+FPS = 7
 MAX_MB = 4.0
 PALETTE_SIZES = (128, 96, 64)  # tried in this order until the GIF fits MAX_MB (VHS timing varies a little per run)
 SCROLL_STEPS = 7
+
+
+def mean_luma(image):
+    """Average brightness (0-255) of an image."""
+    return ImageStat.Stat(image.convert("L")).mean[0]
 
 
 def record_terminal(workdir):
@@ -60,6 +65,9 @@ def dashboard_frames(workdir, html_path, chrome):
              width=CANVAS_W, height=height, script=script)
         for name, (script, height) in captures.items()])
     shots = {name: Image.open(path) for name, path in zip(captures, paths)}
+    dark, light = mean_luma(shots["overview"]), mean_luma(shots["light"])
+    if dark > 60 or light < 200:  # a capture that is neither fully dark nor fully light was taken mid-change
+        fail(f"the theme captures are not in their final state (dark {dark:.0f}, light {light:.0f}); run make demo again")
 
     def window(image, y):
         y = min(y, image.height - CONTENT_H)
