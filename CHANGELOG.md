@@ -19,6 +19,26 @@ All notable changes to macharden are documented here. Releases follow
   cron, minimal containers).
 - The test suite no longer depends on the shell's locale or on zsh `echo` rewriting
   escape sequences.
+- The HTML dashboard stays readable in the light theme (the active total box, the
+  category bars and mid-range category scores), and the Turkish category cards fit a
+  1200 px window instead of running past its edge.
+- The user guide and the man page describe the exit codes the command really returns
+  (`2` is used only by `--fail-on-regression`).
+
+### Added
+
+- `docs/CHECKS.md`, generated from `data/compliance_mappings.json` and the check
+  registry (`make docs`); a unit test keeps it current.
+- `make demo` regenerates `assets/demo.gif`, `assets/dashboard.png` and
+  `assets/social-preview.png` from one synthetic data set.
+
+### Changed
+
+- The README is shorter and states only what is verified: install paths that work, the
+  Python 3 requirement of the HTML, SARIF and `--diff` features, and the dashboard's real
+  exports. The hand-written check tables moved to the generated reference.
+- The demo fixture builds its 54 results from the real registry and renderers, and the
+  drift demo no longer prints the real host name or clock.
 
 ## [1.4.0] - 2026-09-12
 
