@@ -1342,19 +1342,39 @@ echo "\n\033[1m[Suite 15] CLI v1.3.0 Features & Enhancements\033[0m"
 CLI_GNU_OUT=$("${PROJECT_ROOT}/bin/macharden" --category=hardening -q 2>&1) || true
 assert_match "Hardening" "$CLI_GNU_OUT" "CLI supports --category=hardening GNU syntax"
 
-# 2. --fail-on-warn
-CLI_FOW_EC=0
-"${PROJECT_ROOT}/bin/macharden" -c network --fail-on-warn -q >/dev/null 2>&1 || CLI_FOW_EC=$?
-if (( CLI_FOW_EC == 1 || CLI_FOW_EC == 0 )); then
-    log_test "PASS" "CLI --fail-on-warn executes correctly"
-else
-    log_test "FAIL" "CLI --fail-on-warn unexpected exit code: $CLI_FOW_EC"
-fi
+# 2./3. --fail-on-warn and --min-score must be accepted. They used to be rejected as unknown
+# options, which also exits 1 and made the old assertions pass by accident.
+CLI_FOW_OUT=$("${PROJECT_ROOT}/bin/macharden" -c network --fail-on-warn -q 2>&1) || true
+assert_not_match "Unknown option" "$CLI_FOW_OUT" "CLI accepts --fail-on-warn"
+assert_match "EXECUTIVE AUDIT SUMMARY" "$CLI_FOW_OUT" "CLI --fail-on-warn still runs the audit"
 
-# 3. --min-score
-CLI_MIN_EC=0
-"${PROJECT_ROOT}/bin/macharden" -c hardening --min-score 99.9 -q >/dev/null 2>&1 || CLI_MIN_EC=$?
-assert_eq "1" "$CLI_MIN_EC" "CLI --min-score exits 1 when score is below threshold"
+CLI_MIN_OUT=$("${PROJECT_ROOT}/bin/macharden" -c hardening --min-score 99.9 -q 2>&1) || true
+assert_not_match "Unknown option" "$CLI_MIN_OUT" "CLI accepts --min-score"
+assert_match "EXECUTIVE AUDIT SUMMARY" "$CLI_MIN_OUT" "CLI --min-score still runs the audit"
+
+CLI_MIN_EQ_OUT=$("${PROJECT_ROOT}/bin/macharden" -c hardening --min-score=99.9 -q 2>&1) || true
+assert_not_match "Unknown option" "$CLI_MIN_EQ_OUT" "CLI accepts --min-score=VALUE"
+
+for BAD_MIN in abc -5 101 ""; do
+    BAD_MIN_EC=0
+    BAD_MIN_OUT=$("${PROJECT_ROOT}/bin/macharden" --min-score "$BAD_MIN" -q 2>&1) || BAD_MIN_EC=$?
+    assert_eq "1" "$BAD_MIN_EC" "--min-score '${BAD_MIN}' is rejected with exit 1"
+    assert_match "between 0 and 100" "$BAD_MIN_OUT" "--min-score '${BAD_MIN}' explains the valid range"
+done
+
+# The exit-status decision is a pure function: <fail> <warn> <index> <fail-on-warn> <min-score>
+exit_status_for() {
+    ( COUNT_FAIL=$1; COUNT_WARN=$2; HARDENING_INDEX=$3; MACHAR_FAIL_ON_WARN=$4; MACHAR_MIN_SCORE=$5
+      resolve_exit_status; print -r -- $? )
+}
+assert_eq "0" "$(exit_status_for 0 0 100.0 0 '')"   "exit status 0 for a clean run"
+assert_eq "1" "$(exit_status_for 1 0 90.0 0 '')"    "exit status 1 when a check fails"
+assert_eq "0" "$(exit_status_for 0 3 90.0 0 '')"    "warnings alone do not fail the run"
+assert_eq "1" "$(exit_status_for 0 3 90.0 1 '')"    "--fail-on-warn fails on warnings"
+assert_eq "0" "$(exit_status_for 0 0 90.0 1 '')"    "--fail-on-warn passes without warnings"
+assert_eq "1" "$(exit_status_for 0 0 84.9 0 85)"    "--min-score fails below the threshold"
+assert_eq "0" "$(exit_status_for 0 0 85.0 0 85)"    "--min-score passes at the threshold"
+assert_eq "0" "$(exit_status_for 0 0 90.0 0 85.5)"  "--min-score passes above a fractional threshold"
 
 # 4. Format auto-detection for .json and .md
 AUTO_JSON="${TEST_TMP_DIR}/auto.json"
