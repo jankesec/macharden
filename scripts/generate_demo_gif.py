@@ -1,212 +1,137 @@
 #!/usr/bin/env python3
-"""
-scripts/generate_demo_gif.py
-Automated high-fidelity demo generator for macharden.
-Combines:
-  1. Enriched terminal CLI audit execution (recorded with VHS)
-  2. Liquid Glass HTML5 interactive dashboard walkthrough (rendered via headless Chrome & PIL)
-Privacy boundary:
-  Uses scripts/demo_fixture.sh only; it never audits the generating Mac.
-Outputs:
-  assets/demo.gif (1200x800, optimized 192-color palette)
+"""Regenerate assets/demo.gif: a terminal audit followed by a tour of the HTML dashboard.
+
+All data comes from scripts/demo_fixture.sh (synthetic); nothing audits the machine that runs
+this script. Requirements: vhs, ffmpeg, Google Chrome (or CHROME_BIN) and Pillow.
+Run it through `make demo`, which also refreshes the static images.
 """
 
 import os
+import re
 import shutil
-import subprocess
+import sys
 import tempfile
-from PIL import Image, ImageDraw
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TMP_DIR = tempfile.mkdtemp(prefix="macharden-demo-")
+from PIL import Image
 
-W, H = 1200, 800
-BAR_H = 44
-CONTENT_H = H - BAR_H
+from demo_lib import (ADDRESS, CANVAS_H, CANVAS_W, CONTENT_H, REPO_ROOT, browser_frame, chrome_binary,
+                      ease_in_out, fail, make_dashboard_html, page_metrics, require_tools, run,
+                      screenshots_parallel)
 
-def generate_report_html():
-    print("[*] Generating a deterministic report with synthetic audit data...")
-    report_file = os.path.join(TMP_DIR, "demo_report.html")
-    subprocess.run(
-        [os.path.join(REPO_ROOT, "scripts", "demo_fixture.sh"), "html", report_file],
-        cwd=REPO_ROOT,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
-        text=True,
-        check=True,
-    )
-    return report_file
+TAPE = os.path.join(REPO_ROOT, "assets", "demo.tape")
+OUT_GIF = os.path.join(REPO_ROOT, "assets", "demo.gif")
+FPS = 8
+MAX_MB = 4.0
+PALETTE_SIZES = (128, 96, 64)  # tried in this order until the GIF fits MAX_MB (VHS timing varies a little per run)
+SCROLL_STEPS = 7
 
-def capture_html_frames(report_html_path):
-    print("[*] Capturing interactive HTML dashboard keyframes via Google Chrome...")
-    with open(report_html_path, "r", encoding="utf-8") as f:
-        base_html = f.read()
 
-    states = [
-        ("frame1_overview", ""),
-        ("frame2_checks", "<script>window.addEventListener('DOMContentLoaded', () => { setTimeout(() => { window.scrollTo({top: 540, behavior: 'instant'}); }, 400); });</script>"),
-        ("frame3_secrets", "<script>window.addEventListener('DOMContentLoaded', () => { setTimeout(() => { filterCategory('secrets'); }, 400); });</script>"),
-        ("frame4_playbook", "<script>window.addEventListener('DOMContentLoaded', () => { setTimeout(() => { openPlaybookModal(); }, 400); });</script>"),
-        ("frame5_light", "<script>window.addEventListener('DOMContentLoaded', () => { setTimeout(() => { toggleTheme(); }, 400); });</script>")
+def record_terminal(workdir):
+    """Record assets/demo.tape with VHS and return the path of the mp4."""
+    out = os.path.join(workdir, "terminal.mp4")
+    with open(TAPE, encoding="utf-8") as handle:
+        tape = handle.read()
+    tape, count = re.subn(r"(?m)^Output .*$", f'Output "{out}"', tape, count=1)
+    if count != 1:
+        fail("assets/demo.tape needs an Output line")
+    tape_path = os.path.join(workdir, "terminal.tape")
+    with open(tape_path, "w", encoding="utf-8") as handle:
+        handle.write(tape)
+    run(["vhs", tape_path], cwd=REPO_ROOT, env=dict(os.environ, MACHAR_DEMO_DELAY="0.02"))
+    if not os.path.isfile(out):
+        fail("VHS did not produce the terminal clip")
+    return out
+
+
+def dashboard_frames(workdir, html_path, chrome):
+    """Capture the dashboard states and return [(PIL image, seconds, caption, theme)] in tour order."""
+    metrics = page_metrics(chrome, html_path, workdir)
+    target_y = max(metrics["checks_y"] - 230, 0)  # show the tab and filter row above the list
+    captures = {  # name -> (javascript run after load, window height)
+        "overview": ("window.scrollTo(0,0);", CONTENT_H),
+        "playbook": ("openPlaybookModal();", CONTENT_H),
+        "turkish": ("toggleLanguage();", CONTENT_H),
+        "light": ("toggleTheme();", CONTENT_H),
+        "tall": ("", metrics["page_h"]),
+        "tall_filtered": ("filterCategory('secrets', false);", metrics["page_h"]),
+    }
+    paths = screenshots_parallel([
+        dict(chrome=chrome, html_path=html_path, out_png=os.path.join(workdir, f"{name}.png"),
+             width=CANVAS_W, height=height, script=script)
+        for name, (script, height) in captures.items()])
+    shots = {name: Image.open(path) for name, path in zip(captures, paths)}
+
+    def window(image, y):
+        y = min(y, image.height - CONTENT_H)
+        return image.crop((0, y, CANVAS_W, y + CONTENT_H))
+
+    frames = [(shots["overview"], 1.6, "One self-contained HTML file. No network, no CDN.", "dark")]
+    for index in range(1, SCROLL_STEPS + 1):
+        last = index == SCROLL_STEPS
+        frames.append((window(shots["tall"], round(target_y * ease_in_out(index / SCROLL_STEPS))),
+                       1.4 if last else 0.1,
+                       "Every finding carries CIS, NIST and MITRE references." if last else None, "dark"))
+    frames += [
+        (window(shots["tall_filtered"], target_y), 1.5, "Filter by domain, status or severity.", "dark"),
+        (shots["playbook"], 1.8, "Review, copy or download the remediation playbook.", "dark"),
+        (shots["turkish"], 1.3, "English and Turkish with one key (L).", "dark"),
+        (shots["light"], 1.3, "Dark and light themes (T).", "light"),
     ]
+    return frames
 
-    chrome_bin = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-    browser_frames = []
 
-    for name, inject in states:
-        tmp_html = os.path.join(TMP_DIR, f"{name}.html")
-        with open(tmp_html, "w", encoding="utf-8") as f:
-            f.write(base_html.replace("</body>", inject + "</body>"))
+def build_dashboard_clip(workdir, html_path, chrome):
+    """Wrap the dashboard states in a browser window and return the path of their mp4."""
+    concat = os.path.join(workdir, "dashboard.txt")
+    framed = None
+    with open(concat, "w", encoding="utf-8") as handle:
+        for index, (image, seconds, caption, theme) in enumerate(dashboard_frames(workdir, html_path, chrome)):
+            framed = os.path.join(workdir, f"framed_{index:02d}.png")
+            browser_frame(image, ADDRESS, theme, caption).convert("RGB").save(framed)
+            handle.write(f"file '{framed}'\nduration {seconds}\n")
+        handle.write(f"file '{framed}'\n")  # the concat demuxer needs the last file repeated
+    out = os.path.join(workdir, "dashboard.mp4")
+    run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", concat,
+         "-vf", f"fps={FPS},format=yuv420p", "-c:v", "libx264", "-crf", "12", out])
+    return out
 
-        raw_shot = os.path.join(TMP_DIR, f"raw_{name}.png")
-        cmd = [
-            chrome_bin,
-            "--headless",
-            "--disable-gpu",
-            f"--screenshot={raw_shot}",
-            f"--window-size={W},{CONTENT_H}",
-            "--virtual-time-budget=1200",
-            f"file://{tmp_html}"
-        ]
-        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=True)
 
-        # Composite macOS Browser Window
-        is_light = (name == "frame5_light")
-        bg_color = (240, 242, 245, 255) if is_light else (24, 24, 37, 255)
-        header_color = (225, 228, 234) if is_light else (30, 30, 46)
-        pill_color = (245, 246, 248) if is_light else (17, 17, 27)
-        text_color = (108, 115, 130) if is_light else (166, 173, 200)
-
-        canvas = Image.new("RGBA", (W, H), bg_color)
-        draw = ImageDraw.Draw(canvas)
-
-        # Title bar
-        draw.rectangle([(0, 0), (W, BAR_H)], fill=header_color)
-
-        # Traffic lights
-        draw.ellipse([(18, 16), (30, 28)], fill=(255, 95, 86))
-        draw.ellipse([(38, 16), (50, 28)], fill=(255, 189, 46))
-        draw.ellipse([(58, 16), (70, 28)], fill=(39, 201, 63))
-
-        # URL pill
-        pill_w = 460
-        pill_x = (W - pill_w) // 2
-        draw.rounded_rectangle([(pill_x, 8), (pill_x + pill_w, 36)], radius=6, fill=pill_color)
-
-        # Padlock icon
-        lock_x = pill_x + 16
-        draw.rectangle([(lock_x, 20), (lock_x + 8, 27)], fill=text_color)
-        draw.arc([(lock_x + 1, 14), (lock_x + 7, 22)], 180, 0, fill=text_color, width=2)
-
-        # URL text
-        draw.text((lock_x + 16, 14), "https://security.local/macharden/report.html", fill=text_color)
-
-        # Paste webview
-        if os.path.exists(raw_shot):
-            shot_img = Image.open(raw_shot).convert("RGBA")
-            if shot_img.size != (W, CONTENT_H):
-                shot_img = shot_img.resize((W, CONTENT_H), Image.Resampling.LANCZOS)
-            canvas.paste(shot_img, (0, BAR_H))
-
-        out_frame = os.path.join(TMP_DIR, f"browser_{name}.png")
-        canvas.save(out_frame)
-        browser_frames.append(out_frame)
-
-    return browser_frames
-
-def render_html_clip(frames):
-    print("[*] Rendering HTML dashboard video clip with ffmpeg...")
-    concat_txt = os.path.join(TMP_DIR, "html_concat.txt")
-    with open(concat_txt, "w") as f:
-        f.write(f"file '{frames[0]}'\nduration 2.2\n")
-        f.write(f"file '{frames[1]}'\nduration 1.8\n")
-        f.write(f"file '{frames[2]}'\nduration 1.8\n")
-        f.write(f"file '{frames[3]}'\nduration 2.2\n")
-        f.write(f"file '{frames[4]}'\nduration 1.6\n")
-        f.write(f"file '{frames[4]}'\n")
-
-    html_mp4 = os.path.join(TMP_DIR, "html_clip.mp4")
-    cmd = [
-        "ffmpeg", "-y",
-        "-f", "concat", "-safe", "0", "-i", concat_txt,
-        "-vf", "scale=1200:800:flags=lanczos,setsar=1,fps=12,format=yuv420p",
-        "-c:v", "libx264", "-pix_fmt", "yuv420p",
-        html_mp4
-    ]
-    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=True)
-    return html_mp4
-
-def render_term_clip():
-    print("[*] Recording terminal session with VHS...")
-    tape_content = f"""Output "{os.path.join(TMP_DIR, 'term_clip.mp4')}"
-
-Set Shell "zsh"
-Set FontSize 14
-Set Width 1200
-Set Height 840
-Set Padding 20
-Set WindowBar Colorful
-Set Theme "Catppuccin Mocha"
-Set LineHeight 1.25
-Set TypingSpeed 28ms
-Set CursorBlink true
-
-Hide
-Type "export PS1='%F{{cyan}}security@macbook-pro%f %F{{magenta}}~/macharden%f %# '; alias macharden='./scripts/demo_fixture.sh'; clear"
-Enter
-Sleep 500ms
-Show
-
-Sleep 600ms
-Type "macharden"
-Sleep 200ms
-Enter
-Sleep 4.5s
-
-Type "macharden -f html -o report.html"
-Sleep 200ms
-Enter
-Sleep 3.8s
-"""
-    tape_file = os.path.join(TMP_DIR, "terminal.tape")
-    with open(tape_file, "w") as f:
-        f.write(tape_content)
-
-    env = os.environ.copy()
-    env["MACHAR_DEMO_DELAY"] = "1"
-    subprocess.run(
-        ["vhs", tape_file], cwd=REPO_ROOT, env=env,
-        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=True,
+def assemble_gif(terminal_mp4, dashboard_mp4, workdir, colors):
+    """Join both clips into one palette-optimized GIF with at most `colors` colors; return its path."""
+    gif = os.path.join(workdir, f"demo_{colors}.gif")
+    graph = (
+        f"[0:v]fps={FPS},scale={CANVAS_W}:{CANVAS_H}:flags=lanczos,setsar=1[a];"
+        f"[1:v]fps={FPS},scale={CANVAS_W}:{CANVAS_H}:flags=lanczos,setsar=1[b];"
+        "[a][b]concat=n=2:v=1:a=0,split[s0][s1];"
+        f"[s0]palettegen=max_colors={colors}:stats_mode=diff[p];"
+        "[s1][p]paletteuse=dither=none:diff_mode=rectangle"
     )
-    return os.path.join(TMP_DIR, "term_clip.mp4")
+    run(["ffmpeg", "-y", "-i", terminal_mp4, "-i", dashboard_mp4, "-filter_complex", graph, "-loop", "0", gif])
+    return gif
 
-def combine_into_gif(term_mp4, html_mp4, output_gif):
-    print(f"[*] Combining terminal and dashboard clips into {output_gif}...")
-    filter_complex = (
-        "[0:v]fps=12,scale=1200:800:flags=lanczos,setsar=1[v0];"
-        "[1:v]fps=12,scale=1200:800:flags=lanczos,setsar=1[v1];"
-        "[v0][v1]concat=n=2:v=1:a=0,split[s0][s1];"
-        "[s0]palettegen=max_colors=192:stats_mode=diff:reserve_transparent=0[p];"
-        "[s1][p]paletteuse=dither=bayer:bayer_scale=2:diff_mode=rectangle"
-    )
-    cmd = [
-        "ffmpeg", "-y",
-        "-i", term_mp4,
-        "-i", html_mp4,
-        "-filter_complex", filter_complex,
-        output_gif
-    ]
-    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=True)
-    size_mb = os.path.getsize(output_gif) / (1024 * 1024)
-    print(f"[✔] Successfully generated {output_gif} ({size_mb:.2f} MB)")
+
+def main():
+    require_tools("vhs", "ffmpeg")
+    chrome = chrome_binary()
+    with tempfile.TemporaryDirectory(prefix="macharden-demo-") as workdir:
+        print("[1/4] Rendering the synthetic dashboard")
+        html_path = make_dashboard_html(workdir)
+        print("[2/4] Recording the terminal with VHS")
+        terminal_mp4 = record_terminal(workdir)
+        print("[3/4] Capturing the dashboard tour with Chrome")
+        dashboard_mp4 = build_dashboard_clip(workdir, html_path, chrome)
+        print("[4/4] Assembling the GIF")
+        for colors in PALETTE_SIZES:
+            gif = assemble_gif(terminal_mp4, dashboard_mp4, workdir, colors)
+            if os.path.getsize(gif) / (1024 * 1024) <= MAX_MB:
+                break
+        shutil.move(gif, OUT_GIF)
+    size_mb = os.path.getsize(OUT_GIF) / (1024 * 1024)
+    print(f"wrote {os.path.relpath(OUT_GIF, REPO_ROOT)} ({size_mb:.2f} MB, up to {colors} colors)")
+    if size_mb > MAX_MB:
+        print(f"warning: larger than {MAX_MB:.0f} MB even with {colors} colors; lower FPS in {os.path.basename(__file__)}",
+              file=sys.stderr)
+
 
 if __name__ == "__main__":
-    try:
-        rep = generate_report_html()
-        frames = capture_html_frames(rep)
-        html_clip = render_html_clip(frames)
-        term_clip = render_term_clip()
-        final_gif = os.path.join(REPO_ROOT, "assets", "demo.gif")
-        combine_into_gif(term_clip, html_clip, final_gif)
-    finally:
-        shutil.rmtree(TMP_DIR, ignore_errors=True)
+    main()
