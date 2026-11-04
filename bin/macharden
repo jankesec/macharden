@@ -292,6 +292,9 @@ for mod in i18n.sh ui.sh engine.sh report.sh report_html.sh remediate.sh monitor
     fi
 done
 
+# Use a UTF-8 character set even when started without a locale (launchd, cron)
+ui_ensure_utf8_locale
+
 # Initialize Localization
 i18n_init "$MACHAR_LANG"
 

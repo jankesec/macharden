@@ -32,6 +32,25 @@ if ! typeset -f i18n_t >/dev/null 2>&1; then
     }
 fi
 
+# Make sure the character set is UTF-8. Box drawing, bullets and status glyphs are multibyte,
+# and printf and ${#var} count bytes instead of characters when the caller has no UTF-8
+# locale, which is how launchd, cron and minimal CI containers start us. Only the
+# character-set category changes, and only when it is not UTF-8 already.
+ui_ensure_utf8_locale() {
+    [[ "$(uname -s 2>/dev/null)" == "Darwin" ]] || return 0
+    local effective="${LC_ALL:-${LC_CTYPE:-${LANG:-}}}"
+    case "${effective:l}" in
+        *utf-8*|*utf8*) return 0 ;;
+    esac
+    locale -a 2>/dev/null | grep -qx 'en_US.UTF-8' || return 0
+    if [[ -n "${LC_ALL:-}" ]]; then
+        export LC_ALL="en_US.UTF-8"
+    else
+        export LC_CTYPE="en_US.UTF-8"
+    fi
+    return 0
+}
+
 ## Initialize or reset ANSI color codes
 ui_init_colors() {
     if [[ "${MACHAR_NO_COLOR:-0}" -eq 1 ]] || [[ -n "${NO_COLOR:-}" ]] || [[ ! -t 1 && -z "${MACHAR_FORCE_COLOR:-}" ]]; then
