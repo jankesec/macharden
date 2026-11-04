@@ -1513,6 +1513,33 @@ assert_not_match "python3 is required" "$NOPY_TERM_OUT" "the terminal audit does
 ( MACHAR_NO_PYTHON=1; _have_python3 ); assert_eq "1" "$?" "_have_python3 honors MACHAR_NO_PYTHON=1"
 ( unset MACHAR_NO_PYTHON; _have_python3 ); assert_eq "0" "$?" "_have_python3 finds the python3 that runs this suite"
 
+# The pure-zsh JSON fallback must produce valid JSON that round-trips awkward text
+reset_engine
+# (the text after "with literal" is backslash, u, 0, 0, a, 7: split in the source so that no editor
+#  or tool mistakes it for a unicode escape)
+NASTY_DETAILS=$'tab\there\nnew line and ESC\e[31m'' with literal \u00'a7
+record_result "JSON-01" "hardening" 'Title with "quotes" and \backslash' "WARN" 5 "$NASTY_DETAILS" '[GUIDE] run: printf "a\tb"'
+calculate_hardening_index
+NASTY_JSON="${TEST_TMP_DIR}/nasty.json"
+MACHAR_NO_PYTHON=1 report_json "$NASTY_JSON" >/dev/null 2>&1
+python3 - "$NASTY_JSON" <<'PY'
+import json, sys
+doc = json.load(open(sys.argv[1], encoding="utf-8"))
+check = doc["checks"][0]
+assert check["id"] == "JSON-01", check["id"]
+assert check["title"] == 'Title with "quotes" and \\backslash', check["title"]
+assert check["details"] == "tab\there\nnew line and ESC\x1b[31m with literal \\u00a7", check["details"]
+assert check["remediation"] == '[GUIDE] run: printf "a\\tb"', check["remediation"]
+assert doc["summary"]["total_checks"] == 1, doc["summary"]
+PY
+assert_eq "0" "$?" "report_json without python3 writes valid JSON that round-trips awkward text"
+
+CLI_NOPY_JSON="${TEST_TMP_DIR}/cli-nopy.json"
+MACHAR_NO_PYTHON=1 "${PROJECT_ROOT}/bin/macharden" -c hardening -t HARD-01 --no-profile -f json -o "$CLI_NOPY_JSON" -q >/dev/null 2>&1 || true
+python3 -m json.tool "$CLI_NOPY_JSON" >/dev/null 2>&1
+assert_eq "0" "$?" "macharden -f json without python3 writes valid JSON"
+reset_engine
+
 # ==============================================================================
 # Final Test Summary
 # ==============================================================================
