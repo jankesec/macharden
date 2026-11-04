@@ -914,6 +914,26 @@ ${ref_md}
     fi
 }
 
+# Escape $1 for use inside a JSON string literal. The result is stored in REPLY so that no
+# subshell is needed. Pure zsh: used by the python3-free fallback of report_json.
+_json_escape() {
+    local s="$1" i hex
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    s="${s//$'\b'/\\b}"
+    s="${s//$'\f'/\\f}"
+    if [[ "$s" == *[[:cntrl:]]* ]]; then
+        for i in {1..31}; do
+            printf -v hex '\\u%04x' "$i"
+            s="${s//${(#)i}/$hex}"
+        done
+    fi
+    REPLY="$s"
+}
+
 # Generate structured JSON document
 report_json() {
     local output_file="${1:-}"
@@ -936,7 +956,7 @@ report_json() {
     fi
 
     # Build checks array via python3 if available for 100% strict JSON conformity
-    if command -v python3 >/dev/null 2>&1; then
+    if _have_python3; then
         local n=${#RES_IDS[@]}
         local json_doc
         json_doc=$(python3 -c "
@@ -1051,60 +1071,72 @@ print(json.dumps(data, indent=2))
             "$diff_payload"
         )
     else
-        # Pure shell fallback
-        local json_doc="{\n"
-        json_doc+="  \"scanner\": {\n"
-        json_doc+="    \"name\": \"macharden\",\n"
-        json_doc+="    \"version\": \"${version}\",\n"
-        json_doc+="    \"timestamp\": \"${current_time}\"\n"
-        json_doc+="  },\n"
-        json_doc+="  \"system\": {\n"
-        json_doc+="    \"hostname\": \"${hostname}\",\n"
-        json_doc+="    \"user\": \"${current_user}\",\n"
-        json_doc+="    \"os_product\": \"${os_product}\",\n"
-        json_doc+="    \"os_version\": \"${os_version}\",\n"
-        json_doc+="    \"os_build\": \"${os_build}\",\n"
-        json_doc+="    \"arch\": \"${arch}\",\n"
-        json_doc+="    \"kernel\": \"${kernel_rel}\"\n"
-        json_doc+="  },\n"
-        json_doc+="  \"summary\": {\n"
-        json_doc+="    \"hardening_index\": ${HARDENING_INDEX},\n"
-        json_doc+="    \"rating\": \"${rating}\",\n"
-        json_doc+="    \"total_checks\": ${COUNT_TOTAL},\n"
-        json_doc+="    \"passed\": ${COUNT_PASS},\n"
-        json_doc+="    \"warnings\": ${COUNT_WARN},\n"
-        json_doc+="    \"failed\": ${COUNT_FAIL},\n"
-        json_doc+="    \"info\": ${COUNT_INFO},\n"
-        json_doc+="    \"suggestions\": ${COUNT_SUGG},\n"
-        json_doc+="    \"earned_points\": ${EARNED_POINTS},\n"
-        json_doc+="    \"total_possible_points\": ${TOTAL_POSSIBLE_POINTS}\n"
-        json_doc+="  },\n"
-        json_doc+="  \"checks\": [\n"
+        # Pure zsh fallback (no python3): strings go through _json_escape and the document is
+        # built with real newlines, so the result is valid JSON.
+        local nl=$'\n'
+        local j_version j_time j_host j_user j_prod j_osver j_build j_arch j_kernel j_rating
+        _json_escape "$version";      j_version="$REPLY"
+        _json_escape "$current_time"; j_time="$REPLY"
+        _json_escape "$hostname";     j_host="$REPLY"
+        _json_escape "$current_user"; j_user="$REPLY"
+        _json_escape "$os_product";   j_prod="$REPLY"
+        _json_escape "$os_version";   j_osver="$REPLY"
+        _json_escape "$os_build";     j_build="$REPLY"
+        _json_escape "$arch";         j_arch="$REPLY"
+        _json_escape "$kernel_rel";   j_kernel="$REPLY"
+        _json_escape "$rating";       j_rating="$REPLY"
 
-        local n=${#RES_IDS[@]}
+        local json_doc="{
+  \"scanner\": {
+    \"name\": \"macharden\",
+    \"version\": \"${j_version}\",
+    \"timestamp\": \"${j_time}\"
+  },
+  \"system\": {
+    \"hostname\": \"${j_host}\",
+    \"user\": \"${j_user}\",
+    \"os_product\": \"${j_prod}\",
+    \"os_version\": \"${j_osver}\",
+    \"os_build\": \"${j_build}\",
+    \"arch\": \"${j_arch}\",
+    \"kernel\": \"${j_kernel}\"
+  },
+  \"summary\": {
+    \"hardening_index\": ${HARDENING_INDEX},
+    \"rating\": \"${j_rating}\",
+    \"total_checks\": ${COUNT_TOTAL},
+    \"passed\": ${COUNT_PASS},
+    \"warnings\": ${COUNT_WARN},
+    \"failed\": ${COUNT_FAIL},
+    \"info\": ${COUNT_INFO},
+    \"suggestions\": ${COUNT_SUGG},
+    \"earned_points\": ${EARNED_POINTS},
+    \"total_possible_points\": ${TOTAL_POSSIBLE_POINTS}
+  },
+  \"checks\": ["
+
+        local n=${#RES_IDS[@]} i w j_id j_cat j_title j_det j_rem
         for (( i = 1; i <= n; i++ )); do
-            local d="${RES_DETAILS[i]}"
-            local r="${RES_REMEDIATIONS[i]}"
-            d="${d//\\/\\\\}"; d="${d//\"/\\\"}"; d="${d//$'\n'/\\n}"
-            r="${r//\\/\\\\}"; r="${r//\"/\\\"}"; r="${r//$'\n'/\\n}"
-
-            json_doc+="    {\n"
-            json_doc+="      \"id\": \"${RES_IDS[i]}\",\n"
-            json_doc+="      \"category\": \"${RES_CATEGORIES[i]}\",\n"
-            json_doc+="      \"title\": \"${RES_TITLES[i]}\",\n"
-            json_doc+="      \"status\": \"${RES_STATUSES[i]}\",\n"
-            json_doc+="      \"weight\": ${RES_WEIGHTS[i]:-5},\n"
-            json_doc+="      \"details\": \"${d}\",\n"
-            json_doc+="      \"remediation\": \"${r}\",\n"
-            json_doc+="      \"references\": []\n"
-            if (( i < n )); then
-                json_doc+="    },\n"
-            else
-                json_doc+="    }\n"
-            fi
+            w="${RES_WEIGHTS[i]:-5}"
+            [[ "$w" =~ ^[0-9]+(\.[0-9]+)?$ ]] || w=5
+            _json_escape "${RES_IDS[i]}";          j_id="$REPLY"
+            _json_escape "${RES_CATEGORIES[i]}";   j_cat="$REPLY"
+            _json_escape "${RES_TITLES[i]}";       j_title="$REPLY"
+            _json_escape "${RES_DETAILS[i]}";      j_det="$REPLY"
+            _json_escape "${RES_REMEDIATIONS[i]}"; j_rem="$REPLY"
+            json_doc+="${nl}    {
+      \"id\": \"${j_id}\",
+      \"category\": \"${j_cat}\",
+      \"title\": \"${j_title}\",
+      \"status\": \"${RES_STATUSES[i]}\",
+      \"weight\": ${w},
+      \"details\": \"${j_det}\",
+      \"remediation\": \"${j_rem}\",
+      \"references\": []
+    }"
+            (( i < n )) && json_doc+=","
         done
-        json_doc+="  ]\n"
-        json_doc+="}\n"
+        json_doc+="${nl}  ]${nl}}"
     fi
 
     if [[ -n "$output_file" && "$output_file" != "-" ]]; then
