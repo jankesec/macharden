@@ -189,6 +189,9 @@ sc_exec() {
     sc_write_shims
     (
         export PATH="$SC_BIN" HOME="$SC_HOME" MACHAR_FS_ROOT="$SC_ROOT" MACHAR_FORMAT=json MACHAR_QUIET=1
+        # Tools called by absolute path cannot be shadowed by PATH: their seams default into the fake root
+        # (nonexistent unless the scenario creates it), so a scenario never reaches the host's real tool.
+        export MACHAR_SOCKETFILTERFW="$SC_ROOT/usr/libexec/ApplicationFirewall/socketfilterfw"
         unset CI GITHUB_ACTIONS
         hash -r
         local kv

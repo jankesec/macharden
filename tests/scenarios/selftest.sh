@@ -42,6 +42,9 @@ _zz_isolation_check() {
         record_result "$1" "$2" "$3" "FAIL" "$4" "the host defaults command leaked into the sandbox" ""
     elif [[ "$HOME" != "${ZZ_EXPECTED_HOME:-}" || "${MACHAR_FS_ROOT:-}" != "${ZZ_EXPECTED_ROOT:-}" ]]; then
         record_result "$1" "$2" "$3" "FAIL" "$4" "HOME or MACHAR_FS_ROOT is not the sandbox" ""
+    elif [[ "${MACHAR_SOCKETFILTERFW:-}" != "${ZZ_EXPECTED_ROOT:-}/usr/libexec/ApplicationFirewall/socketfilterfw" ]]; then
+        # Tools with an absolute path cannot be shadowed by PATH, so their seam defaults into the fake root.
+        record_result "$1" "$2" "$3" "FAIL" "$4" "the absolute-path tool seam points outside the sandbox: ${MACHAR_SOCKETFILTERFW:-unset}" ""
     elif [[ -n "${CI:-}" ]]; then
         record_result "$1" "$2" "$3" "INFO" "$4" "CI is set" ""
     else

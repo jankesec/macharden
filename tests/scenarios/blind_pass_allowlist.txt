@@ -1,0 +1,3 @@
+# Checks that legitimately report PASS when there is no evidence source at all (empty HOME, empty root,
+# no commands). Every line needs a reason; a check that reports PASS blind without being listed fails.
+SEC-05	~/.ssh does not exist in an empty HOME: nothing to protect
