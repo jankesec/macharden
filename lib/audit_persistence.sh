@@ -249,48 +249,19 @@ audit_crontabs() {
 }
 
 # PERS-04: User Login Items
-# Queries login items via `osascript` or `sfltool`.
+# Login Items live in the Background Task Management database. Reading them needs administrator access
+# (`sfltool dumpbtm` waits for authorization) or Automation consent (`osascript` talking to System Events),
+# and a normal scan never prompts (docs/ARCHITECTURE.md, "Check contract"). The check therefore cannot
+# observe the state: it is an inventory pointer and never reports PASS.
 audit_login_items() {
     local check_id="${1:-PERS-04}"
     local category="${2:-persistence}"
     local title="${3:-User Login Items}"
     local weight="${4:-5}"
 
-    local res_status="PASS"
-    local details=""
-    local remediation=""
-
-    local login_items=""
-    # In headless / CI test runners, skip GUI/BTM calls to prevent runner hang
-    if [[ -z "${CI:-}" && -z "${GITHUB_ACTIONS:-}" ]]; then
-        if command -v osascript >/dev/null 2>&1; then
-            login_items=$(osascript -e 'tell application "System Events" to get name of every login item' 2>/dev/null || true)
-        fi
-
-        # Fallback to sfltool with a strict 2-second watchdog if osascript returned empty
-        if [[ -z "$login_items" ]] && command -v sfltool >/dev/null 2>&1; then
-            login_items=$(python3 -c "
-import subprocess, sys
-try:
-    p = subprocess.run(['sfltool', 'dumpbtm'], capture_output=True, text=True, timeout=2)
-    print(p.stdout)
-except Exception:
-    sys.exit(0)
-" 2>/dev/null | grep -E '^[[:space:]]+Name:' | sed 's/^[[:space:]]*Name:[[:space:]]*//' | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g' || true)
-        fi
-    fi
-
-    if [[ -n "$login_items" ]]; then
-        res_status="INFO"
-        details="Configured user login items: ${login_items}"
-        remediation="[GUIDE] Review login items in System Settings > General > Login Items & Extensions"
-    else
-        res_status="PASS"
-        details="No user login items configured to launch at desktop session logon."
-        remediation=""
-    fi
-
-    record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
+    record_result "$check_id" "$category" "$title" "INFO" "$weight" \
+        "Login items cannot be enumerated without administrator access or a permission prompt, so they were not assessed. Review System Settings > General > Login Items & Extensions." \
+        "[GUIDE] Review login items in System Settings > General > Login Items & Extensions"
 }
 
 # PERS-05: SSH Authorized Keys
