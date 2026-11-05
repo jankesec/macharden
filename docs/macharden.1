@@ -78,7 +78,7 @@ keychain permissions.
 .TP
 .B persistence
 Detection of unauthorized or suspicious LaunchDaemons, LaunchAgents,
-privileged helper tools, user/system crontabs, and Login Items.
+privileged helper tools, user/system crontabs, and a Login Items review pointer.
 .TP
 .B all
 Execute all audit checks across every category (default behavior).
@@ -256,7 +256,7 @@ Scans locations frequently abused by malware and attackers for persistence
 on macOS. Inspects LaunchDaemons (\fB/Library/LaunchDaemons\fR,
 \fB/System/Library/LaunchDaemons\fR), LaunchAgents
 (\fB~/Library/LaunchAgents\fR, \fB/Library/LaunchAgents\fR), scheduled cron
-jobs, Login Items, privileged helper tools, and third-party
+jobs, a Login Items review pointer, privileged helper tools, and third-party
 kernel/system extensions.
 .SH SCORING ALGORITHM
 The

@@ -217,6 +217,11 @@ Existing audit logs are preserved when the daemon is removed.
 
 ### A check returns INFO
 
+`INFO` means macharden could not observe the state: a tool is missing, access needs
+administrator rights or a permission prompt (a normal scan never prompts), or the
+output was not understood. It is never counted as a pass and does not change the
+Hardening Index. PERS-04 (login items) is an `INFO` pointer for this reason.
+
 The detector may not have enough permission or the underlying command may not
 exist on that macOS version. Run the individual check, read its evidence, and do
 not treat missing evidence as a pass:

@@ -52,12 +52,26 @@ message, and optional remediation. Categories are `hardening`, `network`,
 
 Detectors should:
 
-1. use native, non-interactive commands;
+1. use native, non-interactive commands (no tool that can raise an authorization,
+   Touch ID or Automation prompt);
 2. avoid changing system state;
 3. return `INFO` when state cannot be determined safely;
 4. never print credential values or secret contents;
-5. describe what was observed, not claim protection beyond the evidence; and
-6. provide a negative-control test for security-sensitive parsing.
+5. describe what was observed, not claim protection beyond the evidence;
+6. provide a negative-control test for security-sensitive parsing; and
+7. report `PASS` only with evidence (see below).
+
+### Evidence classes
+
+| Evidence | Example | Result |
+|---|---|---|
+| Positive | `csrutil status` reports enabled | `PASS` |
+| Negative | `fdesetup status` reports Off | `FAIL` or `WARN` |
+| Absent by design | there is no `~/.ssh` directory; a preference is unset and the OS default is secure (the check says so in a comment) | `PASS`, with details such as "none present" |
+| Unavailable | command missing, permission denied, timeout, output not understood, not queried | `INFO`, with the reason; never `PASS` |
+
+The engine records a check that reports nothing as `WARN`, not `PASS`, because observing
+nothing is not evidence of a secure state.
 
 ## Result and scoring model
 
@@ -161,3 +175,16 @@ The repository test runner validates scoring, registry integrity, reports,
 localization, remediation typing, profile parsing, drift behavior, and mocked
 system checks. GitHub Actions runs the suite on macOS and Ubuntu and performs a
 live read-only smoke scan on the macOS runner.
+
+Checks are also exercised by scenario tests (`tests/scenarios/`, Phase 4 of the runner). A
+scenario runs one check in a sandbox whose `PATH` holds only the shims the scenario defines and
+whose `HOME` and `MACHAR_FS_ROOT` are empty temporary directories, so the check can only see the
+evidence the scenario provides. A covered check needs at least three scenarios (secure, insecure,
+no evidence), and a blind run (no commands, empty root and HOME) must not report `PASS` for any
+check that is not listed, with a reason, in `tests/scenarios/blind_pass_allowlist.txt`. Checks
+without scenarios yet are listed in `tests/scenarios/known_gaps.txt`; the list shrinks as checks
+gain scenarios.
+
+Test seams: `machar_path` prefixes absolute system paths with `MACHAR_FS_ROOT`, and
+`MACHAR_SOCKETFILTERFW` replaces the Application Firewall tool path. Both are unset in
+production and are not user-facing options.

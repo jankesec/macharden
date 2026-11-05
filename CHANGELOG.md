@@ -5,6 +5,25 @@ All notable changes to macharden are documented here. Releases follow
 
 ## [Unreleased]
 
+### Changed
+
+- Checks no longer report `PASS` when they could not observe the state. They report `INFO` and say
+  why (the Hardening Index ignores `INFO`, so scores can move by a few points):
+  - PERS-04 (login items) can only be read with administrator access or a permission prompt, so it
+    is now an `INFO` review pointer and no longer runs `osascript` or `sfltool`.
+  - HARD-07 (sharing services) now reads listening sockets with `netstat`, which works without
+    administrator access. Before, it could not see Remote Login, Screen Sharing or File Sharing
+    and reported `PASS` on every Mac.
+  - HARD-06, NET-02, NET-06, PERS-02 and SEC-05 report `INFO` when settings, firewall state,
+    listeners, LaunchDaemons or SSH permissions could not be read.
+- A check that records no result is reported as `WARN` instead of `PASS`.
+
+### Added
+
+- Scenario tests (`tests/scenarios/`, Phase 4 of the test runner): each scenario runs one check on
+  only the evidence it is given. A coverage ratchet and a blind-run test keep new checks from
+  reporting `PASS` without evidence.
+
 ## [1.5.0] - 2026-11-05
 
 ### Added
