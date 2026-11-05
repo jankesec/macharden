@@ -393,6 +393,7 @@ audit_ssh_permissions() {
 
     local ssh_dir="$HOME/.ssh"
     if [[ ! -d "$ssh_dir" ]]; then
+        # Absent by design: with no ~/.ssh there is nothing to protect.
         res_status="PASS"
         details="No ~/.ssh directory exists."
         record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
@@ -401,6 +402,7 @@ audit_ssh_permissions() {
 
     local issues=""
     local fix_cmds=""
+    local unknown_perms=0
     local key_file=""
     local priv_file=""
     local kperms=""
@@ -410,7 +412,9 @@ audit_ssh_permissions() {
     # 1. Check ~/.ssh directory permissions (must be 700)
     local dir_perms
     dir_perms=$(_get_octal_perms "$ssh_dir")
-    if [[ "$dir_perms" != "700" ]]; then
+    if [[ -z "$dir_perms" ]]; then
+        unknown_perms=1
+    elif [[ "$dir_perms" != "700" ]]; then
         issues="${issues:+$issues; }~/.ssh directory is group/world accessible (${dir_perms}, expected 700)"
         fix_cmds="${fix_cmds:+$fix_cmds; }chmod 700 ~/.ssh"
     fi
@@ -419,7 +423,9 @@ audit_ssh_permissions() {
     while IFS= read -r key_file; do
         [[ -z "$key_file" ]] && continue
         kperms=$(_get_octal_perms "$key_file")
-        if [[ "$kperms" != "600" && "$kperms" != "400" ]]; then
+        if [[ -z "$kperms" ]]; then
+            unknown_perms=1
+        elif [[ "$kperms" != "600" && "$kperms" != "400" ]]; then
             issues="${issues:+$issues; }Private key ${key_file##*/} has insecure permissions (${kperms}, expected 600)"
             fix_cmds="${fix_cmds:+$fix_cmds; }chmod 600 \"$key_file\""
         fi
@@ -429,7 +435,9 @@ audit_ssh_permissions() {
     while IFS= read -r priv_file; do
         [[ -z "$priv_file" ]] && continue
         pperms=$(_get_octal_perms "$priv_file")
-        if [[ "$pperms" != "600" && "$pperms" != "400" ]]; then
+        if [[ -z "$pperms" ]]; then
+            unknown_perms=1
+        elif [[ "$pperms" != "600" && "$pperms" != "400" ]]; then
             if ! echo "$issues" | grep -q "${priv_file##*/}"; then
                 issues="${issues:+$issues; }Private key ${priv_file##*/} has insecure permissions (${pperms}, expected 600)"
                 fix_cmds="${fix_cmds:+$fix_cmds; }chmod 600 \"$priv_file\""
@@ -441,7 +449,9 @@ audit_ssh_permissions() {
     local config_file="$ssh_dir/config"
     if [[ -f "$config_file" ]]; then
         cperms=$(_get_octal_perms "$config_file")
-        if [[ "$cperms" != "600" ]]; then
+        if [[ -z "$cperms" ]]; then
+            unknown_perms=1
+        elif [[ "$cperms" != "600" ]]; then
             issues="${issues:+$issues; }SSH config file has insecure permissions (${cperms}, expected 600)"
             fix_cmds="${fix_cmds:+$fix_cmds; }chmod 600 \"$config_file\""
         fi
@@ -451,6 +461,10 @@ audit_ssh_permissions() {
         res_status="WARN"
         details="Insecure SSH permissions detected: ${issues}"
         remediation="[EXEC] ${fix_cmds:-chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_* ~/.ssh/config 2>/dev/null}"
+    elif (( unknown_perms )); then
+        res_status="INFO"
+        details="Could not read the permissions of ~/.ssh or its contents (stat unavailable or failed), so they were not assessed."
+        remediation=""
     else
         res_status="PASS"
         details="~/.ssh directory (700), private keys (600), and config file have secure permissions."
