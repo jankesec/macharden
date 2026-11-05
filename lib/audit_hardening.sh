@@ -222,17 +222,30 @@ audit_auto_updates() {
     local details=""
     local remediation=""
 
-    local auto_check
-    auto_check=$(defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled 2>/dev/null || echo "")
-
-    # Fallback to softwareupdate --schedule if key is not found
-    if [[ -z "$auto_check" ]]; then
-        if softwareupdate --schedule 2>&1 | grep -qi "turned on"; then
-            auto_check="1"
-        else
-            auto_check="0"
+    local auto_check=""
+    local auto_check_known=0
+    if auto_check=$(defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled 2>/dev/null) && [[ -n "$auto_check" ]]; then
+        auto_check_known=1
+    else
+        # The key is unset (or defaults is unusable): ask softwareupdate for the schedule instead.
+        local su_out=""
+        if su_out=$(softwareupdate --schedule 2>&1) && [[ -n "$su_out" ]]; then
+            auto_check_known=1
+            if echo "$su_out" | grep -qi "turned on"; then
+                auto_check="1"
+            else
+                auto_check="0"
+            fi
         fi
     fi
+
+    if (( ! auto_check_known )); then
+        record_result "$check_id" "$category" "$title" "INFO" "$weight" \
+            "Software update settings could not be read (defaults and softwareupdate gave no answer), so they were not assessed." ""
+        return 0
+    fi
+
+    # Keys that are unset count as not enabled below: the CIS benchmark asks for explicit values.
 
     local auto_install
     auto_install=$(defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates 2>/dev/null || echo "0")
@@ -264,11 +277,25 @@ audit_auto_updates() {
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
 }
 
+# Print the TCP ports that have a listening socket, one per line. macOS netstat shows every user's
+# sockets without administrator access ("tcp4 0 0 *.22 *.* LISTEN", "127.0.0.1.631"). Returns 1 when
+# netstat is unavailable or prints nothing, so callers can tell "nothing listens" from "could not look".
+_listening_tcp_ports() {
+    local out
+    out=$(netstat -an -p tcp 2>/dev/null) || return 1
+    [[ -n "$out" ]] || return 1
+    print -r -- "$out" | awk '$6 == "LISTEN" { n = split($4, a, "."); print a[n] }' | sort -un
+}
+
 # HARD-07: Unnecessary Sharing Services
 # Checks if `smbd`, `nfsd`, `tftpd`, Remote Login, screen sharing (VNC), or
-# Remote Apple Events are active. Remote Login is on only if systemsetup
-# reports On or sshd is listening — not merely because launchctl lists sshd.
-# PASS if all inactive, WARN/FAIL if active.
+# Remote Apple Events are active. The evidence that works without administrator
+# access is the list of listening TCP sockets (22, 445, 2049, 3031, 5900), plus
+# systemsetup, launchd and process state when they answer. Remote Login is on only
+# if systemsetup reports On or something listens on port 22, not merely because
+# launchctl lists sshd.
+# PASS if listeners were enumerated and nothing sharing is active, INFO if they could
+# not be enumerated and nothing else showed up, WARN/FAIL if a service is active.
 audit_sharing_services() {
     local check_id="${1:-HARD-07}"
     local category="${2:-hardening}"
@@ -282,36 +309,49 @@ audit_sharing_services() {
     local active_services=""
     local remed_commands=""
 
+    # Listening sockets are the evidence that works without administrator access: systemsetup needs it,
+    # `launchctl list` only sees the user domain, and lsof only sees the user's own processes.
+    local listening_ports=""
+    local ports_known=0
+    if listening_ports=$(_listening_tcp_ports); then
+        ports_known=1
+    fi
+
     # Check SMB (File Sharing)
-    if pgrep -x smbd >/dev/null 2>&1 || launchctl list com.apple.smbd >/dev/null 2>&1; then
+    if pgrep -x smbd >/dev/null 2>&1 || launchctl list com.apple.smbd >/dev/null 2>&1 \
+        || print -r -- "$listening_ports" | grep -qx 445; then
         active_services="${active_services:+$active_services, }SMB (File Sharing)"
         remed_commands="${remed_commands:+$remed_commands; }sudo launchctl disable system/com.apple.smbd"
     fi
 
     # Check NFS
-    if pgrep -x nfsd >/dev/null 2>&1 || launchctl list com.apple.nfsd >/dev/null 2>&1; then
+    if pgrep -x nfsd >/dev/null 2>&1 || launchctl list com.apple.nfsd >/dev/null 2>&1 \
+        || print -r -- "$listening_ports" | grep -qx 2049; then
         active_services="${active_services:+$active_services, }NFS"
         remed_commands="${remed_commands:+$remed_commands; }sudo nfsd stop"
     fi
 
-    # Check TFTP
+    # Check TFTP (UDP, so it is only checked by process and launchd state)
     if pgrep -x tftpd >/dev/null 2>&1 || launchctl list com.apple.tftpd >/dev/null 2>&1; then
         active_services="${active_services:+$active_services, }TFTP"
         remed_commands="${remed_commands:+$remed_commands; }sudo launchctl disable system/com.apple.tftpd"
     fi
 
-    # Check SSH (Remote Login): systemsetup On, or sshd actually listening.
+    # Check SSH (Remote Login): systemsetup On, a listener on TCP 22, or sshd listening.
     # Do not treat launchctl list com.openssh.sshd success as Remote Login enabled.
     local rl_out
     rl_out=$(systemsetup -getremotelogin 2>/dev/null || echo "")
     if echo "$rl_out" | grep -qiE "Remote Login:[[:space:]]*On[[:space:]]*$" \
-        || lsof -nP -iTCP:22 -sTCP:LISTEN >/dev/null 2>&1; then
+        || lsof -nP -iTCP:22 -sTCP:LISTEN >/dev/null 2>&1 \
+        || print -r -- "$listening_ports" | grep -qx 22; then
         active_services="${active_services:+$active_services, }SSH (Remote Login)"
         remed_commands="${remed_commands:+$remed_commands; }sudo systemsetup -setremotelogin off"
     fi
 
     # Check Screen Sharing (VNC)
-    if pgrep -x screensharingd >/dev/null 2>&1 || launchctl list com.apple.screensharing >/dev/null 2>&1 || lsof -nP -iTCP:5900 -sTCP:LISTEN >/dev/null 2>&1; then
+    if pgrep -x screensharingd >/dev/null 2>&1 || launchctl list com.apple.screensharing >/dev/null 2>&1 \
+        || lsof -nP -iTCP:5900 -sTCP:LISTEN >/dev/null 2>&1 \
+        || print -r -- "$listening_ports" | grep -qx 5900; then
         active_services="${active_services:+$active_services, }Screen Sharing (VNC)"
         remed_commands="${remed_commands:+$remed_commands; }sudo launchctl disable system/com.apple.screensharing"
     fi
@@ -319,16 +359,13 @@ audit_sharing_services() {
     # Check Remote Apple Events
     local rae_out
     rae_out=$(systemsetup -getremoteappleevents 2>/dev/null || echo "")
-    if echo "$rae_out" | grep -qiE "Remote Apple Events:[[:space:]]*On[[:space:]]*$"; then
+    if echo "$rae_out" | grep -qiE "Remote Apple Events:[[:space:]]*On[[:space:]]*$" \
+        || print -r -- "$listening_ports" | grep -qx 3031; then
         active_services="${active_services:+$active_services, }Remote Apple Events"
         remed_commands="${remed_commands:+$remed_commands; }sudo systemsetup -setremoteappleevents off"
     fi
 
-    if [[ -z "$active_services" ]]; then
-        res_status="PASS"
-        details="No unnecessary remote sharing services (SMB, NFS, TFTP, SSH, Screen Sharing, Remote Apple Events) are active."
-        remediation=""
-    else
+    if [[ -n "$active_services" ]]; then
         if echo "$active_services" | grep -qiE "TFTP|NFS"; then
             res_status="FAIL"
         else
@@ -336,6 +373,14 @@ audit_sharing_services() {
         fi
         details="Active remote sharing services detected: ${active_services}"
         remediation="[EXEC] ${remed_commands}"
+    elif (( ports_known )); then
+        res_status="PASS"
+        details="No remote sharing listeners found on TCP 22, 445, 2049, 3031 or 5900 and no sharing daemon is running (TFTP uses UDP and is checked by process only)."
+        remediation=""
+    else
+        res_status="INFO"
+        details="Remote sharing could not be confirmed: listening sockets could not be enumerated (netstat unavailable) and no sharing process or launchd service was found."
+        remediation=""
     fi
 
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
