@@ -68,6 +68,29 @@ scenario_begin ZZ-03 "a scenario can set CI explicitly" _zz_isolation_check
     expect INFO --details 'CI is set'
 scenario_end
 
+# The base tools from base_tools.txt must really be present inside the sandbox, and `without` removes one.
+_zz_tools_check() {
+    local missing=""
+    local tool
+    for tool in grep sed awk find stat; do
+        command -v "$tool" >/dev/null 2>&1 || missing+=" $tool"
+    done
+    if [[ -n "$missing" ]]; then
+        record_result "$1" "$2" "$3" "INFO" "$4" "missing tools:$missing" ""
+    else
+        record_result "$1" "$2" "$3" "PASS" "$4" "base tools present" ""
+    fi
+}
+
+scenario_begin ZZ-04 "the base tools are available inside the sandbox" _zz_tools_check
+    expect PASS --details 'base tools present'
+scenario_end
+
+scenario_begin ZZ-04 "without removes a base tool" _zz_tools_check
+    without stat
+    expect INFO --details 'missing tools: stat'
+scenario_end
+
 # --- pure helpers -------------------------------------------------------------
 sc_judge NOT_PASS INFO "x" "";  sc_assert "$?" "NOT_PASS accepts INFO"
 sc_judge NOT_PASS PASS "x" "";  sc_assert "$((1 - $? ))" "NOT_PASS rejects PASS"

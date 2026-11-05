@@ -67,11 +67,12 @@ scenario_begin() {
     mkdir -p "$SC_BIN" "$SC_ROOT" "$SC_HOME"
     : > "$SC_LOG"
     SC_ENV=(); SC_NOCALL=(); SC_RULES=(); SC_EXPECT=""; SC_DETAILS_RE=""
-    local tool path
+    # Note: never name a zsh variable "path": it is tied to PATH, so assigning it breaks command lookup.
+    local tool tool_path
     while IFS= read -r tool; do
         [[ -z "$tool" || "$tool" == \#* ]] && continue
-        path=$(command -v "$tool" 2>/dev/null) || continue
-        [[ "$path" == /* ]] && ln -s "$path" "$SC_BIN/$tool"
+        tool_path=$(command -v "$tool" 2>/dev/null) || continue
+        [[ "$tool_path" == /* ]] && ln -s "$tool_path" "$SC_BIN/$tool"
     done < "$SC_LIB_DIR/base_tools.txt"
 }
 
