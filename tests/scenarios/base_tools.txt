@@ -1,0 +1,35 @@
+# Host tools a scenario may use besides its own shims. Everything else (defaults, launchctl, netstat,
+# lsof, systemsetup, plutil, codesign, pgrep, ps, ...) does not exist inside a scenario unless the
+# scenario shims it, so "command not found" is a realistic "no evidence" situation.
+awk
+basename
+cat
+chmod
+cp
+cut
+date
+dirname
+env
+expr
+find
+grep
+head
+id
+ls
+mkdir
+mktemp
+mv
+printf
+rm
+sed
+sh
+sort
+stat
+tail
+tee
+touch
+tr
+uname
+uniq
+wc
+xargs

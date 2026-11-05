@@ -48,6 +48,10 @@ for f in "${PROJECT_ROOT}"/tests/*.sh; do
     [[ -f "$f" ]] && FILES_TO_CHECK+=("$f")
 done
 
+for f in "${PROJECT_ROOT}"/tests/scenarios/*.sh; do
+    [[ -f "$f" ]] && FILES_TO_CHECK+=("$f")
+done
+
 echo ""
 echo "${C_BOLD}▶ Phase 1: Shell Syntax Verification (zsh -n & bash -n)${C_RESET}"
 echo "${C_DIM}----------------------------------------------------------------------${C_RESET}"
@@ -155,6 +159,18 @@ if [[ -f "$TEST_MOCKS_SCRIPT" ]]; then
     MOCK_TESTS_EXIT=$?
 fi
 
+TEST_SCENARIOS_SCRIPT="${PROJECT_ROOT}/tests/test_scenarios.sh"
+SCENARIO_TESTS_EXIT=0
+
+if [[ -f "$TEST_SCENARIOS_SCRIPT" ]]; then
+    echo ""
+    echo "${C_BOLD}▶ Phase 4: Evidence Scenarios (PASS requires evidence)${C_RESET}"
+    echo "${C_DIM}----------------------------------------------------------------------${C_RESET}"
+    chmod +x "$TEST_SCENARIOS_SCRIPT"
+    "$TEST_SCENARIOS_SCRIPT"
+    SCENARIO_TESTS_EXIT=$?
+fi
+
 echo ""
 echo "${C_BOLD}${C_CYAN}======================================================================${C_RESET}"
 echo "                         ${C_BOLD}TEST RUN SUMMARY${C_RESET}"
@@ -174,9 +190,12 @@ printf "  Unit Tests    : %b\n" \
 
 printf "  Mock Tests    : %b\n" \
     "$([[ $MOCK_TESTS_EXIT -eq 0 ]] && echo "${C_GREEN}ALL TESTS PASSED${C_RESET}" || echo "${C_RED}MOCK TESTS FAILED${C_RESET}")"
+
+printf "  Scenario Tests: %b\n" \
+    "$([[ $SCENARIO_TESTS_EXIT -eq 0 ]] && echo "${C_GREEN}ALL SCENARIOS PASSED${C_RESET}" || echo "${C_RED}SCENARIOS FAILED${C_RESET}")"
 echo "${C_DIM}----------------------------------------------------------------------${C_RESET}"
 
-if [[ $FAILED_SYNTAX_CHECKS -eq 0 && $FAILED_JSON_CHECKS -eq 0 && $UNIT_TESTS_EXIT -eq 0 && $MOCK_TESTS_EXIT -eq 0 ]]; then
+if [[ $FAILED_SYNTAX_CHECKS -eq 0 && $FAILED_JSON_CHECKS -eq 0 && $UNIT_TESTS_EXIT -eq 0 && $MOCK_TESTS_EXIT -eq 0 && $SCENARIO_TESTS_EXIT -eq 0 ]]; then
     echo "${C_GREEN}${C_BOLD}✔ BUILD & TESTS SUCCEEDED - 0 ERRORS${C_RESET}"
     exit 0
 else
