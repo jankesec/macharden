@@ -44,7 +44,7 @@ jobs:
       - name: Shell Syntax Validation
         run: |
           echo "Checking native Zsh sources..."
-          for file in bin/macharden lib/*.sh tests/*.sh; do
+          for file in bin/macharden lib/*.sh tests/*.sh tests/scenarios/*.sh; do
             echo -n "Checking $file ... "
             zsh -n "$file"
             echo "OK"
