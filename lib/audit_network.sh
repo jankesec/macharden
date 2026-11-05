@@ -13,6 +13,9 @@ if ! command -v record_result >/dev/null 2>&1 && ! typeset -f record_result >/de
     }
 fi
 
+# Test seam: the Application Firewall tool; scenario tests point this at a shim.
+: "${MACHAR_SOCKETFILTERFW:=/usr/libexec/ApplicationFirewall/socketfilterfw}"
+
 # NET-01: Application Firewall Status
 # Checks `/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate`.
 # PASS if enabled, FAIL if disabled.
@@ -26,7 +29,7 @@ audit_firewall() {
     local details=""
     local remediation=""
 
-    local fw_bin="/usr/libexec/ApplicationFirewall/socketfilterfw"
+    local fw_bin="$MACHAR_SOCKETFILTERFW"
     local fw_out=""
 
     if [[ -x "$fw_bin" ]]; then
@@ -62,18 +65,27 @@ audit_firewall_stealth() {
     local details=""
     local remediation=""
 
-    local fw_bin="/usr/libexec/ApplicationFirewall/socketfilterfw"
+    local fw_bin="$MACHAR_SOCKETFILTERFW"
     local stealth_out=""
+    local stealth_known=0
 
     if [[ -x "$fw_bin" ]]; then
         stealth_out=$("$fw_bin" --getstealthmode 2>&1)
+        # Real output: "Firewall stealth mode is on" / "... is off" (older systems: "Stealth mode enabled" / "disabled").
+        echo "$stealth_out" | grep -qiE "stealth mode (is )?(on|off|enabled|disabled)" && stealth_known=1
     else
         local stealth_val
-        stealth_val=$(defaults read /Library/Preferences/com.apple.alf stealthenabled 2>/dev/null || echo "0")
-        [[ "$stealth_val" == "1" ]] && stealth_out="stealth mode is on"
+        if stealth_val=$(defaults read /Library/Preferences/com.apple.alf stealthenabled 2>/dev/null) && [[ -n "$stealth_val" ]]; then
+            stealth_known=1
+            [[ "$stealth_val" == "1" ]] && stealth_out="stealth mode is on"
+        fi
     fi
 
-    if echo "$stealth_out" | grep -qiE "stealth mode is on|enabled"; then
+    if (( ! stealth_known )); then
+        res_status="INFO"
+        details="Firewall stealth mode state could not be read (socketfilterfw and the alf preference gave no usable answer), so it was not assessed."
+        remediation=""
+    elif echo "$stealth_out" | grep -qiE "stealth mode is on|enabled"; then
         res_status="PASS"
         details="Firewall Stealth Mode is enabled. System ignores ICMP echo requests and uninvited probe packets."
         remediation=""
@@ -99,7 +111,7 @@ audit_firewall_exceptions() {
     local details=""
     local remediation=""
 
-    local fw_bin="/usr/libexec/ApplicationFirewall/socketfilterfw"
+    local fw_bin="$MACHAR_SOCKETFILTERFW"
     local apps_out=""
 
     if [[ -x "$fw_bin" ]]; then
@@ -296,8 +308,9 @@ audit_listening_wildcards() {
     fi
 
     if [[ -z "$listeners_raw" ]]; then
-        res_status="PASS"
-        details="No active TCP listening sockets detected or lsof unavailable."
+        # An empty listing is not evidence that nothing listens: lsof may be missing, blocked or restricted.
+        res_status="INFO"
+        details="Listening TCP sockets could not be enumerated (lsof unavailable or returned nothing), so wildcard exposure was not assessed."
         record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
         return 0
     fi
@@ -349,7 +362,7 @@ audit_listening_wildcards() {
         remediation="[GUIDE] Reconfigure exposed services to bind specifically to 127.0.0.1 (localhost) instead of 0.0.0.0 or *"
     else
         res_status="PASS"
-        details="No unauthorized third-party services listening on wildcard (0.0.0.0 / *) interfaces."
+        details="No unauthorized third-party services listening on wildcard (0.0.0.0 / *) interfaces among the sockets visible to the current user (lsof lists only that user's processes)."
         remediation=""
     fi
 
@@ -438,7 +451,7 @@ audit_firewall_logging() {
     local details=""
     local remediation=""
 
-    local fw_bin="/usr/libexec/ApplicationFirewall/socketfilterfw"
+    local fw_bin="$MACHAR_SOCKETFILTERFW"
     local log_out=""
 
     if [[ -x "$fw_bin" ]]; then
