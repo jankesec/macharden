@@ -201,6 +201,12 @@ typeset -gi COUNT_INFO=0
 typeset -gi COUNT_SUGG=0
 typeset -gi COUNT_TOTAL=0
 
+# Test seam: absolute system paths that checks read go through machar_path so that tests can point
+# them at a fake root. MACHAR_FS_ROOT is unset in production, which leaves every path unchanged.
+machar_path() {
+    print -r -- "${MACHAR_FS_ROOT:-}$1"
+}
+
 # Register an audit check with the engine
 # Usage: register_check <id> <category> <title> <weight> [func]
 register_check() {
@@ -459,7 +465,8 @@ run_audit() {
             # Fallback if function did not explicitly invoke record_result
             if (( ${#RES_IDS[@]} == pre_count )); then
                 if (( exit_code == 0 )); then
-                    record_result "$id" "$cat" "$title" "PASS" "$weight" "Check succeeded" ""
+                    # A check that reports nothing has observed nothing: never record that as a pass.
+                    record_result "$id" "$cat" "$title" "WARN" "$weight" "Check did not report a result (exit code 0); this is a defect in the check, not evidence of a secure state" ""
                 else
                     record_result "$id" "$cat" "$title" "FAIL" "$weight" "Check failed with exit code $exit_code" ""
                 fi

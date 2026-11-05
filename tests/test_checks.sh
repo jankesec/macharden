@@ -1635,6 +1635,25 @@ assert_eq "0" "$CHECKS_EC" "docs/CHECKS.md is up to date (run 'make docs' to ref
 assert_eq "54" "$(grep -c '^| <code>' "${PROJECT_ROOT}/docs/CHECKS.md" 2>/dev/null)" "docs/CHECKS.md lists 54 checks"
 
 # ==============================================================================
+# Suite 24: Evidence contract in the engine
+# ==============================================================================
+echo "\n\033[1m[Suite 24] Evidence contract (engine)\033[0m"
+
+assert_eq "/etc/ssh/sshd_config" "$(unset MACHAR_FS_ROOT; machar_path /etc/ssh/sshd_config)" "machar_path leaves a path alone in production"
+assert_eq "/tmp/root/etc/ssh/sshd_config" "$(MACHAR_FS_ROOT=/tmp/root machar_path /etc/ssh/sshd_config)" "machar_path prefixes the test root"
+
+# A check that records nothing has observed nothing; the engine must not turn that into a pass.
+reset_engine
+MACHAR_FILTER_CHECK_IDS=()   # reset_engine keeps the --check filter that earlier suites set
+audit_zz_silent() { return 0; }
+register_check "ZZ-90" "hardening" "Silent check" 5 audit_zz_silent
+MACHAR_FORMAT=json MACHAR_QUIET=1 run_audit all >/dev/null 2>&1
+assert_eq "WARN" "${RES_STATUSES[1]:-}" "a check that reports no result is WARN, never PASS"
+assert_match "did not report a result" "${RES_DETAILS[1]:-}" "the engine explains that the check reported nothing"
+unset -f audit_zz_silent
+reset_engine
+
+# ==============================================================================
 # Final Test Summary
 # ==============================================================================
 echo ""
