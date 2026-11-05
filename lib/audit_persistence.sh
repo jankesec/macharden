@@ -13,6 +13,11 @@ if ! command -v record_result >/dev/null 2>&1 && ! typeset -f record_result >/de
     }
 fi
 
+# Fallback when sourced standalone: engine.sh normally defines this test seam.
+if ! typeset -f machar_path >/dev/null 2>&1; then
+    machar_path() { print -r -- "${MACHAR_FS_ROOT:-}$1"; }
+fi
+
 # Helper to extract the program/binary path from a plist
 _get_plist_program() {
     local plist="$1"
@@ -139,12 +144,16 @@ audit_launch_daemons() {
     local details=""
     local remediation=""
 
-    local daemons_dir="/Library/LaunchDaemons"
+    local daemons_dir
+    daemons_dir="$(machar_path /Library/LaunchDaemons)"
     local total_count=0
+    local unparsed_count=0
     local suspicious_list=""
     local fix_cmds=""
     local plist=""
     local prog=""
+    local have_codesign=0
+    command -v codesign >/dev/null 2>&1 && have_codesign=1
 
     if [[ -d "$daemons_dir" ]]; then
         while IFS= read -r plist; do
@@ -153,21 +162,21 @@ audit_launch_daemons() {
             local fname="${plist##*/}"
             prog=$(_get_plist_program "$plist")
 
+            if [[ -z "$prog" ]]; then
+                (( unparsed_count++ ))
             # Flag daemons executing from temporary paths or user directories
-            if [[ "$prog" =~ ^/tmp || "$prog" =~ ^/var/tmp || "$prog" =~ ^/private/tmp ]]; then
+            elif [[ "$prog" =~ ^/tmp || "$prog" =~ ^/var/tmp || "$prog" =~ ^/private/tmp ]]; then
                 suspicious_list="${suspicious_list:+$suspicious_list; }${fname} (executes from temporary path: $prog)"
                 fix_cmds="${fix_cmds:+$fix_cmds; }sudo launchctl unload -w \"$plist\" 2>/dev/null; sudo rm \"$plist\""
             elif [[ "$prog" =~ ^/Users/ ]]; then
                 suspicious_list="${suspicious_list:+$suspicious_list; }${fname} (root daemon points to user home: $prog)"
                 fix_cmds="${fix_cmds:+$fix_cmds; }sudo launchctl unload -w \"$plist\" 2>/dev/null; sudo rm \"$plist\""
-            elif [[ -n "$prog" && ! -e "$prog" ]]; then
+            elif [[ ! -e "$prog" ]]; then
                 suspicious_list="${suspicious_list:+$suspicious_list; }${fname} (missing binary target: $prog)"
                 fix_cmds="${fix_cmds:+$fix_cmds; }sudo launchctl unload -w \"$plist\" 2>/dev/null; sudo rm \"$plist\""
-            elif [[ -n "$prog" && -e "$prog" ]]; then
-                if command -v codesign >/dev/null 2>&1; then
-                    if ! codesign --verify --deep --strict "$prog" 2>/dev/null; then
-                        suspicious_list="${suspicious_list:+$suspicious_list; }${fname} (unsigned daemon binary: $prog)"
-                    fi
+            elif (( have_codesign )); then
+                if ! codesign --verify --deep --strict "$prog" 2>/dev/null; then
+                    suspicious_list="${suspicious_list:+$suspicious_list; }${fname} (unsigned daemon binary: $prog)"
                 fi
             fi
         done <<< "$(find "$daemons_dir" -maxdepth 1 -name "*.plist" 2>/dev/null || true)"
@@ -181,10 +190,17 @@ audit_launch_daemons() {
         else
             remediation="[GUIDE] Review and verify unsigned or non-standard daemons in /Library/LaunchDaemons"
         fi
+    elif [[ ! -d "$daemons_dir" ]]; then
+        res_status="INFO"
+        details="/Library/LaunchDaemons was not found or is not readable, so system daemons were not reviewed."
+    elif (( total_count > 0 && unparsed_count == total_count )); then
+        res_status="INFO"
+        details="Could not read the program of any of the ${total_count} LaunchDaemons (plutil unavailable or plists unreadable), so they were not reviewed."
     else
         res_status="PASS"
         details="Inspected ${total_count} LaunchDaemons in /Library/LaunchDaemons; all reference valid system/application targets."
-        remediation=""
+        (( have_codesign )) || details="${details%.}; code signatures were not verified because codesign is unavailable."
+        (( unparsed_count > 0 )) && details="${details%.}; ${unparsed_count} plist(s) had no readable program."
     fi
 
     record_result "$check_id" "$category" "$title" "$res_status" "$weight" "$details" "$remediation"
