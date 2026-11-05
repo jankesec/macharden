@@ -66,7 +66,7 @@ macharden -f html -o report.html && open report.html
 | System hardening | 21 | SIP, FileVault, Gatekeeper, screen lock, automatic updates, firmware password, Secure Boot, OpenBSM audit trail |
 | Network and perimeter | 12 | Application firewall and stealth mode, BPF permissions, wildcard TCP listeners, AirDrop, Internet Sharing, IP forwarding |
 | Secrets, keys and credentials | 11 | API keys in shell profiles, exposed `.env` files, SSH keys and `sshd` configuration, cloud credentials, `PATH` permissions |
-| Persistence and daemons | 10 | LaunchAgents and LaunchDaemons, cron, login items, `authorized_keys`, sudoers, privileged helper tools |
+| Persistence and daemons | 10 | LaunchAgents and LaunchDaemons, cron, `authorized_keys`, sudoers, privileged helper tools |
 
 [docs/CHECKS.md](docs/CHECKS.md) lists all 54 checks with their CIS, NIST and MITRE identifiers and weights. It is generated from `data/compliance_mappings.json`, the same data the reports use.
 
