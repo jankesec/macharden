@@ -15,8 +15,10 @@ if ! command -v record_result >/dev/null 2>&1 && ! typeset -f record_result >/de
 fi
 
 # Helper to get file octal permissions portably (macOS and Linux)
+# Try the GNU form first: on Linux `stat -f` means "file system status" and exits 0 with a status block,
+# while on macOS `stat -c` fails and the BSD form below takes over.
 _get_octal_perms() {
-    stat -f "%OLp" "$1" 2>/dev/null || stat -c "%a" "$1" 2>/dev/null || echo ""
+    stat -c "%a" "$1" 2>/dev/null || stat -f "%OLp" "$1" 2>/dev/null || echo ""
 }
 
 # Secret assignment regex used by SEC-01 and SEC-07.
